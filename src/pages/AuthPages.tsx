@@ -64,9 +64,9 @@ export function SignInPage() {
 
   const next = params.get('next')
 
-  const enterAs = async (role: Role) => {
+  const enterAs = async (role: Role, name: string) => {
     setBusy(true)
-    const user = await authApi.signInAs(role)
+    const user = await authApi.signInAs(role, name)
     dispatch({ type: 'signIn', user })
     setBusy(false)
     navigate(next ?? HOME_FOR[role], { replace: true })
@@ -113,19 +113,19 @@ export function SignInPage() {
           <DemoButton
             icon={<Search className="size-4" />}
             label={t('auth.demoCustomer')}
-            onClick={() => void enterAs('customer')}
+            onClick={() => void enterAs('customer', t('auth.guestCustomer'))}
             disabled={busy}
           />
           <DemoButton
             icon={<Building2 className="size-4" />}
             label={t('auth.demoProvider')}
-            onClick={() => void enterAs('provider')}
+            onClick={() => void enterAs('provider', t('auth.guestProvider'))}
             disabled={busy}
           />
           <DemoButton
             icon={<ShieldCheck className="size-4" />}
             label={t('auth.demoAdmin')}
-            onClick={() => void enterAs('admin')}
+            onClick={() => void enterAs('admin', t('auth.guestAdmin'))}
             disabled={busy}
           />
         </div>
@@ -147,7 +147,7 @@ export function SignInPage() {
               type="email"
               dir="ltr"
               autoComplete="email"
-              placeholder="customer@nasek.demo"
+              placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
