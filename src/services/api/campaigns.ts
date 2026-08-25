@@ -1,4 +1,4 @@
-import type { Campaign, SearchFilters, SortKey } from '@/types'
+import type { Campaign, Provider, SearchFilters, SortKey } from '@/types'
 import { CAMPAIGNS, PRICE_CEILING, PRICE_FLOOR } from '@/data/campaigns'
 import { providerById } from '@/data/providers'
 import { request } from './client'
@@ -33,11 +33,19 @@ export function countActiveFilters(f: SearchFilters): number {
   return n
 }
 
-/** Free-text match across title, description, provider name and wilayah. */
-function matchesQuery(campaign: Campaign, query: string): boolean {
+/**
+ * Free-text match across title, description and the company's name.
+ *
+ * `providers` is passed in rather than looked up from the seed data, which is
+ * empty: every company on NASEK registered during a session, so a seed lookup
+ * found none of them and searching for a campaign by its owner's name matched
+ * nothing. The seed lookup stays as a fallback for callers with no list.
+ */
+function matchesQuery(campaign: Campaign, query: string, providers: Provider[]): boolean {
   if (!query.trim()) return true
   const q = query.toLowerCase()
-  const provider = providerById(campaign.providerId)
+  const provider =
+    providers.find((p) => p.id === campaign.providerId) ?? providerById(campaign.providerId)
   const haystack = [
     campaign.title.ar,
     campaign.title.en,
@@ -51,18 +59,30 @@ function matchesQuery(campaign: Campaign, query: string): boolean {
   return haystack.includes(q)
 }
 
-export function applyFilters(campaigns: Campaign[], f: SearchFilters): Campaign[] {
+export function applyFilters(
+  campaigns: Campaign[],
+  f: SearchFilters,
+  providers: Provider[] = [],
+): Campaign[] {
   return campaigns.filter((c) => {
     if (f.type !== 'all' && c.type !== f.type) return false
     if (f.wilayahIds.length && !f.wilayahIds.includes(c.wilayahId)) return false
-    if (c.price < f.priceMin || c.price > f.priceMax) return false
+    if (c.price < f.priceMin) return false
+    /*
+     * A slider pushed to its maximum means "no upper limit", not "exactly this
+     * much". The distinction matters because the ceiling is a fixed number
+     * while campaign prices are not: an owner who published a trip dearer than
+     * the slider could reach used to watch it vanish from the site, with no
+     * filter showing as active to explain why.
+     */
+    if (f.priceMax < PRICE_CEILING && c.price > f.priceMax) return false
     if (f.travelMethod !== 'all' && c.travelMethod !== f.travelMethod) return false
     if (f.dateFrom && c.departureDate < f.dateFrom) return false
     if (f.dateTo && c.departureDate > f.dateTo) return false
     if (f.minRating && c.rating < f.minRating) return false
     if (f.minSeats && c.seatsAvailable < f.minSeats) return false
     if (f.services.length && !f.services.every((s) => c.services.includes(s))) return false
-    if (!matchesQuery(c, f.query)) return false
+    if (!matchesQuery(c, f.query, providers)) return false
     return true
   })
 }
@@ -107,8 +127,8 @@ export const campaignsApi = {
   list: (extra: Campaign[] = []) =>
     request(() => [...extra, ...CAMPAIGNS]),
 
-  search: (filters: SearchFilters, sort: SortKey, extra: Campaign[] = []) =>
-    request(() => applySort(applyFilters([...extra, ...CAMPAIGNS], filters), sort)),
+  search: (filters: SearchFilters, sort: SortKey, extra: Campaign[] = [], providers: Provider[] = []) =>
+    request(() => applySort(applyFilters([...extra, ...CAMPAIGNS], filters, providers), sort)),
 
   get: (id: string, extra: Campaign[] = []) =>
     request(() => [...extra, ...CAMPAIGNS].find((c) => c.id === id) ?? null),

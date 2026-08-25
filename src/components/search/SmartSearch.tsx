@@ -23,7 +23,7 @@ import { encodeFilters } from '@/lib/filterParams'
 export function SmartSearch({ variant = 'hero' }: { variant?: 'hero' | 'panel' }) {
   const { t, isRtl } = useI18n()
   const navigate = useNavigate()
-  const { campaigns } = useCatalogue()
+  const { campaigns, providers } = useCatalogue()
   const [mode, setMode] = useState<'smart' | 'classic'>('smart')
 
   const Arrow = isRtl ? ArrowLeft : ArrowRight
@@ -56,7 +56,7 @@ export function SmartSearch({ variant = 'hero' }: { variant?: 'hero' | 'panel' }
       />
 
       {mode === 'smart' ? (
-        <SmartMode campaigns={campaigns} Arrow={Arrow} />
+        <SmartMode campaigns={campaigns} providers={providers} Arrow={Arrow} />
       ) : (
         <ClassicMode onSubmit={(f) => navigate(`/campaigns?${encodeFilters(f)}`)} />
       )}
@@ -68,9 +68,11 @@ export function SmartSearch({ variant = 'hero' }: { variant?: 'hero' | 'panel' }
 
 function SmartMode({
   campaigns,
+  providers,
   Arrow,
 }: {
   campaigns: import('@/types').Campaign[]
+  providers: import('@/types').Provider[]
   Arrow: typeof ArrowRight
 }) {
   const { t, lang } = useI18n()
@@ -89,7 +91,7 @@ function SmartMode({
   }
 
   const merged: SearchFilters = { ...defaultFilters(), ...(result?.filters ?? {}), query: '' }
-  const matchCount = result && !result.empty ? applyFilters(campaigns, merged).length : 0
+  const matchCount = result && !result.empty ? applyFilters(campaigns, merged, providers).length : 0
 
   return (
     <div>

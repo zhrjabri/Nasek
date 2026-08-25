@@ -31,6 +31,17 @@ export function CampaignFilters({ filters, onChange, campaigns }: Props) {
     return map
   }, [campaigns, filters.type])
 
+  /*
+   * The slider's top end follows the catalogue. PRICE_CEILING was fixed when
+   * the seed data was written and the seed is now empty, so on a site whose
+   * trips are all published by owners it could easily fall short of the
+   * dearest one -- leaving a trip no slider position could reach.
+   */
+  const ceiling = useMemo(() => {
+    const dearest = campaigns.reduce((max, c) => Math.max(max, c.price), 0)
+    return Math.max(PRICE_CEILING, Math.ceil(dearest / 100) * 100)
+  }, [campaigns])
+
   const serviceCounts = useMemo(() => {
     const map = new Map<ServiceKey, number>()
     for (const c of campaigns) {
@@ -88,7 +99,7 @@ export function CampaignFilters({ filters, onChange, campaigns }: Props) {
           type="range"
           className="nasek-range mt-3"
           min={PRICE_FLOOR}
-          max={PRICE_CEILING}
+          max={ceiling}
           step={10}
           value={filters.priceMax}
           aria-label={t('filters.price')}

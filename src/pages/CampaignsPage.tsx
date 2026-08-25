@@ -16,7 +16,7 @@ const SORTS: SortKey[] = ['recommended', 'price_asc', 'price_desc', 'rating', 'p
 
 export function CampaignsPage() {
   const { t, n } = useI18n()
-  const { campaigns } = useCatalogue()
+  const { campaigns, providers } = useCatalogue()
   const [params, setParams] = useSearchParams()
   const [loading, setLoading] = useState(true)
   const [filtersOpen, setFiltersOpen] = useState(false)
@@ -61,8 +61,8 @@ export function CampaignsPage() {
   }, [params])
 
   const results: Campaign[] = useMemo(
-    () => applySort(applyFilters(campaigns, filters), sort),
-    [campaigns, filters, sort],
+    () => applySort(applyFilters(campaigns, filters, providers), sort),
+    [campaigns, filters, sort, providers],
   )
 
   const activeCount = countActiveFilters(filters)

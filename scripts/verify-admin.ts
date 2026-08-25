@@ -7,6 +7,7 @@
  * here; the decisions behind them are.
  */
 import type { Campaign, Provider } from '@/types'
+import { applyFilters, defaultFilters } from '@/services/api/campaigns'
 import { emptyState, reducer } from '@/store/AppStore'
 
 let failures = 0
@@ -121,6 +122,25 @@ const main = () => {
   check('verifying is recorded', verified.verificationOverrides.p1 === 'verified')
   verified = reducer(verified, { type: 'setVerification', providerId: owner.id, status: 'pending' })
   check('an admin can withdraw verification', verified.verificationOverrides.p1 === 'pending')
+
+  // ------------------------------------- a published trip must be findable
+  // Every trip on NASEK is one an owner published, so anything that quietly
+  // drops one is the difference between having a catalogue and not.
+  const company = { id: 'p1', name: { ar: 'شركة', en: 'Test Co' } } as Provider
+  const published = [trip('c1'), { ...trip('c2'), price: 4200 }]
+  const f = defaultFilters()
+
+  check('a published trip survives untouched filters',
+    applyFilters(published, f, [company]).length === 2,
+    `${applyFilters(published, f, [company]).length} of 2`)
+  check('a trip dearer than the price slider is not silently dropped',
+    applyFilters(published, f, [company]).some((c) => c.price === 4200))
+  check('a price the pilgrim actually set still filters',
+    applyFilters(published, { ...f, priceMax: 1000 }, [company]).length === 1)
+  check('a trip is findable by its own title',
+    applyFilters(published, { ...f, query: 'c1' }, [company]).length === 1)
+  check('a trip is findable by the company that runs it',
+    applyFilters(published, { ...f, query: 'Test Co' }, [company]).length === 2)
 
   // ------------------------------------------------------------- legacy
   // Stored state written before these slices existed must not crash a
