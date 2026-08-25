@@ -15,7 +15,7 @@ const COLUMNS: { title: MessageKey; links: { to: string; key: MessageKey }[] }[]
   {
     title: 'footer.forProviders',
     links: [
-      { to: '/signup?role=provider', key: 'footer.listCampaign' },
+      { to: '/signup/provider', key: 'footer.listCampaign' },
       { to: '/signin', key: 'footer.providerLogin' },
       { to: '/about#pricing', key: 'footer.pricing' },
     ],

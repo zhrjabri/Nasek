@@ -351,7 +351,7 @@ export function HomePage() {
                   ),
                 )}
               </ul>
-              <LinkButton to="/signup?role=provider" variant="gold" size="lg" className="mt-7">
+              <LinkButton to="/signup/provider" variant="gold" size="lg" className="mt-7">
                 {t('home.providerCta.button')}
                 <Arrow className="size-4" />
               </LinkButton>

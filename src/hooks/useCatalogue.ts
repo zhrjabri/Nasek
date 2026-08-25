@@ -6,15 +6,16 @@ import { useStore } from '@/store/AppStore'
 
 /**
  * The catalogue as the session currently sees it: the seed data plus anything
- * a campaign owner added, minus anything they deleted, with the admin's
- * verification decisions applied on top.
+ * a campaign owner added or an owner who registered this session, minus
+ * anything they deleted, with the admin's verification decisions on top.
  *
  * Every page reads campaigns and providers through this hook, so an owner
  * publishing a trip or an admin verifying a company is immediately visible
  * across the whole app — that end-to-end effect is the point of the prototype.
  */
 export function useCatalogue() {
-  const { providerCampaigns, hiddenCampaignIds, verificationOverrides } = useStore()
+  const { sessionProviders, providerCampaigns, hiddenCampaignIds, verificationOverrides } =
+    useStore()
 
   const campaigns = useMemo<Campaign[]>(() => {
     const hidden = new Set(hiddenCampaignIds)
@@ -27,12 +28,12 @@ export function useCatalogue() {
 
   const providers = useMemo<Provider[]>(
     () =>
-      PROVIDERS.map((p) =>
+      [...sessionProviders, ...PROVIDERS].map((p) =>
         verificationOverrides[p.id]
           ? { ...p, verification: verificationOverrides[p.id] }
           : p,
       ),
-    [verificationOverrides],
+    [sessionProviders, verificationOverrides],
   )
 
   const getCampaign = useCallback(

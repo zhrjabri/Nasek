@@ -80,6 +80,15 @@ export interface Provider {
   /** Business model: provider's plan on NASEK. */
   plan: 'basic' | 'plus' | 'premium'
   joinedAt: string
+  /**
+   * The permit/licence the owner uploaded at registration, as a data URL.
+   * Downscaled before it is stored — see `lib/imageFile.ts` — because the
+   * whole store is persisted to localStorage and a raw phone photo would
+   * blow the quota on its own.
+   */
+  licenceImage?: string
+  /** Original file name, shown to the admin next to the image. */
+  licenceFileName?: string
 }
 
 export interface Campaign {

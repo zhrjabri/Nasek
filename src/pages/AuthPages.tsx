@@ -1,13 +1,13 @@
 import { useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Building2, Info, Search, ShieldCheck, UserRound } from 'lucide-react'
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
+import { Building2, Search, ShieldCheck } from 'lucide-react'
 import type { Role } from '@/types'
 import { useI18n } from '@/i18n'
 import { WILAYAT } from '@/data/geo'
 import { authApi } from '@/services/api/auth'
 import { useStore } from '@/store/AppStore'
 import { Logo } from '@/components/brand/Logo'
-import { Button, Card, Checkbox, Field, Input, Select, cx } from '@/components/ui'
+import { Button, Card, Checkbox, Field, Input, Select } from '@/components/ui'
 
 /** Where to send each role after authenticating. */
 const HOME_FOR: Record<Role, string> = {
@@ -16,7 +16,7 @@ const HOME_FOR: Record<Role, string> = {
   admin: '/admin',
 }
 
-function AuthShell({
+export function AuthShell({
   title,
   subtitle,
   children,
@@ -94,6 +94,12 @@ export function SignInPage() {
             onClick={() => void enterAs('customer', t('auth.guestCustomer'))}
             disabled={busy}
           />
+          <DemoButton
+            icon={<ShieldCheck className="size-4" />}
+            label={t('auth.demoAdmin')}
+            onClick={() => void enterAs('admin', t('auth.guestAdmin'))}
+            disabled={busy}
+          />
         </div>
       </div>
     </AuthShell>
@@ -132,9 +138,6 @@ export function SignUpPage() {
   const [params] = useSearchParams()
   const { dispatch, toast } = useStore()
 
-  const [role, setRole] = useState<'customer' | 'provider'>(
-    params.get('role') === 'provider' ? 'provider' : 'customer',
-  )
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -142,8 +145,6 @@ export function SignUpPage() {
     wilayahId: 'muscat',
     password: '',
     confirm: '',
-    companyName: '',
-    experienceYears: '',
   })
   const [agreed, setAgreed] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -160,7 +161,6 @@ export function SignUpPage() {
     if (form.phone.replace(/\D/g, '').length < 8) next.phone = t('auth.phoneInvalid')
     if (form.password.length < 8) next.password = t('auth.passwordShort')
     if (form.password !== form.confirm) next.confirm = t('auth.passwordMismatch')
-    if (role === 'provider' && !form.companyName.trim()) next.companyName = t('common.required')
     if (!agreed) next.terms = t('auth.termsRequired')
     setErrors(next)
     if (Object.keys(next).length) return
@@ -171,14 +171,17 @@ export function SignUpPage() {
       email: form.email,
       phone: form.phone,
       wilayahId: form.wilayahId,
-      role,
-      companyName: form.companyName || undefined,
-      experienceYears: form.experienceYears ? Number(form.experienceYears) : undefined,
+      role: 'customer',
     })
     dispatch({ type: 'signIn', user })
     setBusy(false)
     toast(t('dash.profileSaved'))
-    navigate(role === 'provider' ? '/provider' : '/dashboard', { replace: true })
+    navigate('/dashboard', { replace: true })
+  }
+
+  // Older links (the footer, the map page) still point at ?role=provider.
+  if (params.get('role') === 'provider') {
+    return <Navigate to="/signup/provider" replace />
   }
 
   return (
@@ -194,23 +197,17 @@ export function SignUpPage() {
         </>
       }
     >
-      {/* Role choice mirrors the original NASEK sign-up split. */}
-      <div className="mb-6 grid gap-2.5 sm:grid-cols-2">
-        <RoleCard
-          selected={role === 'customer'}
-          onClick={() => setRole('customer')}
-          icon={<UserRound className="size-5" />}
-          title={t('auth.asCustomer')}
-          body={t('auth.asCustomerNote')}
-        />
-        <RoleCard
-          selected={role === 'provider'}
-          onClick={() => setRole('provider')}
-          icon={<Building2 className="size-5" />}
-          title={t('auth.asProvider')}
-          body={t('auth.asProviderNote')}
-        />
-      </div>
+      {/* Campaign owners register on their own page: the licence upload and
+          company details do not belong behind a toggle on this form. */}
+      <p className="mb-6 flex items-start gap-2 rounded-[3px] border border-nasek-200 bg-nasek-50/60 p-3.5 text-[12.5px] leading-relaxed text-ink-600">
+        <Building2 className="mt-px size-4 shrink-0 text-nasek-700" />
+        <span>
+          {t('auth.ownerRedirect')}{' '}
+          <Link to="/signup/provider" className="font-semibold text-nasek-700 hover:underline">
+            {t('auth.ownerRegisterLink')}
+          </Link>
+        </span>
+      </p>
 
       <form onSubmit={submit} className="space-y-4">
         <Field label={t('common.name')} required error={errors.name}>
@@ -218,32 +215,6 @@ export function SignUpPage() {
             <Input {...p} value={form.name} onChange={(e) => set('name', e.target.value)} autoComplete="name" />
           )}
         </Field>
-
-        {role === 'provider' && (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label={t('auth.companyName')} required error={errors.companyName}>
-              {(p) => (
-                <Input
-                  {...p}
-                  value={form.companyName}
-                  onChange={(e) => set('companyName', e.target.value)}
-                />
-              )}
-            </Field>
-            <Field label={t('auth.experienceYears')}>
-              {(p) => (
-                <Input
-                  {...p}
-                  type="number"
-                  min={0}
-                  max={80}
-                  value={form.experienceYears}
-                  onChange={(e) => set('experienceYears', e.target.value)}
-                />
-              )}
-            </Field>
-          </div>
-        )}
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label={t('common.email')} required error={errors.email}>
@@ -309,13 +280,6 @@ export function SignUpPage() {
           </Field>
         </div>
 
-        {role === 'provider' && (
-          <p className="flex items-start gap-2 rounded-[3px] bg-gold-50 p-3 text-[12px] leading-relaxed text-gold-800">
-            <Info className="mt-px size-3.5 shrink-0" />
-            {t('auth.providerPending')}
-          </p>
-        )}
-
         <div>
           <Checkbox checked={agreed} onChange={setAgreed} label={t('auth.termsAgree')} />
           {errors.terms && (
@@ -330,39 +294,5 @@ export function SignUpPage() {
         </Button>
       </form>
     </AuthShell>
-  )
-}
-
-function RoleCard({
-  selected,
-  onClick,
-  icon,
-  title,
-  body,
-}: {
-  selected: boolean
-  onClick: () => void
-  icon: React.ReactNode
-  title: string
-  body: string
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={selected}
-      className={cx(
-        'flex flex-col gap-2 rounded-[3px] border p-4 text-start transition-all duration-200',
-        selected
-          ? 'border-nasek-700 bg-nasek-900 text-ivory-50 shadow-lift'
-          : 'border-ivory-300 bg-ivory-50 hover:border-nasek-300 hover:shadow-soft',
-      )}
-    >
-      <span className={cx(selected ? 'text-gold-400' : 'text-nasek-600')}>{icon}</span>
-      <span className="text-[14px] font-bold">{title}</span>
-      <span className={cx('text-[12px] leading-relaxed', selected ? 'text-ivory-200/70' : 'text-ink-500')}>
-        {body}
-      </span>
-    </button>
   )
 }

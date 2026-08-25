@@ -12,6 +12,7 @@ import type {
   Booking,
   Campaign,
   Notification,
+  Provider,
   User,
   VerificationStatus,
 } from '@/types'
@@ -25,6 +26,8 @@ interface PersistedState {
   savedIds: string[]
   bookings: Booking[]
   notifications: Notification[]
+  /** Campaign owners who registered during this session. */
+  sessionProviders: Provider[]
   /** Campaigns created by a provider during this session. */
   providerCampaigns: Campaign[]
   /** Campaign ids the provider deleted (hidden from listings). */
@@ -43,6 +46,7 @@ type Action =
   | { type: 'readNotification'; id: string }
   | { type: 'readAllNotifications' }
   | { type: 'pushNotification'; notification: Notification }
+  | { type: 'addProvider'; provider: Provider }
   | { type: 'upsertCampaign'; campaign: Campaign }
   | { type: 'deleteCampaign'; id: string }
   | { type: 'setVerification'; providerId: string; status: VerificationStatus }
@@ -53,6 +57,7 @@ const emptyState: PersistedState = {
   savedIds: [],
   bookings: [],
   notifications: [],
+  sessionProviders: [],
   providerCampaigns: [],
   hiddenCampaignIds: [],
   verificationOverrides: {},
@@ -80,7 +85,23 @@ function reducer(state: PersistedState, action: Action): PersistedState {
     }
 
     case 'signOut':
-      return { ...emptyState, verificationOverrides: state.verificationOverrides }
+      /*
+       * Signing out clears the person, not the platform.
+       *
+       * Registered companies, published trips and the admin's verification
+       * decisions belong to NASEK and have to outlive one login — otherwise
+       * an owner who registers and then switches to the admin account to
+       * watch it get verified would find their company gone. Only the
+       * personal slices (profile, saved trips, bookings, notifications)
+       * reset.
+       */
+      return {
+        ...emptyState,
+        sessionProviders: state.sessionProviders,
+        providerCampaigns: state.providerCampaigns,
+        hiddenCampaignIds: state.hiddenCampaignIds,
+        verificationOverrides: state.verificationOverrides,
+      }
 
     case 'updateProfile':
       return state.user ? { ...state, user: { ...state.user, ...action.patch } } : state
@@ -120,6 +141,9 @@ function reducer(state: PersistedState, action: Action): PersistedState {
 
     case 'pushNotification':
       return { ...state, notifications: [action.notification, ...state.notifications] }
+
+    case 'addProvider':
+      return { ...state, sessionProviders: [...state.sessionProviders, action.provider] }
 
     case 'upsertCampaign': {
       const exists = state.providerCampaigns.some((c) => c.id === action.campaign.id)

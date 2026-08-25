@@ -15,6 +15,7 @@ import { SmartMatchPage } from '@/pages/SmartMatchPage'
 import { MapPage } from '@/pages/MapPage'
 import { BookingPage } from '@/pages/BookingPage'
 import { SignInPage, SignUpPage } from '@/pages/AuthPages'
+import { ProviderSignUpPage } from '@/pages/ProviderSignUpPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { GivingPage } from '@/pages/GivingPage'
 import { AboutPage } from '@/pages/AboutPage'
@@ -119,6 +120,7 @@ export function App() {
           <Route path="/about" element={<AboutPage />} />
           <Route path="/signin" element={<SignInPage />} />
           <Route path="/signup" element={<SignUpPage />} />
+          <Route path="/signup/provider" element={<ProviderSignUpPage />} />
           <Route path="/booking/:id" element={<BookingPage />} />
           <Route
             path="/dashboard"

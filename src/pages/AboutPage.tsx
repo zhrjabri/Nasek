@@ -116,7 +116,7 @@ export function AboutPage() {
             ))}
           </ul>
           <div className="mt-6">
-            <LinkButton to="/signup?role=provider" size="lg">
+            <LinkButton to="/signup/provider" size="lg">
               {t('footer.listCampaign')}
             </LinkButton>
           </div>

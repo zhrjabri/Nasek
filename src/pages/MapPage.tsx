@@ -53,7 +53,7 @@ export function MapPage() {
                   title={t('map.none')}
                   body={t('map.noneHint')}
                   action={
-                    <LinkButton to="/signup?role=provider" variant="secondary">
+                    <LinkButton to="/signup/provider" variant="secondary">
                       {t('footer.listCampaign')}
                     </LinkButton>
                   }

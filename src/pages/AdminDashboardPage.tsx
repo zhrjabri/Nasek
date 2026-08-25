@@ -183,6 +183,25 @@ export function AdminDashboardPage() {
                         {t('common.experience', { n: n(p.experienceYears) })}
                       </p>
                     </div>
+                    {/* Verifying without seeing the permit would be theatre, so
+                        the uploaded image sits next to the button. */}
+                    {p.licenceImage ? (
+                      <a
+                        href={p.licenceImage}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-2 rounded-[3px] border border-ivory-300 bg-ivory-50 p-1.5 pe-2.5 text-[12px] font-semibold text-ink-600 transition-colors hover:border-nasek-700 hover:text-nasek-800"
+                      >
+                        <img
+                          src={p.licenceImage}
+                          alt={p.licenceFileName ?? t('admin.licence')}
+                          className="size-9 rounded-[2px] border border-ivory-300 object-cover"
+                        />
+                        {t('admin.viewLicence')}
+                      </a>
+                    ) : (
+                      <span className="text-[12px] text-ink-400">{t('admin.noLicence')}</span>
+                    )}
                     <Button
                       size="sm"
                       onClick={() => {
