@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useI18n } from '@/i18n'
 import { useStore } from '@/store/AppStore'
@@ -22,7 +22,7 @@ import {
   SignUpPage,
 } from '@/pages/AuthPages'
 import { ProviderSignUpPage } from '@/pages/ProviderSignUpPage'
-import { ADMIN_ACCESS_PATH } from '@/services/api/adminAccess'
+import { isAdminGatePath } from '@/services/api/adminAccess'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { GivingPage } from '@/pages/GivingPage'
 import { AboutPage } from '@/pages/AboutPage'
@@ -36,13 +36,13 @@ import { AboutPage } from '@/pages/AboutPage'
 const ProviderDashboardPage = lazy(() =>
   import('@/pages/ProviderDashboardPage').then((m) => ({ default: m.ProviderDashboardPage })),
 )
-const AdminDashboardPage = lazy(() =>
-  import('@/pages/admin').then((m) => ({ default: m.AdminDashboardPage })),
-)
-/** The gate is split too, so the public bundle carries no trace of it. */
-const AdminAccessPage = lazy(() =>
-  import('@/pages/AdminAccessPage').then((m) => ({ default: m.AdminAccessPage })),
-)
+const AdminDashboardPage = lazy(() => import('@/pages/admin'))
+/*
+ * The gate is split out, and every chunk is named by hash alone (see
+ * vite.config.ts) — a file called AdminAccessPage-x7.js would announce itself
+ * in the deployed directory listing no matter how well the route was hidden.
+ */
+const AdminAccessPage = lazy(() => import('@/pages/AdminAccessPage'))
 
 function RouteFallback() {
   return (
@@ -64,11 +64,12 @@ function ScrollToTop() {
 /**
  * Gate a route behind a signed-in account of a given role.
  *
- * `unlisted` marks a route that should not admit to existing: instead of
- * sending an unauthenticated visitor to the public sign-in page and telling a
- * signed-in one that they have the wrong sort of account — both of which
- * announce that the route is real — it sends them to the passphrase gate and
- * shows a plain "not found". Used for administration.
+ * `unlisted` marks a route that should not admit to existing. Sending an
+ * unauthenticated visitor to the sign-in page, or telling a signed-in one
+ * that they hold the wrong sort of account, both confirm that the route is
+ * real; an unlisted route answers "not found" to everyone who is not already
+ * the admin, which is what the route looks like from outside anyway. Used for
+ * administration.
  */
 function Protected({
   role,
@@ -84,7 +85,10 @@ function Protected({
   const location = useLocation()
 
   if (!user) {
-    if (unlisted) return <Navigate to={ADMIN_ACCESS_PATH} replace />
+    // There is no address to send them to: the gate's address is a secret
+    // this bundle does not hold. An admin whose session has lapsed types it
+    // again; anyone else sees what the route really looks like from outside.
+    if (unlisted) return <NotFoundPage />
     return (
       <Navigate to={`/signin?next=${encodeURIComponent(location.pathname + location.search)}`} replace />
     )
@@ -114,6 +118,44 @@ function NotFoundPage() {
         action={<LinkButton to="/">{t('state.notFoundCta')}</LinkButton>}
       />
     </main>
+  )
+}
+
+/**
+ * Every address the app does not recognise arrives here — including, once,
+ * the administration gate.
+ *
+ * The gate has no route of its own because a route needs its path written
+ * down, and that path would then be readable in the built JavaScript by
+ * anyone who cared to look. Instead the typed address is hashed and compared,
+ * so what ships is a hash and nothing else.
+ *
+ * The check is asynchronous, and the wait is spent on a blank frame rather
+ * than on "not found". Showing the miss first and correcting it a moment
+ * later would flash a wrong answer at the one person entitled to the right
+ * one, and would tell everybody else that this address is treated specially.
+ */
+function UnknownRoute() {
+  const { pathname } = useLocation()
+  const [verdict, setVerdict] = useState<'checking' | 'gate' | 'missing'>('checking')
+
+  useEffect(() => {
+    let live = true
+    setVerdict('checking')
+    void isAdminGatePath(pathname).then((isGate) => {
+      if (live) setVerdict(isGate ? 'gate' : 'missing')
+    })
+    return () => {
+      live = false
+    }
+  }, [pathname])
+
+  if (verdict === 'checking') return <div className="min-h-[60dvh]" />
+  if (verdict === 'missing') return <NotFoundPage />
+  return (
+    <Suspense fallback={<RouteFallback />}>
+      <AdminAccessPage />
+    </Suspense>
   )
 }
 
@@ -147,14 +189,6 @@ export function App() {
           <Route path="/signup" element={<SignUpPage />} />
           <Route path="/signup/customer" element={<CustomerSignUpPage />} />
           <Route path="/signup/provider" element={<ProviderSignUpPage />} />
-          <Route
-            path={ADMIN_ACCESS_PATH}
-            element={
-              <Suspense fallback={<RouteFallback />}>
-                <AdminAccessPage />
-              </Suspense>
-            }
-          />
           <Route path="/booking/:id" element={<BookingPage />} />
           <Route
             path="/dashboard"
@@ -184,7 +218,7 @@ export function App() {
               </Protected>
             }
           />
-          <Route path="*" element={<NotFoundPage />} />
+          <Route path="*" element={<UnknownRoute />} />
         </Routes>
       </div>
 

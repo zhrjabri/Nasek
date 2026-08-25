@@ -43,7 +43,7 @@ const TABS: { id: Tab; key: MessageKey; icon: typeof LayoutGrid }[] = [
  * cannot break the booking ledger. This file owns only the frame — which tab
  * is showing, and the data every tab reads.
  */
-export function AdminDashboardPage() {
+function Dashboard() {
   const { t, n } = useI18n()
   const {
     sessionUsers,
@@ -131,3 +131,6 @@ export function AdminDashboardPage() {
     </main>
   )
 }
+
+/** Default export for the same reason as the gate — see AdminAccessPage.tsx. */
+export default Dashboard

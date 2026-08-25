@@ -19,7 +19,7 @@ import { Button, Card, Field, Input } from '@/components/ui'
  * account" and "sign in instead" footers, which are meaningless here and would
  * only advertise a second way in.
  */
-export function AdminAccessPage() {
+function Gate() {
   const { t } = useI18n()
   const navigate = useNavigate()
   const { user, dispatch } = useStore()
@@ -95,3 +95,12 @@ export function AdminAccessPage() {
     </main>
   )
 }
+
+/*
+ * Exported as the default, and named neutrally, on purpose. A named export is
+ * referenced by name at the import site, and that name survives minification
+ * as a plain string in the built file — so `m.AdminAccessPage` would have
+ * printed "AdminAccessPage" into the bundle and given away in a word what
+ * hashing the address was meant to conceal.
+ */
+export default Gate

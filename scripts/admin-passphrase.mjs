@@ -46,13 +46,27 @@ const phrase = process.argv[2] ?? invent()
 const salt = randomBytes(16)
 const hash = pbkdf2Sync(phrase, salt, ITERATIONS, KEY_BYTES, 'sha256')
 
+/*
+ * The address of the gate is a second secret, and it is hashed for the same
+ * reason the passphrase is: the built JavaScript ships to every visitor, so a
+ * path written in it as plain text is a path anyone can read out. Hashing only
+ * helps if the path is unguessable — hashing "admin-access" would be undone by
+ * the first wordlist — so one is invented here rather than chosen.
+ */
+const path = process.argv[3] ?? `${invent(2)}-${randomInt(1000, 9999)}`
+const pathSalt = randomBytes(16)
+const pathHash = pbkdf2Sync(path.toLowerCase(), pathSalt, ITERATIONS, KEY_BYTES, 'sha256')
+
 const bits = Math.round(Math.log2(WORDS.length) * phrase.split('-').length)
 
-console.log('\n  Passphrase (write it down somewhere safe — it is shown once):\n')
-console.log(`      ${phrase}\n`)
+console.log('\n  Write both of these down somewhere safe — they are shown once.\n')
+console.log(`      Address:     /#/${path}`)
+console.log(`      Passphrase:  ${phrase}\n`)
 if (!process.argv[2]) {
-  console.log(`  Chosen from ${WORDS.length} words; roughly ${bits} bits of entropy.\n`)
+  console.log(`  The passphrase is ${bits} bits, drawn from ${WORDS.length} words.\n`)
 }
-console.log('  Paste these two into src/services/api/adminAccess.ts:\n')
+console.log('  Paste these four into src/services/api/adminAccess.ts:\n')
 console.log(`      const PASSPHRASE_SALT = '${salt.toString('hex')}'`)
-console.log(`      const PASSPHRASE_HASH = '${hash.toString('hex')}'\n`)
+console.log(`      const PASSPHRASE_HASH = '${hash.toString('hex')}'`)
+console.log(`      const PATH_SALT = '${pathSalt.toString('hex')}'`)
+console.log(`      const PATH_HASH = '${pathHash.toString('hex')}'\n`)
