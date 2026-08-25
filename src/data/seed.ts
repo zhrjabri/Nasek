@@ -94,39 +94,10 @@ function generateBookings(): Booking[] {
 export const SEED_BOOKINGS: Booking[] = generateBookings()
 
 /**
- * Two bookings already attached to the demo customer (u1) so "My bookings"
- * is not empty on first visit: one upcoming, one completed.
+ * The demo customer starts with no bookings: the two seeded ones referenced
+ * sample campaigns that no longer exist.
  */
-export const DEMO_CUSTOMER_BOOKINGS: Booking[] = [
-  {
-    id: 'b1',
-    reference: 'NSK-240118',
-    userId: 'u1',
-    campaignId: 'c7',
-    travellers: [],
-    travellersCount: 2,
-    contactName: 'الزهراء الجابرية',
-    contactPhone: '+968 9123 4567',
-    contactEmail: 'customer@nasek.demo',
-    totalPrice: 640,
-    status: 'confirmed',
-    bookingDate: isoDaysAgo(24),
-  },
-  {
-    id: 'b2',
-    reference: 'NSK-239004',
-    userId: 'u1',
-    campaignId: 'c1',
-    travellers: [],
-    travellersCount: 1,
-    contactName: 'الزهراء الجابرية',
-    contactPhone: '+968 9123 4567',
-    contactEmail: 'customer@nasek.demo',
-    totalPrice: 95,
-    status: 'pending',
-    bookingDate: isoDaysAgo(5),
-  },
-]
+export const DEMO_CUSTOMER_BOOKINGS: Booking[] = []
 
 export const DEMO_NOTIFICATIONS: Notification[] = [
   {
