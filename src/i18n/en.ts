@@ -50,7 +50,6 @@ export const en = {
   'common.book': 'Book',
   'common.bookNow': 'Book now',
   'common.loading': 'Loading…',
-  'common.error': 'Something went wrong',
   'common.retry': 'Try again',
   'common.required': 'Required',
   'common.optional': 'optional',

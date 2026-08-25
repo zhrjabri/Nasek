@@ -50,7 +50,6 @@ export const ar: Record<MessageKey, string> = {
   'common.book': 'احجز',
   'common.bookNow': 'احجز الآن',
   'common.loading': 'جارٍ التحميل…',
-  'common.error': 'حدث خطأ ما',
   'common.retry': 'إعادة المحاولة',
   'common.required': 'مطلوب',
   'common.optional': 'اختياري',

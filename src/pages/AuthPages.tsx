@@ -56,10 +56,7 @@ export function SignInPage() {
   const { t } = useI18n()
   const navigate = useNavigate()
   const [params] = useSearchParams()
-  const { dispatch, toast } = useStore()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
+  const { dispatch } = useStore()
   const [busy, setBusy] = useState(false)
 
   const next = params.get('next')
@@ -70,26 +67,6 @@ export function SignInPage() {
     dispatch({ type: 'signIn', user })
     setBusy(false)
     navigate(next ?? HOME_FOR[role], { replace: true })
-  }
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    if (!/^\S+@\S+\.\S+$/.test(email)) {
-      setError(t('auth.emailInvalid'))
-      return
-    }
-    setBusy(true)
-    try {
-      const user = await authApi.signIn(email)
-      dispatch({ type: 'signIn', user })
-      navigate(next ?? HOME_FOR[user.role], { replace: true })
-    } catch {
-      setError(t('auth.emailInvalid'))
-      toast(t('common.error'), 'warning')
-    } finally {
-      setBusy(false)
-    }
   }
 
   return (
@@ -105,7 +82,8 @@ export function SignInPage() {
         </>
       }
     >
-      {/* The demo panel comes first: for a prototype, entering is the point. */}
+      {/* Role entry is the whole sign-in page now: there are no accounts to
+          authenticate against, and for a prototype getting in is the point. */}
       <div className="rounded-[3px] border border-nasek-200 bg-nasek-50/60 p-4">
         <p className="text-[13px] font-bold text-nasek-900">{t('auth.demoTitle')}</p>
         <p className="mt-1 text-[12px] text-ink-500">{t('auth.demoNote')}</p>
@@ -118,44 +96,6 @@ export function SignInPage() {
           />
         </div>
       </div>
-
-      <div className="my-6 flex items-center gap-3">
-        <span className="h-px flex-1 bg-ivory-300" />
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-400">
-          {t('nav.signIn')}
-        </span>
-        <span className="h-px flex-1 bg-ivory-300" />
-      </div>
-
-      <form onSubmit={submit} className="space-y-4">
-        <Field label={t('common.email')} error={error} required>
-          {(p) => (
-            <Input
-              {...p}
-              type="email"
-              dir="ltr"
-              autoComplete="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          )}
-        </Field>
-        <Field label={t('auth.password')} required>
-          {(p) => (
-            <Input
-              {...p}
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          )}
-        </Field>
-        <Button type="submit" size="lg" block loading={busy}>
-          {t('nav.signIn')}
-        </Button>
-      </form>
     </AuthShell>
   )
 }

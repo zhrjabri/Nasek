@@ -1,6 +1,5 @@
 import type { Role, User } from '@/types'
-import { DEMO_USERS } from '@/data/users'
-import { ApiError, request } from './client'
+import { request } from './client'
 
 export interface SignUpInput {
   name: string
@@ -23,15 +22,6 @@ const AVATAR_COLORS = ['#1c5e4c', '#23765e', '#a8842c', '#10402f', '#856422']
  * nothing outside this file assumes how a session is established.
  */
 export const authApi = {
-  signIn: (email: string) =>
-    request(() => {
-      const user = DEMO_USERS.find((u) => u.email.toLowerCase() === email.trim().toLowerCase())
-      if (!user) {
-        throw new ApiError('No account found for that email address', 404)
-      }
-      return user
-    }, { latencyMs: 500 }),
-
   /**
    * One-click role entry used by the "explore without signing up" panel.
    *
