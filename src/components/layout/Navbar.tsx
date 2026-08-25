@@ -8,6 +8,7 @@ import {
   LayoutGrid,
   LogOut,
   Menu,
+  ShieldCheck,
   User as UserIcon,
   X,
 } from 'lucide-react'
@@ -169,9 +170,20 @@ export function Navbar() {
                     <p className="truncate text-sm font-bold text-ink-900">{user.name}</p>
                     <p className="truncate text-xs text-ink-400">{user.email}</p>
                   </div>
-                  <MenuItem to={dashboardPath} icon={<LayoutGrid className="size-4" />}>
-                    {t('nav.dashboard')}
-                  </MenuItem>
+                  {/* Administration is part of the site for the one account
+                      that has it, rather than a page reached only by typing
+                      an address. The item renders inside the signed-in menu
+                      and only for that role, so it stays invisible to
+                      everyone else exactly as before. */}
+                  {user.role === 'admin' ? (
+                    <MenuItem to="/admin" icon={<ShieldCheck className="size-4" />} accent>
+                      {t('nav.administration')}
+                    </MenuItem>
+                  ) : (
+                    <MenuItem to={dashboardPath} icon={<LayoutGrid className="size-4" />}>
+                      {t('nav.dashboard')}
+                    </MenuItem>
+                  )}
                   {user.role === 'customer' && (
                     <>
                       <MenuItem to="/dashboard?tab=bookings" icon={<UserIcon className="size-4" />}>
@@ -249,7 +261,9 @@ export function Navbar() {
             {user && (
               <>
                 <li className="mt-2 border-t border-ivory-300 pt-2">
-                  <MobileLink to={dashboardPath}>{t('nav.dashboard')}</MobileLink>
+                  <MobileLink to={dashboardPath}>
+                    {t(user.role === 'admin' ? 'nav.administration' : 'nav.dashboard')}
+                  </MobileLink>
                 </li>
                 {user.role === 'customer' && (
                   <>
@@ -351,17 +365,25 @@ function IconLink({
 function MenuItem({
   to,
   icon,
+  accent,
   children,
 }: {
   to: string
   icon: React.ReactNode
+  /** Marks the one item that runs the platform rather than a personal page. */
+  accent?: boolean
   children: React.ReactNode
 }) {
   return (
     <Link
       to={to}
       role="menuitem"
-      className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-ink-600 transition-colors hover:bg-ivory-100 hover:text-ink-900"
+      className={cx(
+        'flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium transition-colors',
+        accent
+          ? 'bg-nasek-50/60 font-bold text-nasek-900 hover:bg-nasek-100'
+          : 'text-ink-600 hover:bg-ivory-100 hover:text-ink-900',
+      )}
     >
       {icon}
       {children}

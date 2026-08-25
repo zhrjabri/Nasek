@@ -16,6 +16,8 @@ import type {
   User,
   VerificationStatus,
 } from '@/types'
+import type { Credential, Lockout } from '@/services/api/credentials'
+import { LOCKOUT_MS, MAX_ATTEMPTS } from '@/services/api/credentials'
 import { DEMO_CUSTOMER_BOOKINGS, DEMO_NOTIFICATIONS } from '@/data/seed'
 import { storage } from '@/services/api/client'
 
@@ -28,12 +30,22 @@ export interface PersistedState {
   notifications: Notification[]
   /** Campaign owners who registered during this session. */
   sessionProviders: Provider[]
+  /** Everyone who has registered an account, kept for the admin directory. */
+  sessionUsers: User[]
   /** Campaigns created by a provider during this session. */
   providerCampaigns: Campaign[]
   /** Campaign ids the provider deleted (hidden from listings). */
   hiddenCampaignIds: string[]
   /** Verification decisions made by the admin during this session. */
   verificationOverrides: Record<string, VerificationStatus>
+  /** Accounts the admin has suspended. */
+  suspendedUserIds: string[]
+  /** Accounts the admin has removed from the directory. */
+  removedUserIds: string[]
+  /** Hashed sign-in credentials, one per registered account. */
+  credentials: Credential[]
+  /** Failed sign-in attempts, keyed by the identifier that was tried. */
+  lockouts: Record<string, Lockout>
 }
 
 export type Action =
@@ -47,9 +59,16 @@ export type Action =
   | { type: 'readAllNotifications' }
   | { type: 'pushNotification'; notification: Notification }
   | { type: 'addProvider'; provider: Provider }
+  | { type: 'registerUser'; user: User }
   | { type: 'upsertCampaign'; campaign: Campaign }
   | { type: 'deleteCampaign'; id: string }
   | { type: 'setVerification'; providerId: string; status: VerificationStatus }
+  | { type: 'setUserSuspended'; userId: string; suspended: boolean }
+  | { type: 'removeUser'; userId: string }
+  | { type: 'restoreUser'; userId: string }
+  | { type: 'addCredential'; credential: Credential }
+  | { type: 'signInFailed'; key: string; now: number }
+  | { type: 'signInSucceeded'; key: string }
   | { type: 'hydrate'; state: PersistedState }
 
 export const emptyState: PersistedState = {
@@ -58,9 +77,14 @@ export const emptyState: PersistedState = {
   bookings: [],
   notifications: [],
   sessionProviders: [],
+  sessionUsers: [],
   providerCampaigns: [],
   hiddenCampaignIds: [],
   verificationOverrides: {},
+  suspendedUserIds: [],
+  removedUserIds: [],
+  credentials: [],
+  lockouts: {},
 }
 
 export function reducer(state: PersistedState, action: Action): PersistedState {
@@ -105,9 +129,14 @@ export function reducer(state: PersistedState, action: Action): PersistedState {
       return {
         ...emptyState,
         sessionProviders: state.sessionProviders,
+        sessionUsers: state.sessionUsers,
         providerCampaigns: state.providerCampaigns,
         hiddenCampaignIds: state.hiddenCampaignIds,
         verificationOverrides: state.verificationOverrides,
+        suspendedUserIds: state.suspendedUserIds,
+        removedUserIds: state.removedUserIds,
+        credentials: state.credentials,
+        lockouts: state.lockouts,
       }
 
     case 'updateProfile':
@@ -152,6 +181,16 @@ export function reducer(state: PersistedState, action: Action): PersistedState {
     case 'addProvider':
       return { ...state, sessionProviders: [...state.sessionProviders, action.provider] }
 
+    case 'registerUser':
+      /*
+       * Registering is what creates an account; signing in as a guest does
+       * not. Recording every guest press would bury the real registrations
+       * under throwaway rows in the admin's directory.
+       */
+      return state.sessionUsers.some((u) => u.id === action.user.id)
+        ? state
+        : { ...state, sessionUsers: [...state.sessionUsers, action.user] }
+
     case 'upsertCampaign': {
       const exists = state.providerCampaigns.some((c) => c.id === action.campaign.id)
       return {
@@ -182,6 +221,76 @@ export function reducer(state: PersistedState, action: Action): PersistedState {
           [action.providerId]: action.status,
         },
       }
+
+    case 'setUserSuspended':
+      return {
+        ...state,
+        suspendedUserIds: action.suspended
+          ? state.suspendedUserIds.includes(action.userId)
+            ? state.suspendedUserIds
+            : [...state.suspendedUserIds, action.userId]
+          : state.suspendedUserIds.filter((id) => id !== action.userId),
+      }
+
+    case 'removeUser':
+      /*
+       * Removal is recorded, not carried out: the account is hidden from the
+       * directory and its id kept, so the decision survives a reload and can
+       * be undone. Erasing the person outright would also erase the bookings
+       * they are reconstructed from, which would silently rewrite the revenue
+       * history the rest of the dashboard reports.
+       */
+      return {
+        ...state,
+        removedUserIds: state.removedUserIds.includes(action.userId)
+          ? state.removedUserIds
+          : [...state.removedUserIds, action.userId],
+        suspendedUserIds: state.suspendedUserIds.filter((id) => id !== action.userId),
+      }
+
+    case 'restoreUser':
+      return {
+        ...state,
+        removedUserIds: state.removedUserIds.filter((id) => id !== action.userId),
+      }
+
+    case 'addCredential':
+      // Re-registering with the same address replaces the old password
+      // rather than leaving two credentials that both open one account.
+      return {
+        ...state,
+        credentials: [
+          ...state.credentials.filter(
+            (c) =>
+              c.userId !== action.credential.userId &&
+              c.emailKey !== action.credential.emailKey,
+          ),
+          action.credential,
+        ],
+      }
+
+    case 'signInFailed': {
+      const previous = state.lockouts[action.key]
+      const fails = (previous?.fails ?? 0) + 1
+      return {
+        ...state,
+        lockouts: {
+          ...state.lockouts,
+          [action.key]: {
+            fails,
+            // The lock is written into stored state, so closing the tab and
+            // coming back does not hand out a fresh set of guesses.
+            lockedUntil: fails >= MAX_ATTEMPTS ? action.now + LOCKOUT_MS : 0,
+          },
+        },
+      }
+    }
+
+    case 'signInSucceeded': {
+      if (!state.lockouts[action.key]) return state
+      const { [action.key]: _cleared, ...rest } = state.lockouts
+      return { ...state, lockouts: rest }
+    }
 
     default:
       return state

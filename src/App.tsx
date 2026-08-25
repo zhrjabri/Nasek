@@ -14,7 +14,13 @@ import { CampaignDetailPage } from '@/pages/CampaignDetailPage'
 import { SmartMatchPage } from '@/pages/SmartMatchPage'
 import { MapPage } from '@/pages/MapPage'
 import { BookingPage } from '@/pages/BookingPage'
-import { CustomerSignUpPage, SignInPage, SignUpPage } from '@/pages/AuthPages'
+import {
+  CustomerSignInPage,
+  CustomerSignUpPage,
+  OwnerSignInPage,
+  SignInPage,
+  SignUpPage,
+} from '@/pages/AuthPages'
 import { ProviderSignUpPage } from '@/pages/ProviderSignUpPage'
 import { ADMIN_ACCESS_PATH } from '@/services/api/adminAccess'
 import { DashboardPage } from '@/pages/DashboardPage'
@@ -136,6 +142,8 @@ export function App() {
           <Route path="/giving" element={<GivingPage />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/signin" element={<SignInPage />} />
+          <Route path="/signin/customer" element={<CustomerSignInPage />} />
+          <Route path="/signin/owner" element={<OwnerSignInPage />} />
           <Route path="/signup" element={<SignUpPage />} />
           <Route path="/signup/customer" element={<CustomerSignUpPage />} />
           <Route path="/signup/provider" element={<ProviderSignUpPage />} />

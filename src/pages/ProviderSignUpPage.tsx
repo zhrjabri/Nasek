@@ -4,6 +4,7 @@ import { FileImage, Info, Trash2, Upload } from 'lucide-react'
 import { useI18n } from '@/i18n'
 import { WILAYAT } from '@/data/geo'
 import { authApi } from '@/services/api/auth'
+import { createCredential } from '@/services/api/credentials'
 import { useStore } from '@/store/AppStore'
 import { readImageFile, type ImageReadError } from '@/lib/imageFile'
 import { AuthShell } from '@/pages/AuthPages'
@@ -97,7 +98,17 @@ export function ProviderSignUpPage() {
       licenceImage: licence!.dataUrl,
       licenceFileName: licence!.fileName,
     })
+    // Same as the customer form: the password leaves this function hashed.
+    const credential = await createCredential({
+      userId: user.id,
+      role: 'provider',
+      email: form.email,
+      phone: form.phone,
+      password: form.password,
+    })
+    dispatch({ type: 'addCredential', credential })
     dispatch({ type: 'addProvider', provider })
+    dispatch({ type: 'registerUser', user })
     dispatch({ type: 'signIn', user })
     setBusy(false)
     toast(t('auth.providerRegistered'), 'success')

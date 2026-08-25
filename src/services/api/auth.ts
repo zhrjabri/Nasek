@@ -42,11 +42,13 @@ const AVATAR_COLORS = ['#1c5e4c', '#23765e', '#a8842c', '#10402f', '#856422']
  */
 export const authApi = {
   /**
-   * One-click role entry used by the "explore without signing up" panel.
+   * Mint a session for a role without checking credentials.
    *
-   * There are no seeded accounts to look up any more, so each press mints a
-   * throwaway user for that role. `name` comes from the caller because only
-   * the page knows which language to label it in.
+   * The only caller left is the administration gate, which does its own
+   * check — a passphrase — before calling this. Customers and campaign owners
+   * no longer come through here: they sign in with an email or phone and a
+   * password, verified in `credentials.ts`. `name` comes from the caller
+   * because only the page knows which language to label it in.
    */
   signInAs: (role: Role, name: string) =>
     request<User>(() => {

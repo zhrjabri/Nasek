@@ -1,10 +1,18 @@
 import { useState } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
-import { Building2, ChevronRight, ShieldCheck, User as UserIcon } from 'lucide-react'
+import { Building2, ChevronRight, Eye, EyeOff, Lock, ShieldCheck, User as UserIcon } from 'lucide-react'
 import type { Role } from '@/types'
 import { useI18n } from '@/i18n'
 import { WILAYAT } from '@/data/geo'
 import { authApi } from '@/services/api/auth'
+import {
+  createCredential,
+  findCredential,
+  identifierKey,
+  lockRemainingMs,
+  verifyPassword,
+  MAX_ATTEMPTS,
+} from '@/services/api/credentials'
 import { useStore } from '@/store/AppStore'
 import { Logo } from '@/components/brand/Logo'
 import { Button, Card, Checkbox, Field, Input, Select } from '@/components/ui'
@@ -119,20 +127,11 @@ function RoleOption({
  */
 export function SignInPage() {
   const { t } = useI18n()
-  const navigate = useNavigate()
   const [params] = useSearchParams()
-  const { dispatch } = useStore()
-  const [busy, setBusy] = useState(false)
 
+  // Carry any "next" destination through the chooser to the form.
   const next = params.get('next')
-
-  const enterAs = async (role: Role, name: string) => {
-    setBusy(true)
-    const user = await authApi.signInAs(role, name)
-    dispatch({ type: 'signIn', user })
-    setBusy(false)
-    navigate(next ?? HOME_FOR[role], { replace: true })
-  }
+  const suffix = next ? `?next=${encodeURIComponent(next)}` : ''
 
   return (
     <AuthShell
@@ -152,19 +151,203 @@ export function SignInPage() {
           icon={<UserIcon className="size-4.5" />}
           title={t('auth.signInCustomer')}
           note={t('auth.signInCustomerNote')}
-          onClick={() => void enterAs('customer', t('auth.guestCustomer'))}
-          disabled={busy}
+          to={`/signin/customer${suffix}`}
         />
         <RoleOption
           icon={<Building2 className="size-4.5" />}
           title={t('auth.signInOwner')}
           note={t('auth.signInOwnerNote')}
-          onClick={() => void enterAs('provider', t('auth.guestProvider'))}
-          disabled={busy}
+          to={`/signin/owner${suffix}`}
         />
       </div>
+    </AuthShell>
+  )
+}
 
-      <p className="mt-4 text-center text-[11.5px] text-ink-400">{t('auth.prototypeNote')}</p>
+// ------------------------------------------------------------- credentials
+
+export function CustomerSignInPage() {
+  return <SignInForm role="customer" />
+}
+
+export function OwnerSignInPage() {
+  return <SignInForm role="provider" />
+}
+
+/**
+ * The credential form.
+ *
+ * Both roles share it because the checks are identical — only the account it
+ * looks for and where it lands afterwards differ.
+ *
+ * Every rejection says the same thing. Telling someone "no such account"
+ * rather than "wrong password" would let a stranger discover which addresses
+ * are registered here simply by trying them, which is a privacy leak before
+ * it is a security one. The single message costs a little clarity and closes
+ * that off. The one exception is a suspended account, which has to say so —
+ * a person locked out by a decision NASEK made deserves to know that is why,
+ * and not be left retyping a password that was correct all along.
+ */
+function SignInForm({ role }: { role: 'customer' | 'provider' }) {
+  const { t } = useI18n()
+  const navigate = useNavigate()
+  const [params] = useSearchParams()
+  const {
+    dispatch,
+    credentials,
+    lockouts,
+    sessionUsers,
+    suspendedUserIds,
+    removedUserIds,
+  } = useStore()
+
+  const [identifier, setIdentifier] = useState('')
+  const [password, setPassword] = useState('')
+  const [reveal, setReveal] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [notice, setNotice] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const next = params.get('next')
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setNotice('')
+
+    const found: Record<string, string> = {}
+    if (!identifier.trim()) found.identifier = t('auth.identifierRequired')
+    if (!password) found.password = t('auth.passwordRequired')
+    setErrors(found)
+    if (Object.keys(found).length) return
+
+    const key = identifierKey(identifier)
+    const now = Date.now()
+
+    // A locked identifier is turned away before any work is done, so a
+    // guessing script cannot keep the expensive hash running either.
+    const waiting = lockRemainingMs(lockouts[key], now)
+    if (waiting > 0) {
+      setNotice(t('auth.signInLocked', { n: Math.ceil(waiting / 1000) }))
+      return
+    }
+
+    setBusy(true)
+    const credential = findCredential(credentials, identifier, role)
+    const ok = credential ? await verifyPassword(credential, password) : false
+
+    if (!ok) {
+      dispatch({ type: 'signInFailed', key, now })
+      const fails = (lockouts[key]?.fails ?? 0) + 1
+      const left = MAX_ATTEMPTS - fails
+      setBusy(false)
+      setPassword('')
+      setNotice(
+        left > 0
+          ? `${t('auth.signInFailed')} ${t('auth.attemptsLeft', { n: left })}`
+          : t('auth.signInLocked', { n: 60 }),
+      )
+      return
+    }
+
+    // The admin's decisions are enforced here rather than only displayed in
+    // the dashboard: suspending an account has to actually keep it out.
+    if (removedUserIds.includes(credential!.userId)) {
+      setBusy(false)
+      setNotice(t('auth.signInFailed'))
+      return
+    }
+    if (suspendedUserIds.includes(credential!.userId)) {
+      setBusy(false)
+      setNotice(t('auth.signInSuspended'))
+      return
+    }
+
+    const account = sessionUsers.find((u) => u.id === credential!.userId)
+    if (!account) {
+      // The credential outlived the account it belonged to — nothing to sign
+      // in to, and saying more would leak that the credential was right.
+      setBusy(false)
+      setNotice(t('auth.signInFailed'))
+      return
+    }
+
+    dispatch({ type: 'signInSucceeded', key })
+    dispatch({ type: 'signIn', user: account })
+    setBusy(false)
+    navigate(next ?? HOME_FOR[role], { replace: true })
+  }
+
+  return (
+    <AuthShell
+      title={t(role === 'provider' ? 'auth.signInOwner' : 'auth.signInCustomer')}
+      subtitle={t('auth.credentialsSubtitle')}
+      footer={
+        <>
+          {t('auth.noAccount')}{' '}
+          <Link
+            to={role === 'provider' ? '/signup/provider' : '/signup/customer'}
+            className="font-semibold text-nasek-700 hover:underline"
+          >
+            {t('nav.signUp')}
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={submit} className="space-y-4" noValidate>
+        <Field label={t('auth.identifier')} hint={t('auth.identifierHint')} required error={errors.identifier}>
+          {(p) => (
+            <Input
+              {...p}
+              dir="ltr"
+              autoFocus
+              autoComplete="username"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+            />
+          )}
+        </Field>
+
+        <Field label={t('auth.password')} required error={errors.password}>
+          {(p) => (
+            <div className="relative">
+              <Input
+                {...p}
+                type={reveal ? 'text' : 'password'}
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="pe-10"
+              />
+              <button
+                type="button"
+                onClick={() => setReveal((v) => !v)}
+                aria-label={t(reveal ? 'auth.hidePassword' : 'auth.showPassword')}
+                className="absolute top-1/2 end-2 -translate-y-1/2 rounded-[3px] p-1.5 text-ink-400 transition-colors hover:text-ink-700"
+              >
+                {reveal ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
+            </div>
+          )}
+        </Field>
+
+        {notice && (
+          <p
+            role="alert"
+            className="rounded-[3px] border border-red-200 bg-red-50 p-3 text-[12.5px] font-medium leading-relaxed text-red-700"
+          >
+            {notice}
+          </p>
+        )}
+
+        <Button type="submit" size="lg" block loading={busy}>
+          {busy ? t('auth.signInChecking') : t('nav.signIn')}
+        </Button>
+      </form>
+
+      <p className="mt-5 flex items-start gap-2 border-t border-ivory-300 pt-4 text-[11.5px] leading-relaxed text-ink-400">
+        <Lock className="mt-px size-3.5 shrink-0" />
+        {t('auth.securityNote')}
+      </p>
     </AuthShell>
   )
 }
@@ -261,6 +444,17 @@ export function CustomerSignUpPage() {
       wilayahId: form.wilayahId,
       role: 'customer',
     })
+    // The password is turned into a stored credential here and nowhere else:
+    // this is the only moment it exists in the app, and it leaves as a hash.
+    const credential = await createCredential({
+      userId: user.id,
+      role: 'customer',
+      email: form.email,
+      phone: form.phone,
+      password: form.password,
+    })
+    dispatch({ type: 'addCredential', credential })
+    dispatch({ type: 'registerUser', user })
     dispatch({ type: 'signIn', user })
     setBusy(false)
     toast(t('dash.profileSaved'))
