@@ -250,8 +250,14 @@ const main = async () => {
   // turns away everything else. Confirming the phrase you chose still works
   // is a matter of using it once.
   check('admin gate rejects an empty passphrase', (await verifyAdminPassphrase('')) === false)
+  check('admin gate rejects whitespace', (await verifyAdminPassphrase('   ')) === false)
   check('admin gate rejects a guess', (await verifyAdminPassphrase('admin')) === false)
   check('admin gate rejects the role name', (await verifyAdminPassphrase('nasek')) === false)
+  // The phrase this replaced was short and predictable, and its hash is in
+  // the repository's history for anyone to read. It must not still open the
+  // door.
+  check('the retired passphrase no longer opens the gate',
+    (await verifyAdminPassphrase('nasek-admin-2026')) === false)
 
   console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} CHECK(S) FAILED`)
   if (failures > 0) process.exitCode = 1
