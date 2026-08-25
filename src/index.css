@@ -32,18 +32,25 @@
   --color-gold-800: #5a461f;
   --color-gold-900: #3f3117;
 
-  /* --- Parchment neutrals --- */
-  --color-ivory-50: #fdfbf6;
-  --color-ivory-100: #f8f4ea;
-  --color-ivory-200: #f1ebdc;
-  --color-ivory-300: #e3dbc7;
-  --color-ivory-400: #cdc2a9;
-  --color-ink-400: #8a8878;
-  --color-ink-500: #6a6857;
-  --color-ink-600: #4b4a3d;
-  --color-ink-700: #33322a;
-  --color-ink-800: #24231d;
-  --color-ink-900: #171610;
+  /* --- Neutrals ---
+     Cooled off the original parchment towards white: the campaign photography
+     and the green-and-gold brand both carry further against a quiet ground
+     than against a warm one. Green and gold above are untouched, so the
+     identity is unchanged — only what it sits on. --- */
+  --color-ivory-50: #ffffff;
+  --color-ivory-100: #f5f7f6;
+  --color-ivory-200: #edf0ee;
+  --color-ivory-300: #dde2df;
+  --color-ivory-400: #bfc6c2;
+  /* Nudged darker than a straight translation of the old parchment grey:
+     ink-400 carries hints and captions, and at the old value those sat
+     just under the contrast floor for small text on both palettes. */
+  --color-ink-400: #707577;
+  --color-ink-500: #616769;
+  --color-ink-600: #43494a;
+  --color-ink-700: #2d3232;
+  --color-ink-800: #1f2323;
+  --color-ink-900: #121615;
 
   /* --- Type ---
      Arabic is primary and set in Kufi, as specified. Latin display is a

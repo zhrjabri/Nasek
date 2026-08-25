@@ -87,7 +87,7 @@ export function HomePage() {
         <div className="absolute inset-0 -z-10">
           <div className="absolute inset-0 bg-ivory-100" />
           <div className="girih absolute inset-0 opacity-[0.05]" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_50%_0%,rgba(253,251,246,0.95),transparent)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_50%_0%,rgba(255,255,255,0.95),transparent)]" />
         </div>
 
         <div className="mx-auto max-w-7xl px-4 pt-10 pb-12 sm:px-6 sm:pt-14 lg:px-8">
