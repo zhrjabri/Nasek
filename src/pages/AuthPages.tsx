@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
-import { Building2, Search, ShieldCheck } from 'lucide-react'
+import { Building2, ChevronRight, ShieldCheck, User as UserIcon } from 'lucide-react'
 import type { Role } from '@/types'
 import { useI18n } from '@/i18n'
 import { WILAYAT } from '@/data/geo'
@@ -50,8 +50,73 @@ export function AuthShell({
   )
 }
 
+/**
+ * One of the two doors on the sign-in and sign-up screens.
+ *
+ * Sized like a card rather than a button: the choice between customer and
+ * campaign owner decides which half of the product someone sees, so it should
+ * not read as an afterthought tucked under a form.
+ */
+function RoleOption({
+  icon,
+  title,
+  note,
+  badge,
+  to,
+  onClick,
+  disabled,
+}: {
+  icon: React.ReactNode
+  title: string
+  note: string
+  badge?: string
+  to?: string
+  onClick?: () => void
+  disabled?: boolean
+}) {
+  const className =
+    'group flex w-full items-start gap-3.5 rounded-[3px] border border-ivory-300 bg-ivory-50 p-4 text-start transition-all hover:border-nasek-400 hover:bg-nasek-50/40 disabled:pointer-events-none disabled:opacity-50'
+
+  const body = (
+    <>
+      <span className="mt-px flex size-9 shrink-0 items-center justify-center rounded-[3px] bg-nasek-50 text-nasek-700 transition-colors group-hover:bg-nasek-100">
+        {icon}
+      </span>
+      <span className="flex-1">
+        <span className="block text-[14.5px] font-bold text-ink-900 group-hover:text-nasek-900">
+          {title}
+        </span>
+        <span className="mt-1 block text-[12.5px] leading-relaxed text-ink-500">{note}</span>
+        {badge && (
+          <span className="mt-2 inline-flex items-center rounded-[3px] bg-gold-100 px-2 py-1 text-[11px] font-bold text-gold-800">
+            {badge}
+          </span>
+        )}
+      </span>
+      <ChevronRight className="mt-2 size-4 shrink-0 text-ink-300 transition-colors group-hover:text-nasek-600 rtl:rotate-180" />
+    </>
+  )
+
+  return to ? (
+    <Link to={to} className={className}>
+      {body}
+    </Link>
+  ) : (
+    <button type="button" onClick={onClick} disabled={disabled} className={className}>
+      {body}
+    </button>
+  )
+}
+
 // ------------------------------------------------------------------ sign in
 
+/**
+ * Two doors: customer and campaign owner.
+ *
+ * Administration is deliberately absent. It lives at an unlisted address
+ * (see `services/api/adminAccess.ts`) behind a passphrase, so this page gives
+ * no hint that an admin area exists at all.
+ */
 export function SignInPage() {
   const { t } = useI18n()
   const navigate = useNavigate()
@@ -72,7 +137,7 @@ export function SignInPage() {
   return (
     <AuthShell
       title={t('auth.signInTitle')}
-      subtitle={t('auth.signInSubtitle')}
+      subtitle={t('auth.signInChoose')}
       footer={
         <>
           {t('auth.noAccount')}{' '}
@@ -82,60 +147,83 @@ export function SignInPage() {
         </>
       }
     >
-      {/* Role entry is the whole sign-in page now: there are no accounts to
-          authenticate against, and for a prototype getting in is the point. */}
-      <div className="rounded-[3px] border border-nasek-200 bg-nasek-50/60 p-4">
-        <p className="text-[13px] font-bold text-nasek-900">{t('auth.demoTitle')}</p>
-        <p className="mt-1 text-[12px] text-ink-500">{t('auth.demoNote')}</p>
-        <div className="mt-3.5 grid gap-2">
-          <DemoButton
-            icon={<Search className="size-4" />}
-            label={t('auth.demoCustomer')}
-            onClick={() => void enterAs('customer', t('auth.guestCustomer'))}
-            disabled={busy}
-          />
-          <DemoButton
-            icon={<ShieldCheck className="size-4" />}
-            label={t('auth.demoAdmin')}
-            onClick={() => void enterAs('admin', t('auth.guestAdmin'))}
-            disabled={busy}
-          />
-        </div>
+      <div className="grid gap-3">
+        <RoleOption
+          icon={<UserIcon className="size-4.5" />}
+          title={t('auth.signInCustomer')}
+          note={t('auth.signInCustomerNote')}
+          onClick={() => void enterAs('customer', t('auth.guestCustomer'))}
+          disabled={busy}
+        />
+        <RoleOption
+          icon={<Building2 className="size-4.5" />}
+          title={t('auth.signInOwner')}
+          note={t('auth.signInOwnerNote')}
+          onClick={() => void enterAs('provider', t('auth.guestProvider'))}
+          disabled={busy}
+        />
       </div>
-    </AuthShell>
-  )
-}
 
-function DemoButton({
-  icon,
-  label,
-  onClick,
-  disabled,
-}: {
-  icon: React.ReactNode
-  label: string
-  onClick: () => void
-  disabled?: boolean
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className="flex items-center gap-2.5 rounded-[3px] border border-ivory-300 bg-ivory-50 px-3.5 py-2.5 text-start text-[13.5px] font-semibold text-ink-700 transition-all hover:border-nasek-400 hover:text-nasek-900 disabled:opacity-50"
-    >
-      <span className="text-nasek-600">{icon}</span>
-      {label}
-    </button>
+      <p className="mt-4 text-center text-[11.5px] text-ink-400">{t('auth.prototypeNote')}</p>
+    </AuthShell>
   )
 }
 
 // ------------------------------------------------------------------ sign up
 
+/**
+ * The account-type chooser.
+ *
+ * The owner route is listed first and carries the permit badge, because the
+ * permit is the whole basis of trust on NASEK and someone registering a
+ * campaign should know it is coming before they start filling anything in.
+ */
 export function SignUpPage() {
+  const { t } = useI18n()
+  const [params] = useSearchParams()
+
+  // Older links (the footer, the map page) still point at ?role=provider.
+  if (params.get('role') === 'provider') {
+    return <Navigate to="/signup/provider" replace />
+  }
+
+  return (
+    <AuthShell
+      title={t('auth.signUpTitle')}
+      subtitle={t('auth.signUpChoose')}
+      footer={
+        <>
+          {t('auth.haveAccount')}{' '}
+          <Link to="/signin" className="font-semibold text-nasek-700 hover:underline">
+            {t('nav.signIn')}
+          </Link>
+        </>
+      }
+    >
+      <div className="grid gap-3">
+        <RoleOption
+          icon={<Building2 className="size-4.5" />}
+          title={t('auth.signUpOwner')}
+          note={t('auth.signUpOwnerNote')}
+          badge={t('auth.permitBadge')}
+          to="/signup/provider"
+        />
+        <RoleOption
+          icon={<UserIcon className="size-4.5" />}
+          title={t('auth.signUpCustomer')}
+          note={t('auth.signUpCustomerNote')}
+          to="/signup/customer"
+        />
+      </div>
+    </AuthShell>
+  )
+}
+
+// --------------------------------------------------------- customer sign up
+
+export function CustomerSignUpPage() {
   const { t, lang } = useI18n()
   const navigate = useNavigate()
-  const [params] = useSearchParams()
   const { dispatch, toast } = useStore()
 
   const [form, setForm] = useState({
@@ -179,14 +267,9 @@ export function SignUpPage() {
     navigate('/dashboard', { replace: true })
   }
 
-  // Older links (the footer, the map page) still point at ?role=provider.
-  if (params.get('role') === 'provider') {
-    return <Navigate to="/signup/provider" replace />
-  }
-
   return (
     <AuthShell
-      title={t('auth.signUpTitle')}
+      title={t('auth.customerSignUpTitle')}
       subtitle={t('auth.signUpSubtitle')}
       footer={
         <>

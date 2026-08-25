@@ -14,8 +14,9 @@ import { CampaignDetailPage } from '@/pages/CampaignDetailPage'
 import { SmartMatchPage } from '@/pages/SmartMatchPage'
 import { MapPage } from '@/pages/MapPage'
 import { BookingPage } from '@/pages/BookingPage'
-import { SignInPage, SignUpPage } from '@/pages/AuthPages'
+import { CustomerSignUpPage, SignInPage, SignUpPage } from '@/pages/AuthPages'
 import { ProviderSignUpPage } from '@/pages/ProviderSignUpPage'
+import { ADMIN_ACCESS_PATH } from '@/services/api/adminAccess'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { GivingPage } from '@/pages/GivingPage'
 import { AboutPage } from '@/pages/AboutPage'
@@ -31,6 +32,10 @@ const ProviderDashboardPage = lazy(() =>
 )
 const AdminDashboardPage = lazy(() =>
   import('@/pages/AdminDashboardPage').then((m) => ({ default: m.AdminDashboardPage })),
+)
+/** The gate is split too, so the public bundle carries no trace of it. */
+const AdminAccessPage = lazy(() =>
+  import('@/pages/AdminAccessPage').then((m) => ({ default: m.AdminAccessPage })),
 )
 
 function RouteFallback() {
@@ -50,12 +55,22 @@ function ScrollToTop() {
   return null
 }
 
-/** Gate a route behind a signed-in account of a given role. */
+/**
+ * Gate a route behind a signed-in account of a given role.
+ *
+ * `unlisted` marks a route that should not admit to existing: instead of
+ * sending an unauthenticated visitor to the public sign-in page and telling a
+ * signed-in one that they have the wrong sort of account — both of which
+ * announce that the route is real — it sends them to the passphrase gate and
+ * shows a plain "not found". Used for administration.
+ */
 function Protected({
   role,
+  unlisted,
   children,
 }: {
   role?: 'customer' | 'provider' | 'admin'
+  unlisted?: boolean
   children: React.ReactNode
 }) {
   const { user } = useStore()
@@ -63,11 +78,13 @@ function Protected({
   const location = useLocation()
 
   if (!user) {
+    if (unlisted) return <Navigate to={ADMIN_ACCESS_PATH} replace />
     return (
       <Navigate to={`/signin?next=${encodeURIComponent(location.pathname + location.search)}`} replace />
     )
   }
   if (role && user.role !== role) {
+    if (unlisted) return <NotFoundPage />
     return (
       <main className="mx-auto max-w-3xl px-4 py-20 sm:px-6">
         <EmptyState
@@ -120,7 +137,16 @@ export function App() {
           <Route path="/about" element={<AboutPage />} />
           <Route path="/signin" element={<SignInPage />} />
           <Route path="/signup" element={<SignUpPage />} />
+          <Route path="/signup/customer" element={<CustomerSignUpPage />} />
           <Route path="/signup/provider" element={<ProviderSignUpPage />} />
+          <Route
+            path={ADMIN_ACCESS_PATH}
+            element={
+              <Suspense fallback={<RouteFallback />}>
+                <AdminAccessPage />
+              </Suspense>
+            }
+          />
           <Route path="/booking/:id" element={<BookingPage />} />
           <Route
             path="/dashboard"
@@ -143,7 +169,7 @@ export function App() {
           <Route
             path="/admin"
             element={
-              <Protected role="admin">
+              <Protected role="admin" unlisted>
                 <Suspense fallback={<RouteFallback />}>
                   <AdminDashboardPage />
                 </Suspense>

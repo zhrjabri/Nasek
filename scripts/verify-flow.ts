@@ -6,6 +6,7 @@
  * simulated with a stand-in data URL.
  */
 import { authApi } from '@/services/api/auth'
+import { verifyAdminPassphrase } from '@/services/api/adminAccess'
 import { emptyState, reducer } from '@/store/AppStore'
 import type { Campaign } from '@/types'
 
@@ -78,6 +79,15 @@ const main = async () => {
     `sessionProviders=${JSON.stringify(hydrated.sessionProviders)}`,
   )
   check('hydrate keeps what was stored', hydrated.user === null)
+
+  // ------------------------------------------------------- admin gate
+  // The real passphrase is deliberately absent from this repository, so what
+  // can be checked here is the half that matters for safety: that the gate
+  // turns away everything else. Confirming the phrase you chose still works
+  // is a matter of using it once.
+  check('admin gate rejects an empty passphrase', (await verifyAdminPassphrase('')) === false)
+  check('admin gate rejects a guess', (await verifyAdminPassphrase('admin')) === false)
+  check('admin gate rejects the role name', (await verifyAdminPassphrase('nasek')) === false)
 
   console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} CHECK(S) FAILED`)
   if (failures > 0) process.exitCode = 1
