@@ -13,7 +13,9 @@
     "verify:map": "node scripts/verify-map.mjs",
     "verify:flow": "vite build --ssr scripts/verify-flow.ts --outDir .verify --logLevel warn && node .verify/verify-flow.js",
     "build:map": "node scripts/build-oman-map.mjs scripts/data/oman.geo.json src/data/omanOutline.ts",
-    "verify:admin": "vite build --ssr scripts/verify-admin.ts --outDir .verify --logLevel warn && node .verify/verify-admin.js"
+    "verify:admin": "vite build --ssr scripts/verify-admin.ts --outDir .verify --logLevel warn && node .verify/verify-admin.js",
+    "verify:catalogue": "vite build --ssr scripts/verify-catalogue.ts --outDir .verify --logLevel warn && node .verify/verify-catalogue.js",
+    "verify": "npm run verify:flow && npm run verify:admin && npm run verify:catalogue && npm run verify:ai && npm run verify:map"
   },
   "dependencies": {
     "lucide-react": "^0.469.0",

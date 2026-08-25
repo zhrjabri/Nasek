@@ -1,4 +1,4 @@
-import type { Campaign, Lang } from '@/types'
+import type { Campaign, Lang, Provider } from '@/types'
 import { approxDistanceKm, wilayahName } from '@/data/geo'
 import { providerById } from '@/data/providers'
 import { serviceLabel } from '@/data/services'
@@ -53,6 +53,7 @@ export function scoreCampaigns(
   input: SmartMatchInput,
   lang: Lang,
   pool: Campaign[],
+  providers: Provider[] = [],
 ): MatchResult[] {
   const L = (ar: string, en: string) => (lang === 'ar' ? ar : en)
 
@@ -61,7 +62,10 @@ export function scoreCampaigns(
   const candidates = pool.filter((c) => input.type === 'any' || c.type === input.type)
 
   const results = candidates.map<MatchResult>((campaign) => {
-    const provider = providerById(campaign.providerId)
+    // Passed in rather than looked up: the seed list is empty, so trust and
+    // experience scored zero for every owner on the platform.
+    const provider =
+      providers.find((p) => p.id === campaign.providerId) ?? providerById(campaign.providerId)
     const reasons: string[] = []
     const tradeoffs: string[] = []
     const breakdown: MatchResult['breakdown'] = []

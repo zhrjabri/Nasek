@@ -1,4 +1,4 @@
-import type { Campaign, Lang, SearchFilters, ServiceKey, TravelMethod, CampaignType } from '@/types'
+import type { Provider, Campaign, Lang, SearchFilters, ServiceKey, TravelMethod, CampaignType } from '@/types'
 
 /** One thing the natural-language parser extracted from a user's sentence. */
 export interface ParsedFacet {
@@ -76,11 +76,24 @@ export interface AIProvider {
   /** Turn a free-text request into search filters. */
   parseSearch(query: string, lang: Lang): Promise<NLSearchResult>
   /** Rank campaigns against the questionnaire answers. */
-  smartMatch(input: SmartMatchInput, lang: Lang, pool: Campaign[]): Promise<MatchResult[]>
-  /** Answer a question about the platform and its campaigns. */
+  smartMatch(
+    input: SmartMatchInput,
+    lang: Lang,
+    pool: Campaign[],
+    providers: Provider[],
+  ): Promise<MatchResult[]>
+  /**
+   * Answer a question about the platform and its campaigns.
+   *
+   * `pool` is the catalogue as the session sees it. It has to be passed in:
+   * every trip on NASEK was published by an owner during a session, so an
+   * assistant reading the seed data would tell a pilgrim there are no trips
+   * while the campaigns page listed them.
+   */
   ask(
     message: string,
     history: AssistantMessage[],
     lang: Lang,
+    pool: Campaign[],
   ): Promise<Pick<AssistantMessage, 'text' | 'campaignIds' | 'suggestions'>>
 }

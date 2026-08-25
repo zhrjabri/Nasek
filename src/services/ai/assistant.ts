@@ -1,5 +1,4 @@
 import type { Campaign, Lang } from '@/types'
-import { CAMPAIGNS } from '@/data/campaigns'
 import { wilayahName } from '@/data/geo'
 import { providerById } from '@/data/providers'
 import { serviceLabel } from '@/data/services'
@@ -22,7 +21,7 @@ type Reply = Pick<AssistantMessage, 'text' | 'campaignIds' | 'suggestions'>
  *   1. Religious rulings are always redirected to qualified authorities.
  *   2. No claim of official licensing is ever made about a campaign.
  */
-export function answer(message: string, lang: Lang): Reply {
+export function answer(message: string, lang: Lang, catalogue: Campaign[] = []): Reply {
   const text = prepare(message)
   const L = (ar: string, en: string) => (lang === 'ar' ? ar : en)
 
@@ -129,14 +128,43 @@ export function answer(message: string, lang: Lang): Reply {
       'difference between land and air', 'land or air', 'land vs air',
     ])
   ) {
-    const land = CAMPAIGNS.filter((c) => c.travelMethod === 'land')
-    const air = CAMPAIGNS.filter((c) => c.travelMethod === 'air')
-    const landMin = Math.min(...land.map((c) => c.price))
-    const airMin = Math.min(...air.map((c) => c.price))
+    const land = catalogue.filter((c) => c.travelMethod === 'land')
+    const air = catalogue.filter((c) => c.travelMethod === 'air')
+
+    /*
+     * Quote a starting price only when there is something to quote.
+     * `Math.min()` over an empty list is Infinity, and this question can be
+     * asked on a day when nobody has published a land trip — which would have
+     * told a pilgrim, in earnest, that trips start from Infinity rial.
+     */
+    const cheapest = (trips: Campaign[]) =>
+      trips.length ? Math.min(...trips.map((c) => c.price)) : null
+
+    const landMin = cheapest(land)
+    const airMin = cheapest(air)
+
+    if (landMin == null && airMin == null) {
+      return {
+        text: L(
+          'الرحلة البرية أوفر لكنها تستغرق يومين تقريبًا في الطريق ذهابًا وإيابًا، وهي مناسبة لمن لديه وقت. والرحلة الجوية تختصر السفر إلى ساعتين، وهي الخيار المعتاد لكبار السن والعائلات.\n\nلا توجد رحلات معروضة على المنصة حاليًا، فلا أستطيع ذكر الأسعار.',
+          'Land trips are cheaper but the road takes roughly two days each way, so they suit travellers with time. Air trips cut the journey to about two hours, which is the usual choice for elderly pilgrims and families.\n\nThere are no trips listed on the platform right now, so I cannot quote prices.',
+        ),
+        suggestions: [
+          L('كيف أحجز؟', 'How do I book?'),
+          L('ما معنى موثقة؟', 'What does verified mean?'),
+        ],
+      }
+    }
+
+    const arLand = landMin == null ? '' : ` — تبدأ من ${landMin} ريال على المنصة`
+    const arAir = airMin == null ? '' : ` تبدأ من ${airMin} ريال و`
+    const enLand = landMin == null ? '' : ` — from ${landMin} OMR on the platform`
+    const enAir = airMin == null ? '' : ` start at ${airMin} OMR and`
+
     return {
       text: L(
-        `الرحلة البرية أوفر بكثير — تبدأ من ${landMin} ريال على المنصة — لكنها تستغرق يومين تقريبًا في الطريق ذهابًا وإيابًا، وهي مناسبة لمن لديه وقت ويريد خفض التكلفة.\n\nالرحلة الجوية تبدأ من ${airMin} ريال وتختصر السفر إلى ساعتين، وهي الخيار المعتاد لكبار السن والعائلات التي لا تحتمل الطريق الطويل.`,
-        `Land trips are far cheaper — from ${landMin} OMR on the platform — but the road takes roughly two days each way. They suit travellers with time who want to keep costs down.\n\nAir trips start at ${airMin} OMR and cut the journey to about two hours, which is the usual choice for elderly pilgrims and families who cannot manage a long road trip.`,
+        `الرحلة البرية أوفر بكثير${arLand}، لكنها تستغرق يومين تقريبًا في الطريق ذهابًا وإيابًا، وهي مناسبة لمن لديه وقت ويريد خفض التكلفة.\n\nالرحلة الجوية${arAir}تختصر السفر إلى ساعتين، وهي الخيار المعتاد لكبار السن والعائلات التي لا تحتمل الطريق الطويل.`,
+        `Land trips are far cheaper${enLand}, but the road takes roughly two days each way. They suit travellers with time who want to keep costs down.\n\nAir trips${enAir} cut the journey to about two hours, which is the usual choice for elderly pilgrims and families who cannot manage a long road trip.`,
       ),
       suggestions: [
         L('أرخص عمرة برية', 'Cheapest land Umrah'),
@@ -161,7 +189,7 @@ export function answer(message: string, lang: Lang): Reply {
   const wantsNear = !!findWord(text, INTENT_WORDS.near)
   const wantsElderly = !!findWord(text, INTENT_WORDS.elderly)
 
-  let pool = CAMPAIGNS.slice()
+  let pool = catalogue.slice()
   const f = parsed.filters
 
   if (f.type) pool = pool.filter((c) => c.type === f.type)
@@ -177,7 +205,7 @@ export function answer(message: string, lang: Lang): Reply {
 
   if (pool.length === 0) {
     // Nothing matched. Say so honestly and relax the tightest constraint.
-    const relaxed = relaxSearch(parsed.filters)
+    const relaxed = relaxSearch(parsed.filters, catalogue)
     return {
       text: L(
         `لم أجد رحلة تطابق كل ما ذكرته. ${relaxed.length ? 'هذه أقرب الخيارات إذا خفّفنا بعض الشروط:' : 'جرّب توسيع الميزانية أو فترة السفر.'}`,
@@ -248,8 +276,11 @@ function describe(
 }
 
 /** Drop the price cap, then the date window, until something matches. */
-function relaxSearch(filters: Partial<import('@/types').SearchFilters>): Campaign[] {
-  let pool = CAMPAIGNS.slice()
+function relaxSearch(
+  filters: Partial<import('@/types').SearchFilters>,
+  catalogue: Campaign[],
+): Campaign[] {
+  let pool = catalogue.slice()
   if (filters.type) pool = pool.filter((c) => c.type === filters.type)
   if (filters.wilayahIds?.length) {
     const narrowed = pool.filter((c) => filters.wilayahIds!.includes(c.wilayahId))

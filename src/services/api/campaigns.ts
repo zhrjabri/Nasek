@@ -93,8 +93,12 @@ export function applyFilters(
  * genuinely available, and featured placement. It deliberately does not
  * reward paying for promotion alone.
  */
-function recommendedScore(c: Campaign): number {
-  const provider = providerById(c.providerId)
+function recommendedScore(c: Campaign, providers: Provider[]): number {
+  // Same reason as `matchesQuery`: the seed list is empty, so looking an owner
+  // up there found nobody and the verified bonus never once applied. The
+  // ranking silently stopped rewarding the thing it says it rewards.
+  const provider =
+    providers.find((p) => p.id === c.providerId) ?? providerById(c.providerId)
   const verified = provider?.verification === 'verified' ? 12 : 0
   const featured = c.featured ? 8 : 0
   const rating = (c.rating - 4) * 20
@@ -103,7 +107,11 @@ function recommendedScore(c: Campaign): number {
   return verified + featured + rating + availability + popularity
 }
 
-export function applySort(campaigns: Campaign[], sort: SortKey): Campaign[] {
+export function applySort(
+  campaigns: Campaign[],
+  sort: SortKey,
+  providers: Provider[] = [],
+): Campaign[] {
   const out = campaigns.slice()
   switch (sort) {
     case 'price_asc':
@@ -118,7 +126,7 @@ export function applySort(campaigns: Campaign[], sort: SortKey): Campaign[] {
       return out.sort((a, b) => b.seatsAvailable - a.seatsAvailable)
     case 'recommended':
     default:
-      return out.sort((a, b) => recommendedScore(b) - recommendedScore(a))
+      return out.sort((a, b) => recommendedScore(b, providers) - recommendedScore(a, providers))
   }
 }
 
@@ -128,7 +136,7 @@ export const campaignsApi = {
     request(() => [...extra, ...CAMPAIGNS]),
 
   search: (filters: SearchFilters, sort: SortKey, extra: Campaign[] = [], providers: Provider[] = []) =>
-    request(() => applySort(applyFilters([...extra, ...CAMPAIGNS], filters, providers), sort)),
+    request(() => applySort(applyFilters([...extra, ...CAMPAIGNS], filters, providers), sort, providers)),
 
   get: (id: string, extra: Campaign[] = []) =>
     request(() => [...extra, ...CAMPAIGNS].find((c) => c.id === id) ?? null),

@@ -1,4 +1,4 @@
-import type { Campaign, Lang } from '@/types'
+import type { Campaign, Lang, Provider } from '@/types'
 import { answer } from './assistant'
 import { parseNaturalQuery } from './nlSearch'
 import { scoreCampaigns } from './smartMatch'
@@ -26,14 +26,19 @@ export const LocalAIProvider: AIProvider = {
     return parseNaturalQuery(query, lang)
   },
 
-  async smartMatch(input: SmartMatchInput, lang: Lang, pool: Campaign[]): Promise<MatchResult[]> {
+  async smartMatch(
+    input: SmartMatchInput,
+    lang: Lang,
+    pool: Campaign[],
+    providers: Provider[],
+  ): Promise<MatchResult[]> {
     await delay(1400)
-    return scoreCampaigns(input, lang, pool)
+    return scoreCampaigns(input, lang, pool, providers)
   },
 
-  async ask(message: string, _history: AssistantMessage[], lang: Lang) {
+  async ask(message: string, _history: AssistantMessage[], lang: Lang, pool: Campaign[]) {
     await delay(600 + Math.min(900, message.length * 12))
-    return answer(message, lang)
+    return answer(message, lang, pool)
   },
 }
 
@@ -65,19 +70,21 @@ export class RemoteAIProvider implements AIProvider {
     return this.post<NLSearchResult>('/search', { query, lang })
   }
 
-  smartMatch(input: SmartMatchInput, lang: Lang, pool: Campaign[]) {
+  smartMatch(input: SmartMatchInput, lang: Lang, pool: Campaign[], providers: Provider[]) {
     return this.post<MatchResult[]>('/match', {
       input,
       lang,
       campaignIds: pool.map((c) => c.id),
+      providerIds: providers.map((p) => p.id),
     })
   }
 
-  ask(message: string, history: AssistantMessage[], lang: Lang) {
+  ask(message: string, history: AssistantMessage[], lang: Lang, pool: Campaign[]) {
     return this.post<Pick<AssistantMessage, 'text' | 'campaignIds' | 'suggestions'>>('/ask', {
       message,
       lang,
       history: history.slice(-8).map(({ role, text }) => ({ role, text })),
+      campaignIds: pool.map((c) => c.id),
     })
   }
 }

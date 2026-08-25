@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -51,7 +51,15 @@ type Phase = 'intro' | 'questions' | 'thinking' | 'results'
 
 export function SmartMatchPage() {
   const { t, lang, isRtl, n } = useI18n()
-  const { campaigns } = useCatalogue()
+  const { campaigns, providers } = useCatalogue()
+
+  /* The budget slider ends where the dearest trip does, not at a number fixed
+     before any trip existed — otherwise a pilgrim who can afford the most
+     expensive Hajj on the site has no way to say so. */
+  const budgetCeiling = useMemo(
+    () => Math.max(PRICE_CEILING, Math.ceil(campaigns.reduce((m, c) => Math.max(m, c.price), 0) / 100) * 100),
+    [campaigns],
+  )
   const [phase, setPhase] = useState<Phase>('intro')
   const [step, setStep] = useState(1)
   const [input, setInput] = useState<SmartMatchInput>(emptyInput)
@@ -64,7 +72,7 @@ export function SmartMatchPage() {
 
   const run = async (payload: SmartMatchInput) => {
     setPhase('thinking')
-    const matched = await getAI().smartMatch(payload, lang, campaigns)
+    const matched = await getAI().smartMatch(payload, lang, campaigns, providers)
     setResults(matched)
     setPhase('results')
   }
@@ -116,6 +124,7 @@ export function SmartMatchPage() {
 
           <Card className="p-6 sm:p-8">
             <Question
+              budgetCeiling={budgetCeiling}
               step={step}
               input={input}
               patch={patch}
@@ -222,10 +231,13 @@ function Question({
   step,
   input,
   patch,
+  budgetCeiling,
 }: {
   step: number
   input: SmartMatchInput
   patch: (p: Partial<SmartMatchInput>) => void
+  /** Top of the budget slider — follows the catalogue, see the page above. */
+  budgetCeiling: number
 }) {
   const { t, lang, n, money } = useI18n()
 
@@ -311,7 +323,7 @@ function Question({
             type="range"
             className="nasek-range mt-6"
             min={80}
-            max={PRICE_CEILING}
+            max={budgetCeiling}
             step={20}
             value={input.budget ?? 500}
             aria-label={t('smart.q3')}
@@ -319,7 +331,7 @@ function Question({
           />
           <div className="mt-2 flex justify-between text-[11px] text-ink-400">
             <span className="nums">{money(80)}</span>
-            <span className="nums">{money(PRICE_CEILING)}</span>
+            <span className="nums">{money(budgetCeiling)}</span>
           </div>
           <div className="mt-5 flex flex-wrap justify-center gap-2">
             {[150, 400, 800, 2000].map((v) => (

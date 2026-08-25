@@ -61,7 +61,7 @@ export function CampaignsPage() {
   }, [params])
 
   const results: Campaign[] = useMemo(
-    () => applySort(applyFilters(campaigns, filters, providers), sort),
+    () => applySort(applyFilters(campaigns, filters, providers), sort, providers),
     [campaigns, filters, sort, providers],
   )
 

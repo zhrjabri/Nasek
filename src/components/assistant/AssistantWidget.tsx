@@ -20,7 +20,7 @@ const nextId = () => `m${++idSeq}`
  */
 export function AssistantWidget() {
   const { t, lang, bl, money } = useI18n()
-  const { getCampaign } = useCatalogue()
+  const { campaigns, getCampaign } = useCatalogue()
   const location = useLocation()
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<AssistantMessage[]>([])
@@ -64,7 +64,7 @@ export function AssistantWidget() {
     setMessages((cur) => [...cur, { id: nextId(), role: 'user', text: trimmed }])
 
     try {
-      const reply = await getAI().ask(trimmed, messages, lang)
+      const reply = await getAI().ask(trimmed, messages, lang, campaigns)
       setMessages((cur) => [...cur, { id: nextId(), role: 'assistant', ...reply }])
     } catch {
       setMessages((cur) => [
