@@ -1,0 +1,32 @@
+{
+  "name": "nasek",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "NASEK | ناسِك — Oman's Hajj & Umrah campaign marketplace",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "verify:ai": "vite build --ssr scripts/verify-ai.ts --outDir .verify --logLevel warn && node .verify/verify-ai.js",
+    "verify:map": "node scripts/verify-map.mjs",
+    "build:map": "node scripts/build-oman-map.mjs scripts/data/oman.geo.json src/data/omanOutline.ts"
+  },
+  "dependencies": {
+    "lucide-react": "^0.469.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.1.1",
+    "recharts": "^2.15.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "@vitejs/plugin-react": "^4.3.4",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5"
+  }
+}
