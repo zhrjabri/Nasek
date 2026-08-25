@@ -592,7 +592,6 @@ export const en = {
   'about.missionTitle': 'What NASEK is for',
   'about.missionBody':
     'To make the decision clear: every campaign in one place, honest prices, visible seat counts, and reviews from people who travelled.',
-  'about.teamTitle': 'The founding team',
   'about.futureTitle': 'On the roadmap',
   'about.futureBody':
     'The original NASEK concept also includes wearable companions for pilgrims: the NASEK smart watch, carrying prayer times, a qibla compass and notifications from campaign supervisors, and the NASEK bracelet, which stores emergency contacts and lets a family member locate a pilgrim who becomes separated from the group.',

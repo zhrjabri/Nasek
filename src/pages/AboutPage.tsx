@@ -15,16 +15,6 @@ import { useI18n, type MessageKey } from '@/i18n'
 import { Badge, Card, LinkButton, SectionHeading } from '@/components/ui'
 import { LogoMark } from '@/components/brand/Logo'
 
-/** The founding team, as named in the original NASEK documents. */
-const TEAM = [
-  { name: 'الزهراء بنت علي الجابري', roleAr: 'الرئيس التنفيذي', roleEn: 'Chief Executive Officer' },
-  { name: 'بيان بنت حسين المعمري', roleAr: 'المدير التنفيذي للعمليات', roleEn: 'Chief Operating Officer' },
-  { name: 'مُنتهى بنت خالد الزدجالي', roleAr: 'المدير التنفيذي المالي', roleEn: 'Chief Financial Officer' },
-  { name: 'رياء بنت حميد الهشامي', roleAr: 'مدير الموارد البشرية', roleEn: 'Head of Human Resources' },
-  { name: 'الفضل بن سعيد الهنائي', roleAr: 'مدير التسويق', roleEn: 'Head of Marketing' },
-  { name: 'عهد بنت سليمان التوبي', roleAr: 'نائب مدير التسويق', roleEn: 'Deputy Head of Marketing' },
-  { name: 'سعيد بن حمد السعدي', roleAr: 'مدير العلاقات العامة', roleEn: 'Head of Public Relations' },
-]
 
 const TRUST: { n: 1 | 2 | 3 | 4; icon: typeof ShieldCheck }[] = [
   { n: 1, icon: BadgeCheck },
@@ -65,26 +55,6 @@ export function AboutPage() {
           <Prose title={t('about.problemTitle')} body={t('about.problemBody')} />
           <Prose title={t('about.missionTitle')} body={t('about.missionBody')} />
         </article>
-
-        {/* ------------------------------------------------------ the team */}
-        <section className="mt-16">
-          <h2 className="display text-[26px] text-ink-900">{t('about.teamTitle')}</h2>
-          <ul className="stagger mt-6 grid gap-3 sm:grid-cols-2">
-            {TEAM.map((member) => (
-              <li key={member.name} className="surface flex items-center gap-3.5 p-4">
-                <span className="flex size-11 shrink-0 items-center justify-center rounded-[3px] bg-nasek-50 text-[15px] font-bold text-nasek-800">
-                  {member.name.charAt(0)}
-                </span>
-                <div className="min-w-0">
-                  <p className="truncate text-[14px] font-bold text-ink-900">{member.name}</p>
-                  <p className="truncate text-[12px] text-ink-500">
-                    {lang === 'ar' ? member.roleAr : member.roleEn}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
 
         {/* ------------------------------------------------- trust & safety */}
         <section id="trust" className="mt-16">
