@@ -21,7 +21,7 @@ import { storage } from '@/services/api/client'
 
 const KEY = 'nasek.state.v1'
 
-interface PersistedState {
+export interface PersistedState {
   user: User | null
   savedIds: string[]
   bookings: Booking[]
@@ -36,7 +36,7 @@ interface PersistedState {
   verificationOverrides: Record<string, VerificationStatus>
 }
 
-type Action =
+export type Action =
   | { type: 'signIn'; user: User }
   | { type: 'signOut' }
   | { type: 'updateProfile'; patch: Partial<User> }
@@ -52,7 +52,7 @@ type Action =
   | { type: 'setVerification'; providerId: string; status: VerificationStatus }
   | { type: 'hydrate'; state: PersistedState }
 
-const emptyState: PersistedState = {
+export const emptyState: PersistedState = {
   user: null,
   savedIds: [],
   bookings: [],
@@ -63,10 +63,17 @@ const emptyState: PersistedState = {
   verificationOverrides: {},
 }
 
-function reducer(state: PersistedState, action: Action): PersistedState {
+export function reducer(state: PersistedState, action: Action): PersistedState {
   switch (action.type) {
     case 'hydrate':
-      return action.state
+      /*
+       * Stored state is whatever shape the app had when it was last written,
+       * which can predate any slice added since. Reading it back raw would
+       * leave those slices undefined -- and code that spreads them would
+       * throw on the first render, white-screening returning visitors. Start
+       * from the empty shape and lay the stored values on top.
+       */
+      return { ...emptyState, ...action.state }
 
     case 'signIn': {
       // The demo customer arrives with a history so the dashboard isn't blank.

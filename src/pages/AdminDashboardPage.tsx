@@ -26,13 +26,14 @@ import {
   Users,
 } from 'lucide-react'
 import { useI18n, type MessageKey } from '@/i18n'
+import type { Provider } from '@/types'
 import { wilayahName } from '@/data/geo'
 import { REVIEWS } from '@/data/reviews'
 import { SEED_BOOKINGS } from '@/data/seed'
 import { NASEK_FEE_RATE } from '@/services/api/bookings'
 import { useStore } from '@/store/AppStore'
 import { useCatalogue } from '@/hooks/useCatalogue'
-import { Badge, Button, Card, EmptyState, Rating, cx } from '@/components/ui'
+import { Badge, Button, Card, EmptyState, Modal, Rating, cx } from '@/components/ui'
 
 type Tab = 'overview' | 'providers' | 'campaigns' | 'bookings' | 'reviews'
 
@@ -52,6 +53,8 @@ export function AdminDashboardPage() {
   const { dispatch, toast } = useStore()
   const { campaigns, providers } = useCatalogue()
   const [tab, setTab] = useState<Tab>('overview')
+  /** The permit being viewed full size, if any. */
+  const [permit, setPermit] = useState<Provider | null>(null)
 
   const stats = useMemo(() => {
     const paid = SEED_BOOKINGS.filter((b) => b.status !== 'cancelled')
@@ -186,10 +189,12 @@ export function AdminDashboardPage() {
                     {/* Verifying without seeing the permit would be theatre, so
                         the uploaded image sits next to the button. */}
                     {p.licenceImage ? (
-                      <a
-                        href={p.licenceImage}
-                        target="_blank"
-                        rel="noreferrer"
+                      /* Opened in a dialog rather than a new tab: the image is
+                         a data: URL, and browsers refuse to navigate the top
+                         frame to one, so a plain link would do nothing. */
+                      <button
+                        type="button"
+                        onClick={() => setPermit(p)}
                         className="flex items-center gap-2 rounded-[3px] border border-ivory-300 bg-ivory-50 p-1.5 pe-2.5 text-[12px] font-semibold text-ink-600 transition-colors hover:border-nasek-700 hover:text-nasek-800"
                       >
                         <img
@@ -198,7 +203,7 @@ export function AdminDashboardPage() {
                           className="size-9 rounded-[2px] border border-ivory-300 object-cover"
                         />
                         {t('admin.viewLicence')}
-                      </a>
+                      </button>
                     ) : (
                       <span className="text-[12px] text-ink-400">{t('admin.noLicence')}</span>
                     )}
@@ -507,6 +512,27 @@ export function AdminDashboardPage() {
           )}
         </section>
       )}
+
+      {/* ------------------------------------------------- permit viewer */}
+      <Modal
+        open={!!permit}
+        onClose={() => setPermit(null)}
+        title={permit ? bl(permit.name) : t('admin.licence')}
+        wide
+      >
+        {permit?.licenceImage && (
+          <div>
+            <img
+              src={permit.licenceImage}
+              alt={permit.licenceFileName ?? t('admin.licence')}
+              className="max-h-[70vh] w-full rounded-[3px] border border-ivory-300 bg-ivory-50 object-contain"
+            />
+            {permit.licenceFileName && (
+              <p className="mt-3 text-[12px] text-ink-400">{permit.licenceFileName}</p>
+            )}
+          </div>
+        )}
+      </Modal>
     </main>
   )
 }

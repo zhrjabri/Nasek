@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "verify:ai": "vite build --ssr scripts/verify-ai.ts --outDir .verify --logLevel warn && node .verify/verify-ai.js",
     "verify:map": "node scripts/verify-map.mjs",
+    "verify:flow": "vite build --ssr scripts/verify-flow.ts --outDir .verify --logLevel warn && node .verify/verify-flow.js",
     "build:map": "node scripts/build-oman-map.mjs scripts/data/oman.geo.json src/data/omanOutline.ts"
   },
   "dependencies": {
