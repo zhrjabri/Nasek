@@ -17,7 +17,6 @@ import {
   MapPin,
   Phone,
   Plane,
-  Scale,
   Users,
 } from 'lucide-react'
 import type { Campaign } from '@/types'
@@ -26,7 +25,7 @@ import { wilayahName } from '@/data/geo'
 import { serviceLabel } from '@/data/services'
 import { reviewsForCampaign } from '@/data/reviews'
 import { campaignsApi } from '@/services/api/campaigns'
-import { MAX_COMPARE, useStore } from '@/store/AppStore'
+import { useStore } from '@/store/AppStore'
 import { useCatalogue } from '@/hooks/useCatalogue'
 import { CampaignCard } from '@/components/campaign/CampaignCard'
 import { tripDays } from '@/lib/trip'
@@ -46,7 +45,7 @@ export function CampaignDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { t, lang, bl, money, n, date, dateRange } = useI18n()
   const { campaigns, getProvider } = useCatalogue()
-  const { isSaved, isComparing, compareIds, dispatch, toast } = useStore()
+  const { isSaved, dispatch, toast } = useStore()
 
   const [campaign, setCampaign] = useState<Campaign | null | undefined>(undefined)
   const [similar, setSimilar] = useState<Campaign[]>([])
@@ -86,19 +85,9 @@ export function CampaignDetailPage() {
   const provider = getProvider(campaign.providerId)
   const reviews = reviewsForCampaign(campaign.id)
   const saved = isSaved(campaign.id)
-  const comparing = isComparing(campaign.id)
   const days = tripDays(campaign)
   const booked = campaign.seatsTotal - campaign.seatsAvailable
   const soldOut = campaign.seatsAvailable === 0
-
-  const toggleCompare = () => {
-    if (!comparing && compareIds.length >= MAX_COMPARE) {
-      toast(t('campaign.compareFull'), 'warning')
-      return
-    }
-    dispatch({ type: 'toggleCompare', id: campaign.id })
-    if (!comparing) toast(t('campaign.addedToCompare'))
-  }
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-6 pb-28 sm:px-6 lg:px-8 lg:pb-6">
@@ -381,14 +370,6 @@ export function CampaignDetailPage() {
                     {saved ? <BookmarkCheck className="size-4" /> : <Bookmark className="size-4" />}
                     {saved ? t('common.saved') : t('common.save')}
                   </Button>
-                  <Button
-                    variant={comparing ? 'primary' : 'secondary'}
-                    onClick={toggleCompare}
-                    aria-pressed={comparing}
-                  >
-                    <Scale className="size-4" />
-                    {t('common.compare')}
-                  </Button>
                 </div>
 
                 <div className="flex items-start gap-2 rounded-[3px] bg-gold-50 p-3">
@@ -406,37 +387,34 @@ export function CampaignDetailPage() {
       {/* --------------------------------------------- phone action bar */}
       {/* On a phone the price and the book button sit below every tab, review
           and map on the page — a long scroll away from the moment someone
-          decides. This keeps both within thumb reach. It stands down when the
-          compare tray is up, so the two never stack. */}
-      {compareIds.length === 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-ivory-300 bg-ivory-100/95 px-4 py-3 backdrop-blur-md lg:hidden">
-          <div className="mx-auto flex max-w-3xl items-center gap-4">
-            <div className="min-w-0">
-              <p className="flex items-baseline gap-1.5">
-                <span className="nums text-[20px] font-bold text-nasek-900">
-                  {money(campaign.price)}
-                </span>
-                <span className="text-[12px] text-ink-400">{t('common.perPerson')}</span>
+          decides. This keeps both within thumb reach. */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-ivory-300 bg-ivory-100/95 px-4 py-3 backdrop-blur-md lg:hidden">
+        <div className="mx-auto flex max-w-3xl items-center gap-4">
+          <div className="min-w-0">
+            <p className="flex items-baseline gap-1.5">
+              <span className="nums text-[20px] font-bold text-nasek-900">
+                {money(campaign.price)}
+              </span>
+              <span className="text-[12px] text-ink-400">{t('common.perPerson')}</span>
+            </p>
+            {!soldOut && campaign.seatsAvailable <= 10 && (
+              <p className="text-[11.5px] font-semibold text-amber-700">
+                {t('common.lastSeats', { n: n(campaign.seatsAvailable) })}
               </p>
-              {!soldOut && campaign.seatsAvailable <= 10 && (
-                <p className="text-[11.5px] font-semibold text-amber-700">
-                  {t('common.lastSeats', { n: n(campaign.seatsAvailable) })}
-                </p>
-              )}
-            </div>
-            {soldOut ? (
-              <Button className="ms-auto" size="lg" disabled>
-                {t('common.soldOut')}
-              </Button>
-            ) : (
-              <LinkButton to={`/booking/${campaign.id}`} size="lg" className="ms-auto">
-                {t('common.bookNow')}
-                <Arrow className="size-4" />
-              </LinkButton>
             )}
           </div>
+          {soldOut ? (
+            <Button className="ms-auto" size="lg" disabled>
+              {t('common.soldOut')}
+            </Button>
+          ) : (
+            <LinkButton to={`/booking/${campaign.id}`} size="lg" className="ms-auto">
+              {t('common.bookNow')}
+              <Arrow className="size-4" />
+            </LinkButton>
+          )}
         </div>
-      )}
+      </div>
 
       {/* ------------------------------------------------------- similar */}
       {similar.length > 0 && (

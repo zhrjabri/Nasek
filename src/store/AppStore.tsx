@@ -19,12 +19,10 @@ import { DEMO_CUSTOMER_BOOKINGS, DEMO_NOTIFICATIONS } from '@/data/seed'
 import { storage } from '@/services/api/client'
 
 const KEY = 'nasek.state.v1'
-export const MAX_COMPARE = 3
 
 interface PersistedState {
   user: User | null
   savedIds: string[]
-  compareIds: string[]
   bookings: Booking[]
   notifications: Notification[]
   /** Campaigns created by a provider during this session. */
@@ -40,8 +38,6 @@ type Action =
   | { type: 'signOut' }
   | { type: 'updateProfile'; patch: Partial<User> }
   | { type: 'toggleSaved'; id: string }
-  | { type: 'toggleCompare'; id: string }
-  | { type: 'clearCompare' }
   | { type: 'addBooking'; booking: Booking }
   | { type: 'cancelBooking'; id: string }
   | { type: 'readNotification'; id: string }
@@ -55,7 +51,6 @@ type Action =
 const emptyState: PersistedState = {
   user: null,
   savedIds: [],
-  compareIds: [],
   bookings: [],
   notifications: [],
   providerCampaigns: [],
@@ -97,17 +92,6 @@ function reducer(state: PersistedState, action: Action): PersistedState {
           ? state.savedIds.filter((id) => id !== action.id)
           : [...state.savedIds, action.id],
       }
-
-    case 'toggleCompare': {
-      if (state.compareIds.includes(action.id)) {
-        return { ...state, compareIds: state.compareIds.filter((id) => id !== action.id) }
-      }
-      if (state.compareIds.length >= MAX_COMPARE) return state
-      return { ...state, compareIds: [...state.compareIds, action.id] }
-    }
-
-    case 'clearCompare':
-      return { ...state, compareIds: [] }
 
     case 'addBooking':
       return { ...state, bookings: [action.booking, ...state.bookings] }
@@ -184,7 +168,6 @@ export interface Toast {
 interface AppStoreValue extends PersistedState {
   dispatch: (action: Action) => void
   isSaved: (id: string) => boolean
-  isComparing: (id: string) => boolean
   unreadCount: number
   toasts: Toast[]
   toast: (message: string, tone?: Toast['tone']) => void
@@ -225,7 +208,6 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       ...state,
       dispatch,
       isSaved: (id) => state.savedIds.includes(id),
-      isComparing: (id) => state.compareIds.includes(id),
       unreadCount: state.notifications.filter((n) => !n.read).length,
       toasts,
       toast,

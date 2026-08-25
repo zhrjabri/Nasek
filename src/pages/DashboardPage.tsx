@@ -5,7 +5,6 @@ import {
   Bookmark,
   CalendarClock,
   CheckCircle2,
-  Scale,
   Ticket,
   UserRound,
   XCircle,
@@ -30,12 +29,11 @@ import {
   cx,
 } from '@/components/ui'
 
-type Tab = 'bookings' | 'saved' | 'compare' | 'notifications' | 'profile'
+type Tab = 'bookings' | 'saved' | 'notifications' | 'profile'
 
 const TABS: { id: Tab; key: MessageKey; icon: typeof Ticket }[] = [
   { id: 'bookings', key: 'dash.bookings', icon: Ticket },
   { id: 'saved', key: 'dash.saved', icon: Bookmark },
-  { id: 'compare', key: 'dash.compare', icon: Scale },
   { id: 'notifications', key: 'dash.notifications', icon: Bell },
   { id: 'profile', key: 'dash.profile', icon: UserRound },
 ]
@@ -43,7 +41,7 @@ const TABS: { id: Tab; key: MessageKey; icon: typeof Ticket }[] = [
 export function DashboardPage() {
   const { t, lang, setLang, bl, money, n, date } = useI18n()
   const [params, setParams] = useSearchParams()
-  const { user, bookings, savedIds, compareIds, notifications, unreadCount, dispatch, toast } =
+  const { user, bookings, savedIds, notifications, unreadCount, dispatch, toast } =
     useStore()
   const { getCampaign, getProvider } = useCatalogue()
 
@@ -106,11 +104,9 @@ export function DashboardPage() {
               ? bookings.length
               : item.id === 'saved'
                 ? savedIds.length
-                : item.id === 'compare'
-                  ? compareIds.length
-                  : item.id === 'notifications'
-                    ? unreadCount
-                    : 0
+                : item.id === 'notifications'
+                  ? unreadCount
+                  : 0
           return (
             <button
               key={item.id}
@@ -247,37 +243,6 @@ export function DashboardPage() {
                 return campaign ? <CampaignCard key={id} campaign={campaign} compact /> : null
               })}
             </div>
-          )}
-        </section>
-      )}
-
-      {/* --------------------------------------------------------- compare */}
-      {tab === 'compare' && (
-        <section>
-          {compareIds.length === 0 ? (
-            <EmptyState
-              icon={<Scale className="size-5" />}
-              title={t('compare.empty')}
-              body={t('compare.emptyHint')}
-              action={<LinkButton to="/campaigns">{t('compare.browse')}</LinkButton>}
-            />
-          ) : (
-            <>
-              <div className="mb-5 flex items-center justify-between">
-                <p className="text-sm font-semibold text-ink-600">
-                  {t('compare.bar', { n: n(compareIds.length) })}
-                </p>
-                <LinkButton to="/compare" size="sm">
-                  {t('compare.open')}
-                </LinkButton>
-              </div>
-              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                {compareIds.map((id) => {
-                  const campaign = getCampaign(id)
-                  return campaign ? <CampaignCard key={id} campaign={campaign} compact /> : null
-                })}
-              </div>
-            </>
           )}
         </section>
       )}

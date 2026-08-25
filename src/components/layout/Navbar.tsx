@@ -8,7 +8,6 @@ import {
   LayoutGrid,
   LogOut,
   Menu,
-  Scale,
   User as UserIcon,
   X,
 } from 'lucide-react'
@@ -27,7 +26,7 @@ const LINKS: { to: string; key: MessageKey }[] = [
 
 export function Navbar() {
   const { t, lang, toggleLang } = useI18n()
-  const { user, savedIds, compareIds, unreadCount, dispatch } = useStore()
+  const { user, savedIds, unreadCount, dispatch } = useStore()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
@@ -115,14 +114,6 @@ export function Navbar() {
             <Globe className="size-4" strokeWidth={2} />
             <span>{lang === 'ar' ? 'English' : 'العربية'}</span>
           </button>
-
-          {/* ------------------------------------------------ compare */}
-          <IconLink
-            to="/compare"
-            label={t('nav.compare')}
-            count={compareIds.length}
-            icon={<Scale className="size-[18px]" strokeWidth={2} />}
-          />
 
           {/* Saved and notifications live on the customer dashboard, so a
               provider or admin would only be bounced by the role guard. */}

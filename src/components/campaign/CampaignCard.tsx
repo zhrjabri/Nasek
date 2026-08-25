@@ -7,14 +7,13 @@ import {
   MapPin,
   Plane,
   Bus,
-  Scale,
   Users,
 } from 'lucide-react'
 import type { Campaign } from '@/types'
 import { useI18n } from '@/i18n'
 import { wilayahName } from '@/data/geo'
 import { serviceLabel } from '@/data/services'
-import { MAX_COMPARE, useStore } from '@/store/AppStore'
+import { useStore } from '@/store/AppStore'
 import { useCatalogue } from '@/hooks/useCatalogue'
 import { tripDays } from '@/lib/trip'
 import { Badge, Rating, cx } from '@/components/ui'
@@ -27,12 +26,11 @@ export function CampaignCard({
   compact?: boolean
 }) {
   const { t, lang, bl, money, n, dateRange } = useI18n()
-  const { isSaved, isComparing, compareIds, dispatch, toast } = useStore()
+  const { isSaved, dispatch, toast } = useStore()
   const { getProvider } = useCatalogue()
 
   const provider = getProvider(campaign.providerId)
   const saved = isSaved(campaign.id)
-  const comparing = isComparing(campaign.id)
   const days = tripDays(campaign)
 
   const seatRatio = campaign.seatsAvailable / campaign.seatsTotal
@@ -42,15 +40,6 @@ export function CampaignCard({
   const toggleSave = () => {
     dispatch({ type: 'toggleSaved', id: campaign.id })
     toast(saved ? t('campaign.unsavedToast') : t('campaign.savedToast'), saved ? 'info' : 'success')
-  }
-
-  const toggleCompare = () => {
-    if (!comparing && compareIds.length >= MAX_COMPARE) {
-      toast(t('campaign.compareFull'), 'warning')
-      return
-    }
-    dispatch({ type: 'toggleCompare', id: campaign.id })
-    if (!comparing) toast(t('campaign.addedToCompare'))
   }
 
   return (
@@ -201,9 +190,6 @@ export function CampaignCard({
             label={saved ? t('common.saved') : t('common.save')}
           >
             {saved ? <BookmarkCheck className="size-4" /> : <Bookmark className="size-4" />}
-          </IconButton>
-          <IconButton active={comparing} onClick={toggleCompare} label={t('common.compare')}>
-            <Scale className="size-4" />
           </IconButton>
           <Link
             to={`/campaigns/${campaign.id}`}

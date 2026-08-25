@@ -10,7 +10,6 @@ const COLUMNS: { title: MessageKey; links: { to: string; key: MessageKey }[] }[]
       { to: '/campaigns', key: 'nav.campaigns' },
       { to: '/smart-match', key: 'nav.smartMatch' },
       { to: '/map', key: 'nav.map' },
-      { to: '/compare', key: 'nav.compare' },
     ],
   },
   {

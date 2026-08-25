@@ -5,14 +5,12 @@ import { useStore } from '@/store/AppStore'
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
 import { ToastHost } from '@/components/layout/ToastHost'
-import { CompareBar } from '@/components/layout/CompareBar'
 import { AssistantWidget } from '@/components/assistant/AssistantWidget'
 import { EmptyState, LinkButton, Spinner } from '@/components/ui'
 
 import { HomePage } from '@/pages/HomePage'
 import { CampaignsPage } from '@/pages/CampaignsPage'
 import { CampaignDetailPage } from '@/pages/CampaignDetailPage'
-import { ComparePage } from '@/pages/ComparePage'
 import { SmartMatchPage } from '@/pages/SmartMatchPage'
 import { MapPage } from '@/pages/MapPage'
 import { BookingPage } from '@/pages/BookingPage'
@@ -115,7 +113,6 @@ export function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/campaigns" element={<CampaignsPage />} />
           <Route path="/campaigns/:id" element={<CampaignDetailPage />} />
-          <Route path="/compare" element={<ComparePage />} />
           <Route path="/smart-match" element={<SmartMatchPage />} />
           <Route path="/map" element={<MapPage />} />
           <Route path="/giving" element={<GivingPage />} />
@@ -156,7 +153,6 @@ export function App() {
       </div>
 
       <Footer />
-      <CompareBar />
       <AssistantWidget />
       <ToastHost />
     </div>

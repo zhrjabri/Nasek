@@ -74,18 +74,8 @@ export function answer(message: string, lang: Lang): Reply {
       ),
       suggestions: [
         L('ما الفرق بين الرحلة البرية والجوية؟', 'What is the difference between land and air trips?'),
-        L('كيف أقارن بين حملتين؟', 'How do I compare two campaigns?'),
+        L('ما هي سياسة الإلغاء؟', 'What is the cancellation policy?'),
       ],
-    }
-  }
-
-  if (findWord(text, ['مقارنه', 'قارن', 'اقارن', 'compare', 'comparison', 'side by side'])) {
-    return {
-      text: L(
-        'اضغط زر «قارن» على أي حملة لإضافتها إلى المقارنة — يمكنك اختيار حتى ثلاث حملات. ثم افتح صفحة المقارنة لترى السعر والتقييم والسكن والمسافة عن الحرم والمقاعد والخدمات في جدول واحد، مع تمييز الأفضل في كل بند.',
-        'Press “Compare” on any campaign to add it — you can hold up to three. Then open the comparison page to see price, rating, accommodation, distance from the Haram, seats and services in one table, with the best value in each row highlighted.',
-      ),
-      suggestions: defaultSuggestions(lang),
     }
   }
 
