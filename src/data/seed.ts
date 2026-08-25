@@ -99,41 +99,8 @@ export const SEED_BOOKINGS: Booking[] = generateBookings()
  */
 export const DEMO_CUSTOMER_BOOKINGS: Booking[] = []
 
-export const DEMO_NOTIFICATIONS: Notification[] = [
-  {
-    id: 'n1',
-    userId: 'u1',
-    kind: 'booking',
-    title: { ar: 'تم تأكيد حجزك', en: 'Your booking is confirmed' },
-    body: {
-      ar: 'أكدت حملة نور الطريق حجزك رقم NSK-240118 لرحلة العمرة الجوية العائلية.',
-      en: 'Nour Al Tareeq confirmed booking NSK-240118 for the Family Air Umrah trip.',
-    },
-    date: isoDaysAgo(22),
-    read: false,
-  },
-  {
-    id: 'n2',
-    userId: 'u1',
-    kind: 'availability',
-    title: { ar: 'المقاعد على وشك النفاد', en: 'Seats are running out' },
-    body: {
-      ar: 'بقيت 3 مقاعد فقط في «عمرة العشر الأواخر من رمضان» التي حفظتها.',
-      en: 'Only 3 seats remain in "Last Ten Nights of Ramadan Umrah", which you saved.',
-    },
-    date: isoDaysAgo(3),
-    read: false,
-  },
-  {
-    id: 'n3',
-    userId: 'u1',
-    kind: 'trip',
-    title: { ar: 'اقترب موعد رحلتك', en: 'Your trip is approaching' },
-    body: {
-      ar: 'تنطلق رحلتك بعد أقل من شهر. تأكد من سريان جواز السفر لمدة 6 أشهر على الأقل.',
-      en: 'Your trip departs in under a month. Make sure your passport is valid for at least 6 months.',
-    },
-    date: isoDaysAgo(1),
-    read: true,
-  },
-]
+/**
+ * No starting notifications either: all three announced bookings and trips
+ * from the seed catalogue, so with it gone they had nothing to point at.
+ */
+export const DEMO_NOTIFICATIONS: Notification[] = []
