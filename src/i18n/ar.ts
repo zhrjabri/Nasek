@@ -547,6 +547,7 @@ export const ar: Record<MessageKey, string> = {
   'admin.topProviders': 'أبرز أصحاب الحملات',
   'admin.pendingQueue': 'قائمة انتظار التوثيق',
   'admin.queueEmpty': 'لا يوجد ما ينتظر المراجعة',
+  'admin.noProviders': 'لم تسجّل أي حملة بعد',
 
   // ---------------------------------------------------------------- giving
   'giving.nav': 'ناسِك الخير',

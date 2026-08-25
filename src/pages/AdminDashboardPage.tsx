@@ -278,6 +278,9 @@ export function AdminDashboardPage() {
 
       {/* -------------------------------------------------------- providers */}
       {tab === 'providers' && (
+        providers.length === 0 ? (
+          <EmptyState icon={<Building2 className="size-5" />} title={t('admin.noProviders')} />
+        ) : (
         <section className="overflow-x-auto rounded-[3px] border border-ivory-300 bg-ivory-50">
           <table className="w-full min-w-3xl text-[13.5px]">
             <thead>
@@ -342,6 +345,7 @@ export function AdminDashboardPage() {
             </tbody>
           </table>
         </section>
+        )
       )}
 
       {/* ------------------------------------------------------- campaigns */}

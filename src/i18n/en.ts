@@ -547,6 +547,7 @@ export const en = {
   'admin.topProviders': 'Top campaign owners',
   'admin.pendingQueue': 'Verification queue',
   'admin.queueEmpty': 'Nothing waiting for review',
+  'admin.noProviders': 'No campaign owners have registered yet',
 
   // ---------------------------------------------------------------- giving
   'giving.nav': 'NASEK Giving',
