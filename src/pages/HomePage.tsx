@@ -59,6 +59,9 @@ export function HomePage() {
     [campaigns, providers, t],
   )
 
+  /** The three five-star quotes the home page pulls out, if there are any. */
+  const testimonials = REVIEWS.filter((r) => r.rating === 5).slice(0, 3)
+
   const mapCampaigns = mapWilayah
     ? campaigns.filter((c) => c.wilayahId === mapWilayah)
     : []
@@ -302,12 +305,12 @@ export function HomePage() {
       </section>
 
       {/* ==================================================== reviews ==== */}
-      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <SectionHeading title={t('home.reviewsTitle')} subtitle={t('home.reviewsSub')} />
-        <ul className="stagger mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {REVIEWS.filter((r) => r.rating === 5)
-            .slice(0, 3)
-            .map((review) => (
+      {/* Dropped entirely rather than left as a heading over an empty grid. */}
+      {testimonials.length > 0 && (
+        <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+          <SectionHeading title={t('home.reviewsTitle')} subtitle={t('home.reviewsSub')} />
+          <ul className="stagger mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {testimonials.map((review) => (
               <li key={review.id} className="framed flex flex-col gap-4 p-7">
                 <Quote className="size-6 text-gold-400 rtl:-scale-x-100" />
                 <p className="flex-1 text-[14.5px] leading-relaxed text-ink-700">
@@ -319,8 +322,9 @@ export function HomePage() {
                 </div>
               </li>
             ))}
-        </ul>
-      </section>
+          </ul>
+        </section>
+      )}
 
       {/* =================================================== provider ==== */}
       <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
