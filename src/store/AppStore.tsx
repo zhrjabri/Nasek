@@ -42,6 +42,14 @@ export interface PersistedState {
   suspendedUserIds: string[]
   /** Accounts the admin has removed from the directory. */
   removedUserIds: string[]
+  /** Campaigns the admin has taken down. Distinct from `hiddenCampaignIds`,
+   *  which is an owner deleting their own trip: an owner must not be able to
+   *  quietly undo a moderation decision by republishing. */
+  campaignSuspensions: string[]
+  /** The admin's featured decisions, laid over each campaign's own flag. */
+  featureOverrides: Record<string, boolean>
+  /** Reviews the admin has taken down. */
+  hiddenReviewIds: string[]
   /** Hashed sign-in credentials, one per registered account. */
   credentials: Credential[]
   /** Failed sign-in attempts, keyed by the identifier that was tried. */
@@ -66,6 +74,9 @@ export type Action =
   | { type: 'setUserSuspended'; userId: string; suspended: boolean }
   | { type: 'removeUser'; userId: string }
   | { type: 'restoreUser'; userId: string }
+  | { type: 'setCampaignSuspended'; campaignId: string; suspended: boolean }
+  | { type: 'setCampaignFeatured'; campaignId: string; featured: boolean }
+  | { type: 'setReviewHidden'; reviewId: string; hidden: boolean }
   | { type: 'addCredential'; credential: Credential }
   | { type: 'signInFailed'; key: string; now: number }
   | { type: 'signInSucceeded'; key: string }
@@ -83,6 +94,9 @@ export const emptyState: PersistedState = {
   verificationOverrides: {},
   suspendedUserIds: [],
   removedUserIds: [],
+  campaignSuspensions: [],
+  featureOverrides: {},
+  hiddenReviewIds: [],
   credentials: [],
   lockouts: {},
 }
@@ -135,6 +149,9 @@ export function reducer(state: PersistedState, action: Action): PersistedState {
         verificationOverrides: state.verificationOverrides,
         suspendedUserIds: state.suspendedUserIds,
         removedUserIds: state.removedUserIds,
+        campaignSuspensions: state.campaignSuspensions,
+        featureOverrides: state.featureOverrides,
+        hiddenReviewIds: state.hiddenReviewIds,
         credentials: state.credentials,
         lockouts: state.lockouts,
       }
@@ -252,6 +269,32 @@ export function reducer(state: PersistedState, action: Action): PersistedState {
       return {
         ...state,
         removedUserIds: state.removedUserIds.filter((id) => id !== action.userId),
+      }
+
+    case 'setCampaignSuspended':
+      return {
+        ...state,
+        campaignSuspensions: action.suspended
+          ? state.campaignSuspensions.includes(action.campaignId)
+            ? state.campaignSuspensions
+            : [...state.campaignSuspensions, action.campaignId]
+          : state.campaignSuspensions.filter((id) => id !== action.campaignId),
+      }
+
+    case 'setCampaignFeatured':
+      return {
+        ...state,
+        featureOverrides: { ...state.featureOverrides, [action.campaignId]: action.featured },
+      }
+
+    case 'setReviewHidden':
+      return {
+        ...state,
+        hiddenReviewIds: action.hidden
+          ? state.hiddenReviewIds.includes(action.reviewId)
+            ? state.hiddenReviewIds
+            : [...state.hiddenReviewIds, action.reviewId]
+          : state.hiddenReviewIds.filter((id) => id !== action.reviewId),
       }
 
     case 'addCredential':

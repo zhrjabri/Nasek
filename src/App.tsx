@@ -37,7 +37,7 @@ const ProviderDashboardPage = lazy(() =>
   import('@/pages/ProviderDashboardPage').then((m) => ({ default: m.ProviderDashboardPage })),
 )
 const AdminDashboardPage = lazy(() =>
-  import('@/pages/AdminDashboardPage').then((m) => ({ default: m.AdminDashboardPage })),
+  import('@/pages/admin').then((m) => ({ default: m.AdminDashboardPage })),
 )
 /** The gate is split too, so the public bundle carries no trace of it. */
 const AdminAccessPage = lazy(() =>

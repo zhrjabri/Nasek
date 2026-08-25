@@ -45,7 +45,7 @@ export function CampaignDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { t, lang, bl, money, n, date, dateRange } = useI18n()
   const { campaigns, getProvider } = useCatalogue()
-  const { isSaved, dispatch, toast } = useStore()
+  const { isSaved, dispatch, toast, hiddenReviewIds } = useStore()
 
   const [campaign, setCampaign] = useState<Campaign | null | undefined>(undefined)
   const [similar, setSimilar] = useState<Campaign[]>([])
@@ -83,7 +83,9 @@ export function CampaignDetailPage() {
   }
 
   const provider = getProvider(campaign.providerId)
-  const reviews = reviewsForCampaign(campaign.id)
+  // A review the admin has taken down must disappear from the trip it was
+  // written about, not only from the moderation screen.
+  const reviews = reviewsForCampaign(campaign.id).filter((r) => !hiddenReviewIds.includes(r.id))
   const saved = isSaved(campaign.id)
   const days = tripDays(campaign)
   const booked = campaign.seatsTotal - campaign.seatsAvailable

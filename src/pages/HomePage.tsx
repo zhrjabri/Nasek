@@ -22,6 +22,7 @@ import { WILAYAT } from '@/data/geo'
 import { REVIEWS } from '@/data/reviews'
 import { campaignsApi } from '@/services/api/campaigns'
 import { useCatalogue } from '@/hooks/useCatalogue'
+import { useStore } from '@/store/AppStore'
 import { CampaignCard, CampaignCardSkeleton } from '@/components/campaign/CampaignCard'
 import { SmartSearch } from '@/components/search/SmartSearch'
 import { OmanMap } from '@/components/map/OmanMap'
@@ -31,6 +32,7 @@ import { Badge, LinkButton, Ornament, Rating, SectionHeading } from '@/component
 export function HomePage() {
   const { t, lang, isRtl, n, bl } = useI18n()
   const { campaigns, providers, getProvider } = useCatalogue()
+  const { hiddenReviewIds } = useStore()
   const [featured, setFeatured] = useState<Campaign[] | null>(null)
   const [popular, setPopular] = useState<Campaign[] | null>(null)
   const [mapWilayah, setMapWilayah] = useState<string | null>(null)
@@ -39,12 +41,16 @@ export function HomePage() {
 
   useEffect(() => {
     let live = true
-    void campaignsApi.featured().then((r) => live && setFeatured(r))
-    void campaignsApi.popular().then((r) => live && setPopular(r))
+    // The session catalogue is passed in rather than left to the seed data:
+    // every trip on NASEK is one an owner published, and the admin's featured
+    // decisions ride along with it. Without this the strip below could only
+    // ever show seeded trips, of which there are none.
+    void campaignsApi.featured(campaigns).then((r) => live && setFeatured(r))
+    void campaignsApi.popular(campaigns).then((r) => live && setPopular(r))
     return () => {
       live = false
     }
-  }, [])
+  }, [campaigns])
 
   const stats = useMemo(
     () => [
@@ -60,7 +66,9 @@ export function HomePage() {
   )
 
   /** The three five-star quotes the home page pulls out, if there are any. */
-  const testimonials = REVIEWS.filter((r) => r.rating === 5).slice(0, 3)
+  const testimonials = REVIEWS.filter(
+    (r) => r.rating === 5 && !hiddenReviewIds.includes(r.id),
+  ).slice(0, 3)
 
   const mapCampaigns = mapWilayah
     ? campaigns.filter((c) => c.wilayahId === mapWilayah)
