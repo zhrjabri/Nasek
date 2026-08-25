@@ -398,6 +398,8 @@ export const en = {
   'auth.hidePassword': 'Hide password',
   'auth.securityNote':
     'Your password is stored only as a salted hash and is never kept in a form anyone can read back. Repeated failed attempts lock this account for a minute.',
+  'auth.signInAdmin': 'Log in as Administrator',
+  'auth.signInAdminNote': 'Manage the whole of NASEK. Requires the administration passphrase.',
   'auth.signUpTitle': 'Create your NASEK account',
   'auth.signUpChoose': 'Which kind of account do you need?',
   'auth.signUpOwner': 'Register as a Campaign Owner',
@@ -557,14 +559,15 @@ export const en = {
 
   // ------------------------------------------------------- admin dashboard
   'admin.gateTitle': 'NASEK administration',
-  'admin.gateSubtitle': 'This area is restricted. Enter the passphrase to continue.',
+  'admin.gateSubtitle': 'Enter the administration passphrase to continue.',
   'admin.gatePassphrase': 'Passphrase',
   'admin.gateEnter': 'Enter',
   'admin.gateChecking': 'Checking…',
   'admin.gateWrong': 'That passphrase is not correct.',
   'admin.gateEmpty': 'Enter the passphrase to continue.',
+  'admin.gateOther': 'Not an administrator?',
   'admin.gateNote':
-    'This page is unlisted — nothing on NASEK links to it. If you reached it by accident, no account of yours is affected.',
+    'Only the NASEK owner holds this passphrase. Nothing you do on this page affects your customer or campaign owner account.',
   'admin.showingOf': 'Showing {shown} of {total}',
   'admin.attention': 'Needs your attention',
   'admin.attentionSub': 'Everything waiting on a decision from you, in one place.',

@@ -398,6 +398,8 @@ export const ar: Record<MessageKey, string> = {
   'auth.hidePassword': 'إخفاء كلمة المرور',
   'auth.securityNote':
     'تُحفظ كلمة مرورك على هيئة بصمة مُملّحة فقط، ولا تُخزَّن أبدًا بصورة يمكن قراءتها. وتكرار المحاولات الفاشلة يقفل الحساب لمدة دقيقة.',
+  'auth.signInAdmin': 'تسجيل الدخول كمشرف',
+  'auth.signInAdminNote': 'إدارة ناسِك بالكامل. يتطلّب عبارة مرور الإدارة.',
   'auth.signUpTitle': 'أنشئ حسابك في ناسِك',
   'auth.signUpChoose': 'أي نوع من الحسابات تحتاج؟',
   'auth.signUpOwner': 'التسجيل كصاحب حملة',
@@ -557,14 +559,15 @@ export const ar: Record<MessageKey, string> = {
 
   // ------------------------------------------------------- admin dashboard
   'admin.gateTitle': 'إدارة ناسِك',
-  'admin.gateSubtitle': 'هذه المنطقة مقيّدة. أدخل عبارة المرور للمتابعة.',
+  'admin.gateSubtitle': 'أدخل عبارة مرور الإدارة للمتابعة.',
   'admin.gatePassphrase': 'عبارة المرور',
   'admin.gateEnter': 'دخول',
   'admin.gateChecking': 'جارٍ التحقق…',
   'admin.gateWrong': 'عبارة المرور غير صحيحة.',
   'admin.gateEmpty': 'أدخل عبارة المرور للمتابعة.',
+  'admin.gateOther': 'لست مشرفًا؟',
   'admin.gateNote':
-    'هذه الصفحة غير مُدرجة — لا يوجد في ناسِك أي رابط يشير إليها. إن وصلت إليها بالخطأ فلن يتأثر أي من حساباتك.',
+    'عبارة المرور هذه بيد مالك ناسِك وحده. ولا يؤثر شيء مما تفعله هنا على حسابك كعميل أو كصاحب حملة.',
   'admin.showingOf': 'عرض {shown} من {total}',
   'admin.attention': 'بانتظار قرارك',
   'admin.attentionSub': 'كل ما ينتظر قرارًا منك، في مكان واحد.',

@@ -119,11 +119,13 @@ function RoleOption({
 // ------------------------------------------------------------------ sign in
 
 /**
- * Two doors: customer and campaign owner.
+ * Three doors: customer, campaign owner, administration.
  *
- * Administration is deliberately absent. It lives at an unlisted address
- * (see `services/api/adminAccess.ts`) behind a passphrase, so this page gives
- * no hint that an admin area exists at all.
+ * Administration used to be absent from this page and reachable only at an
+ * unlisted address. It is listed here now because remembering a secret address
+ * is a cost paid every single time, while the thing that actually keeps the
+ * dashboard shut is the passphrase behind this door. The unlisted address
+ * still works for anyone who bookmarked it.
  */
 export function SignInPage() {
   const { t } = useI18n()
@@ -158,6 +160,16 @@ export function SignInPage() {
           title={t('auth.signInOwner')}
           note={t('auth.signInOwnerNote')}
           to={`/signin/owner${suffix}`}
+        />
+        {/* Administration sits with the other two rather than behind an
+            address only one person knows. What protects it is the passphrase,
+            not obscurity: being easy to find and easy to enter are different
+            things. */}
+        <RoleOption
+          icon={<ShieldCheck className="size-4.5" />}
+          title={t('auth.signInAdmin')}
+          note={t('auth.signInAdminNote')}
+          to="/signin/admin"
         />
       </div>
     </AuthShell>

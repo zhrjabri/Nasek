@@ -85,10 +85,9 @@ function Protected({
   const location = useLocation()
 
   if (!user) {
-    // There is no address to send them to: the gate's address is a secret
-    // this bundle does not hold. An admin whose session has lapsed types it
-    // again; anyone else sees what the route really looks like from outside.
-    if (unlisted) return <NotFoundPage />
+    // The gate is listed on the sign-in page now, so a lapsed admin session
+    // can be sent there rather than dead-ending on "not found".
+    if (unlisted) return <Navigate to="/signin/admin" replace />
     return (
       <Navigate to={`/signin?next=${encodeURIComponent(location.pathname + location.search)}`} replace />
     )
@@ -186,6 +185,14 @@ export function App() {
           <Route path="/signin" element={<SignInPage />} />
           <Route path="/signin/customer" element={<CustomerSignInPage />} />
           <Route path="/signin/owner" element={<OwnerSignInPage />} />
+          <Route
+            path="/signin/admin"
+            element={
+              <Suspense fallback={<RouteFallback />}>
+                <AdminAccessPage />
+              </Suspense>
+            }
+          />
           <Route path="/signup" element={<SignUpPage />} />
           <Route path="/signup/customer" element={<CustomerSignUpPage />} />
           <Route path="/signup/provider" element={<ProviderSignUpPage />} />
