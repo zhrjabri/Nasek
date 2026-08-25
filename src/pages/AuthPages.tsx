@@ -116,18 +116,6 @@ export function SignInPage() {
             onClick={() => void enterAs('customer', t('auth.guestCustomer'))}
             disabled={busy}
           />
-          <DemoButton
-            icon={<Building2 className="size-4" />}
-            label={t('auth.demoProvider')}
-            onClick={() => void enterAs('provider', t('auth.guestProvider'))}
-            disabled={busy}
-          />
-          <DemoButton
-            icon={<ShieldCheck className="size-4" />}
-            label={t('auth.demoAdmin')}
-            onClick={() => void enterAs('admin', t('auth.guestAdmin'))}
-            disabled={busy}
-          />
         </div>
       </div>
 
