@@ -527,23 +527,6 @@ export function EmptyState({
   )
 }
 
-export function ErrorState({ onRetry }: { onRetry?: () => void }) {
-  const { t } = useI18n()
-  return (
-    <EmptyState
-      title={t('state.errorTitle')}
-      body={t('state.errorBody')}
-      action={
-        onRetry && (
-          <Button variant="secondary" onClick={onRetry}>
-            {t('common.retry')}
-          </Button>
-        )
-      }
-    />
-  )
-}
-
 // ------------------------------------------------------------- Section head
 
 export function SectionHeading({

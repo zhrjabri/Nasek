@@ -7,8 +7,6 @@ import type { Campaign } from '@/types'
  */
 export const CAMPAIGNS: Campaign[] = []
 
-export const campaignById = (id: string) => CAMPAIGNS.find((c) => c.id === id)
-
 /**
  * Bounds for the price sliders. With an empty catalogue Math.min/max over no
  * arguments return Infinity and -Infinity, which would leave every range
