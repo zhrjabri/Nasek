@@ -8,10 +8,28 @@ import {
   type ReactNode,
 } from 'react'
 import type { Bilingual, Lang } from '@/types'
-import { en, type MessageKey } from './en'
+import { en, type PublicMessageKey } from './en'
 import { ar } from './ar'
+// Type-only, and that is the whole trick. TypeScript erases this import, so the
+// administration strings are named in the key union without a single one of
+// them being bundled into the public site. `src/admin/main.tsx` supplies the
+// values at runtime through the `extra` prop below.
+import type { AdminMessageKey } from './adminEn'
 
-const DICTS: Record<Lang, Record<MessageKey, string>> = { en, ar }
+/**
+ * Every key either application can name.
+ *
+ * The public site can resolve only the public half; ask it for an
+ * administration key and `t` falls back to returning the key itself, which is
+ * the same thing it has always done for a missing translation. Nothing in
+ * `src/pages/` or `src/components/` asks for one.
+ */
+export type MessageKey = PublicMessageKey | AdminMessageKey
+
+/** A dictionary that need not be complete — what `extra` supplies. */
+export type PartialDict = Partial<Record<MessageKey, string>>
+
+const BASE: Record<Lang, Record<PublicMessageKey, string>> = { en, ar }
 
 const STORAGE_KEY = 'nasek.lang'
 
@@ -45,7 +63,20 @@ function initialLang(): Lang {
   return navigator.language?.startsWith('ar') === false ? 'en' : 'ar'
 }
 
-export function I18nProvider({ children }: { children: ReactNode }) {
+export function I18nProvider({
+  extra,
+  children,
+}: {
+  /**
+   * Additional strings for this application, merged over the shared ones.
+   *
+   * The administration dashboard passes its own dictionaries here. Merging at
+   * runtime rather than importing at module scope is what keeps them out of the
+   * public build — a static import would put them in both.
+   */
+  extra?: Partial<Record<Lang, PartialDict>>
+  children: ReactNode
+}) {
   const [lang, setLangState] = useState<Lang>(initialLang)
 
   const dir = lang === 'ar' ? 'rtl' : 'ltr'
@@ -64,11 +95,16 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   )
 
   const value = useMemo<I18nValue>(() => {
-    const dict = DICTS[lang]
+    const dict: Partial<Record<MessageKey, string>> = extra?.[lang]
+      ? { ...BASE[lang], ...extra[lang] }
+      : BASE[lang]
     const locale = lang === 'ar' ? 'ar-OM' : 'en-GB'
 
     const t: I18nValue['t'] = (key, vars) => {
-      let out: string = dict[key] ?? en[key] ?? key
+      // English is the fallback for a missing Arabic string; the key itself is
+      // the fallback for a string this application does not carry at all.
+      let out: string =
+        dict[key] ?? extra?.en?.[key] ?? (en as Record<string, string>)[key] ?? key
       if (vars) {
         for (const [k, v] of Object.entries(vars)) {
           out = out.replaceAll(`{${k}}`, String(v))
@@ -115,7 +151,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
           : `${fmt(from, { day: 'numeric', month: 'short' })} – ${fmt(to, { day: 'numeric', month: 'short', year: 'numeric' })}`
       },
     }
-  }, [lang, dir, setLang, toggleLang])
+  }, [lang, dir, setLang, toggleLang, extra])
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>
 }
@@ -126,4 +162,3 @@ export function useI18n(): I18nValue {
   return ctx
 }
 
-export type { MessageKey }

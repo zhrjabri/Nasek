@@ -98,11 +98,11 @@ export function HomePage() {
 
             <Ornament className="mt-7" />
 
-            <h1 className="display mt-6 text-[30px] leading-[1.15] text-nasek-900 sm:text-[46px]">
+            <h1 className="display mt-6 text-4xl leading-[1.15] text-nasek-900 sm:text-6xl">
               {t('hero.title')}
             </h1>
 
-            <p className="mx-auto mt-5 max-w-xl text-[15px] leading-relaxed text-ink-500 sm:text-[16.5px]">
+            <p className="mx-auto mt-5 max-w-xl text-md leading-relaxed text-ink-500 sm:text-lg">
               {t('hero.subtitle')}
             </p>
 
@@ -127,8 +127,8 @@ export function HomePage() {
           <ul className="mx-auto mt-10 grid max-w-3xl grid-cols-2 divide-x divide-ivory-300 rtl:divide-x-reverse sm:grid-cols-4">
             {stats.map((stat) => (
               <li key={stat.label} className="px-3 py-2 text-center">
-                <p className="nums display text-[30px] text-nasek-700">{n(stat.value)}</p>
-                <p className="mt-1 text-[11.5px] font-medium tracking-wide text-ink-500">
+                <p className="nums display text-4xl text-nasek-700">{n(stat.value)}</p>
+                <p className="mt-1 text-2xs font-medium tracking-wide text-ink-500">
                   {stat.label}
                 </p>
               </li>
@@ -160,15 +160,15 @@ export function HomePage() {
             >
               {/* the step number sits in a rotated square, plate-style */}
               <span className="absolute -top-3.5 start-1/2 flex size-7 -translate-x-1/2 rotate-45 items-center justify-center border border-gold-400 bg-ivory-50 rtl:translate-x-1/2">
-                <span className="nums -rotate-45 text-[11px] font-bold text-gold-700">
+                <span className="nums -rotate-45 text-2xs font-bold text-gold-700">
                   {i + 1}
                 </span>
               </span>
               <span className="flex size-11 items-center justify-center border border-nasek-200 bg-nasek-50 text-nasek-700">
                 <step.icon className="size-5" strokeWidth={1.7} />
               </span>
-              <h3 className="display text-[19px] text-nasek-900">{t(step.title)}</h3>
-              <p className="text-[13.5px] leading-relaxed text-ink-500">{t(step.body)}</p>
+              <h3 className="display text-xl text-nasek-900">{t(step.title)}</h3>
+              <p className="text-sm leading-relaxed text-ink-500">{t(step.body)}</p>
             </li>
           ))}
         </ol>
@@ -214,10 +214,10 @@ export function HomePage() {
                   <item.icon className="size-[18px]" strokeWidth={1.7} />
                 </span>
                 <div>
-                  <h3 className="text-[15px] font-bold text-ink-900">
+                  <h3 className="text-md font-bold text-ink-900">
                     {t(`why.${item.n}.title` as MessageKey)}
                   </h3>
-                  <p className="mt-1.5 text-[13.5px] leading-relaxed text-ink-500">
+                  <p className="mt-1.5 text-sm leading-relaxed text-ink-500">
                     {t(`why.${item.n}.body` as MessageKey)}
                   </p>
                 </div>
@@ -279,10 +279,10 @@ export function HomePage() {
                               {provider?.initials}
                             </span>
                             <span className="min-w-0 flex-1">
-                              <span className="block truncate text-[14px] font-bold text-ink-900">
+                              <span className="block truncate text-base font-bold text-ink-900">
                                 {bl(c.title)}
                               </span>
-                              <span className="flex items-center gap-2 text-[11px] text-ink-400">
+                              <span className="flex items-center gap-2 text-2xs text-ink-400">
                                 <Rating value={c.rating} size="sm" />
                               </span>
                             </span>
@@ -304,7 +304,7 @@ export function HomePage() {
                 <div className="flex h-full flex-col justify-center rounded-[3px] border border-dashed border-ivory-400 bg-ivory-50/60 p-8 text-center">
                   <MapPinned className="mx-auto size-8 text-nasek-300" />
                   <p className="mt-3 text-sm font-semibold text-ink-700">{t('map.selectHint')}</p>
-                  <p className="mt-1.5 text-[13px] text-ink-400">{t('map.subtitle')}</p>
+                  <p className="mt-1.5 text-sm text-ink-400">{t('map.subtitle')}</p>
                 </div>
               )}
             </div>
@@ -321,11 +321,11 @@ export function HomePage() {
             {testimonials.map((review) => (
               <li key={review.id} className="framed flex flex-col gap-4 p-7">
                 <Quote className="size-6 text-gold-400 rtl:-scale-x-100" />
-                <p className="flex-1 text-[14.5px] leading-relaxed text-ink-700">
+                <p className="flex-1 text-base leading-relaxed text-ink-700">
                   {bl(review.comment)}
                 </p>
                 <div className="flex items-center justify-between border-t border-ivory-300 pt-4">
-                  <span className="text-[13px] font-bold text-ink-800">{review.userName}</span>
+                  <span className="text-sm font-bold text-ink-800">{review.userName}</span>
                   <Rating value={review.rating} size="sm" />
                 </div>
               </li>
@@ -343,16 +343,16 @@ export function HomePage() {
               <Badge tone="gold" className="mb-4">
                 {t('nav.forProviders')}
               </Badge>
-              <h2 className="display text-[28px] text-ivory-50 sm:text-[34px]">
+              <h2 className="display text-4xl text-ivory-50 sm:text-5xl">
                 {t('home.providerCta.title')}
               </h2>
-              <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-ivory-200/70">
+              <p className="mt-4 max-w-xl text-md leading-relaxed text-ivory-200/70">
                 {t('home.providerCta.body')}
               </p>
               <ul className="mt-6 space-y-2.5">
                 {(['home.providerCta.point1', 'home.providerCta.point2', 'home.providerCta.point3'] as MessageKey[]).map(
                   (key) => (
-                    <li key={key} className="flex items-center gap-2.5 text-[14px] text-ivory-200/80">
+                    <li key={key} className="flex items-center gap-2.5 text-base text-ivory-200/80">
                       <BadgeCheck className="size-4 shrink-0 text-gold-400" />
                       {t(key)}
                     </li>
@@ -367,7 +367,7 @@ export function HomePage() {
 
             {/* a glimpse of the owner dashboard, as a static preview */}
             <div className="border border-gold-400/25 bg-nasek-950/30 p-5">
-              <p className="text-[10.5px] font-bold uppercase tracking-[0.2em] text-gold-300/80">
+              <p className="text-2xs font-bold uppercase tracking-[0.2em] text-gold-300/80">
                 {t('prov.overview')}
               </p>
               <div className="mt-4 grid grid-cols-2 divide-x divide-y divide-gold-400/15 rtl:divide-x-reverse">
@@ -378,10 +378,10 @@ export function HomePage() {
                   { label: t('prov.kpiRating'), value: '4.8' },
                 ].map((kpi) => (
                   <div key={kpi.label} className="p-3.5">
-                    <p className="nums text-[24px] font-bold leading-none text-ivory-50">
+                    <p className="nums text-3xl font-bold leading-none text-ivory-50">
                       {kpi.value}
                     </p>
-                    <p className="mt-1.5 text-[11px] text-ivory-200/50">{kpi.label}</p>
+                    <p className="mt-1.5 text-2xs text-ivory-200/50">{kpi.label}</p>
                   </div>
                 ))}
               </div>
@@ -403,7 +403,7 @@ export function HomePage() {
           </span>
           <div className="flex-1">
             <h2 className="display text-2xl text-ink-900">{t('giving.title')}</h2>
-            <p className="mt-2 max-w-2xl text-[14.5px] leading-relaxed text-ink-500">
+            <p className="mt-2 max-w-2xl text-base leading-relaxed text-ink-500">
               {t('giving.subtitle')}
             </p>
           </div>
@@ -417,10 +417,10 @@ export function HomePage() {
       {/* ================================================== final CTA ==== */}
       <section className="mx-auto max-w-3xl px-4 pb-20 text-center sm:px-6">
         <Ornament className="mb-8" />
-        <h2 className="display text-[30px] text-nasek-900 sm:text-[38px]">
+        <h2 className="display text-4xl text-nasek-900 sm:text-6xl">
           {t('home.finalCta.title')}
         </h2>
-        <p className="mt-3 text-[15px] leading-relaxed text-ink-500">{t('home.finalCta.body')}</p>
+        <p className="mt-3 text-md leading-relaxed text-ink-500">{t('home.finalCta.body')}</p>
         <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <LinkButton to="/smart-match" size="lg">
             <Sparkles className="size-4" />

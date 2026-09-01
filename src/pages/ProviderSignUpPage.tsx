@@ -3,12 +3,14 @@ import { Link, useNavigate } from 'react-router-dom'
 import { FileImage, Info, Trash2, Upload } from 'lucide-react'
 import { useI18n } from '@/i18n'
 import { WILAYAT } from '@/data/geo'
-import { authApi } from '@/services/api/auth'
-import { createCredential } from '@/services/api/credentials'
+import { isValidPhone } from '@/services/auth/phone'
+import { registerProviderAccount } from '@/services/auth/registerProvider'
+import { useCompleteSignIn } from '@/hooks/useSignIn'
 import { useStore } from '@/store/AppStore'
 import { readImageFile, type ImageReadError } from '@/lib/imageFile'
 import { AuthShell } from '@/pages/AuthPages'
-import { Button, Checkbox, Field, Input, Select, Textarea } from '@/components/ui'
+import { OtpFlow } from '@/components/auth/OtpFlow'
+import { Button, Checkbox, Field, Input, Notice, Select, Textarea } from '@/components/ui'
 
 interface Licence {
   dataUrl: string
@@ -23,6 +25,12 @@ interface Licence {
  * trading history and — the part that matters for trust — the operating
  * permit. Registering creates the company in `pending` state, which puts it
  * straight into the admin's verification queue.
+ *
+ * Two stages now: the company, then a code sent to the contact address. The
+ * password fields are gone along with the rest of them. The order matters —
+ * the permit and the company details are gathered first, so that verifying the
+ * code is the last action and produces a complete, queued registration rather
+ * than an empty owner account somebody abandoned halfway.
  */
 export function ProviderSignUpPage() {
   const { t, lang } = useI18n()
@@ -38,13 +46,14 @@ export function ProviderSignUpPage() {
     email: '',
     phone: '',
     wilayahId: 'muscat',
-    password: '',
-    confirm: '',
   })
   const [licence, setLicence] = useState<Licence | null>(null)
   const [agreed, setAgreed] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
+  const [stage, setStage] = useState<'details' | 'verify'>('details')
+  const [failure, setFailure] = useState('')
+  const complete = useCompleteSignIn()
 
   const set = (key: keyof typeof form, value: string) =>
     setForm((f) => ({ ...f, [key]: value }))
@@ -77,42 +86,97 @@ export function ProviderSignUpPage() {
     if (!form.companyName.trim()) next.companyName = t('common.required')
     if (!form.name.trim()) next.name = t('auth.nameRequired')
     if (!/^\S+@\S+\.\S+$/.test(form.email)) next.email = t('auth.emailInvalid')
-    if (form.phone.replace(/\D/g, '').length < 8) next.phone = t('auth.phoneInvalid')
-    if (form.password.length < 8) next.password = t('auth.passwordShort')
-    if (form.password !== form.confirm) next.confirm = t('auth.passwordMismatch')
+    if (!isValidPhone(form.phone)) next.phone = t('auth.phoneInvalid')
     // The permit is the point of this form, so it is not optional.
     if (!licence) next.licence = t('auth.licenceRequired')
     if (!agreed) next.terms = t('auth.termsRequired')
     setErrors(next)
     if (Object.keys(next).length) return
+    setStage('verify')
+  }
 
+  /**
+   * Everything that happens once the contact address is proved.
+   *
+   * The order is deliberate: establish the session first, then register the
+   * company. `register_provider` runs as the signed-in caller and promotes
+   * *them*, so it has nobody to promote until the session exists.
+   */
+  const finish = async () => {
+    setFailure('')
     setBusy(true)
-    const { user, provider } = await authApi.registerProvider({
-      name: form.name,
-      email: form.email,
-      phone: form.phone,
-      wilayahId: form.wilayahId,
-      companyName: form.companyName,
-      tagline: form.tagline,
-      experienceYears: form.experienceYears ? Number(form.experienceYears) : 0,
-      licenceImage: licence!.dataUrl,
-      licenceFileName: licence!.fileName,
-    })
-    // Same as the customer form: the password leaves this function hashed.
-    const credential = await createCredential({
-      userId: user.id,
-      role: 'provider',
-      email: form.email,
-      phone: form.phone,
-      password: form.password,
-    })
-    dispatch({ type: 'addCredential', credential })
-    dispatch({ type: 'addProvider', provider })
-    dispatch({ type: 'registerUser', user })
-    dispatch({ type: 'signIn', user })
-    setBusy(false)
-    toast(t('auth.providerRegistered'), 'success')
-    navigate('/provider', { replace: true })
+
+    const outcome = await complete(
+      { channel: 'email', value: form.email },
+      { name: form.name, phone: form.phone, wilayahId: form.wilayahId },
+    )
+    if (outcome.error || !outcome.user) {
+      setBusy(false)
+      setFailure(t(outcome.error ?? 'auth.sessionFailed'))
+      return
+    }
+
+    try {
+      const { user, provider } = await registerProviderAccount({
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        wilayahId: form.wilayahId,
+        companyName: form.companyName,
+        tagline: form.tagline,
+        experienceYears: form.experienceYears ? Number(form.experienceYears) : 0,
+        licenceImage: licence!.dataUrl,
+        licenceFileName: licence!.fileName,
+      })
+      dispatch({ type: 'addProvider', provider })
+      dispatch({ type: 'registerUser', user })
+      dispatch({ type: 'signIn', user })
+      setBusy(false)
+      toast(t('auth.providerRegistered'), 'success')
+      navigate('/provider', { replace: true })
+    } catch (reason) {
+      // The account exists and is signed in at this point; only the company
+      // failed. Saying so, rather than "registration failed", is the difference
+      // between someone retrying the form and someone creating a second account.
+      setBusy(false)
+      setFailure(reason instanceof Error ? reason.message : t('auth.sessionFailed'))
+    }
+  }
+
+  if (stage === 'verify') {
+    return (
+      <AuthShell
+        title={t('auth.providerSignUpTitle')}
+        subtitle={t('auth.providerSignUpSubtitle')}
+        footer={
+          <button
+            type="button"
+            onClick={() => setStage('details')}
+            className="font-semibold text-nasek-700 hover:underline"
+          >
+            {t('common.back')}
+          </button>
+        }
+      >
+        {failure && (
+          <Notice tone="danger" live className="mb-5">
+            {failure}
+          </Notice>
+        )}
+
+        <Notice tone="info" className="mb-5">
+          {t('auth.providerPending')}
+        </Notice>
+
+        <OtpFlow
+          channels={['email']}
+          initialValue={form.email}
+          submitLabel={t('auth.registerCompany')}
+          busyLabel={t('auth.creating')}
+          onSuccess={finish}
+        />
+      </AuthShell>
+    )
   }
 
   return (
@@ -129,7 +193,7 @@ export function ProviderSignUpPage() {
       }
     >
       <form onSubmit={submit} className="space-y-4">
-        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink-400">
+        <p className="text-2xs font-bold uppercase tracking-[0.14em] text-ink-400">
           {t('auth.sectionCompany')}
         </p>
 
@@ -185,7 +249,7 @@ export function ProviderSignUpPage() {
         </div>
 
         {/* ------------------------------------------------------- licence */}
-        <p className="pt-2 text-[11px] font-bold uppercase tracking-[0.14em] text-ink-400">
+        <p className="pt-2 text-2xs font-bold uppercase tracking-[0.14em] text-ink-400">
           {t('auth.sectionLicence')}
         </p>
 
@@ -213,17 +277,17 @@ export function ProviderSignUpPage() {
                     className="size-16 shrink-0 rounded-[2px] border border-ivory-300 object-cover"
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13px] font-semibold text-ink-800">
+                    <p className="truncate text-sm font-semibold text-ink-800">
                       {licence.fileName}
                     </p>
-                    <p className="nums mt-0.5 text-[11.5px] text-ink-400">
+                    <p className="nums mt-0.5 text-2xs text-ink-400">
                       {Math.max(1, Math.round(licence.storedBytes / 1024))} KB
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={clearLicence}
-                    className="flex items-center gap-1.5 rounded-[3px] px-2.5 py-1.5 text-[12px] font-semibold text-ink-500 transition-colors hover:bg-ivory-200 hover:text-red-700"
+                    className="flex items-center gap-1.5 rounded-[3px] px-2.5 py-1.5 text-xs font-semibold text-ink-500 transition-colors hover:bg-ivory-200 hover:text-red-700"
                   >
                     <Trash2 className="size-3.5" />
                     {t('auth.licenceRemove')}
@@ -233,7 +297,7 @@ export function ProviderSignUpPage() {
                 <button
                   type="button"
                   onClick={() => fileInput.current?.click()}
-                  className="flex w-full items-center justify-center gap-2.5 rounded-[3px] border border-dashed border-ivory-400 bg-ivory-50 p-6 text-[13px] font-semibold text-ink-500 transition-colors hover:border-nasek-700 hover:text-nasek-800"
+                  className="flex w-full items-center justify-center gap-2.5 rounded-[3px] border border-dashed border-ivory-400 bg-ivory-50 p-6 text-sm font-semibold text-ink-500 transition-colors hover:border-nasek-700 hover:text-nasek-800"
                 >
                   <Upload className="size-4" />
                   {t('auth.licenceUpload')}
@@ -243,13 +307,13 @@ export function ProviderSignUpPage() {
           )}
         </Field>
 
-        <p className="flex items-start gap-2 rounded-[3px] bg-gold-50 p-3 text-[12px] leading-relaxed text-gold-800">
+        <p className="flex items-start gap-2 rounded-[3px] bg-gold-50 p-3 text-xs leading-relaxed text-gold-800">
           <FileImage className="mt-px size-3.5 shrink-0" />
           {t('auth.licenceNote')}
         </p>
 
         {/* --------------------------------------------------- the account */}
-        <p className="pt-2 text-[11px] font-bold uppercase tracking-[0.14em] text-ink-400">
+        <p className="pt-2 text-2xs font-bold uppercase tracking-[0.14em] text-ink-400">
           {t('auth.sectionAccount')}
         </p>
 
@@ -291,32 +355,7 @@ export function ProviderSignUpPage() {
           </Field>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label={t('auth.password')} required error={errors.password}>
-            {(p) => (
-              <Input
-                {...p}
-                type="password"
-                autoComplete="new-password"
-                value={form.password}
-                onChange={(e) => set('password', e.target.value)}
-              />
-            )}
-          </Field>
-          <Field label={t('auth.confirmPassword')} required error={errors.confirm}>
-            {(p) => (
-              <Input
-                {...p}
-                type="password"
-                autoComplete="new-password"
-                value={form.confirm}
-                onChange={(e) => set('confirm', e.target.value)}
-              />
-            )}
-          </Field>
-        </div>
-
-        <p className="flex items-start gap-2 rounded-[3px] bg-gold-50 p-3 text-[12px] leading-relaxed text-gold-800">
+        <p className="flex items-start gap-2 rounded-[3px] bg-gold-50 p-3 text-xs leading-relaxed text-gold-800">
           <Info className="mt-px size-3.5 shrink-0" />
           {t('auth.providerPending')}
         </p>
@@ -331,7 +370,7 @@ export function ProviderSignUpPage() {
         </div>
 
         <Button type="submit" size="lg" block loading={busy}>
-          {busy ? t('auth.creating') : t('auth.registerCompany')}
+          {busy ? t('auth.creating') : t('common.continue')}
         </Button>
       </form>
     </AuthShell>

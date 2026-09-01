@@ -117,7 +117,7 @@ export function UsersTab({
         />
       ) : (
         <TableShell>
-          <table className="w-full min-w-4xl text-[13.5px]">
+          <table className="w-full min-w-4xl text-sm">
             <thead>
               <HeadRow>
                 <Th>{t('admin.userAccount')}</Th>
@@ -153,7 +153,7 @@ export function UsersTab({
                           <span className="block truncate font-semibold text-ink-800 hover:text-nasek-800">
                             {u.name}
                           </span>
-                          <span className="block truncate text-[11.5px] text-ink-400" dir="ltr">
+                          <span className="block truncate text-2xs text-ink-400" dir="ltr">
                             {u.email}
                           </span>
                         </span>
@@ -240,7 +240,7 @@ export function UsersTab({
         </TableShell>
       )}
 
-      <p className="text-[11.5px] leading-relaxed text-ink-400">{t('admin.userNote')}</p>
+      <p className="text-2xs leading-relaxed text-ink-400">{t('admin.userNote')}</p>
 
       <Modal
         open={!!account}
@@ -258,7 +258,7 @@ export function UsersTab({
                 {account.name.trim().charAt(0)}
               </span>
               <div className="min-w-0">
-                <p className="truncate text-[15px] font-bold text-ink-900">{account.name}</p>
+                <p className="truncate text-md font-bold text-ink-900">{account.name}</p>
                 <Badge tone={account.role === 'provider' ? 'gold' : 'neutral'}>
                   {t(account.role === 'provider' ? 'admin.roleOwner' : 'admin.roleCustomer')}
                 </Badge>
@@ -275,7 +275,7 @@ export function UsersTab({
             </dl>
 
             {account.providerId && (
-              <p className="rounded-[3px] border border-nasek-200 bg-nasek-50/60 p-3.5 text-[12.5px] leading-relaxed text-ink-600">
+              <p className="rounded-[3px] border border-nasek-200 bg-nasek-50/60 p-3.5 text-xs leading-relaxed text-ink-600">
                 {t('admin.userOwnerNote')}
               </p>
             )}

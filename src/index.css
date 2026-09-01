@@ -67,6 +67,69 @@
   /* Squared-off corners read as older and more formal than pill shapes. */
   --radius-card: 0.25rem;
 
+
+  /* --- Type scale ---
+     Replaces roughly twenty ad-hoc sizes — 10, 10.5, 11, 11.5, 12, 12.5, 13,
+     13.5, 14, 14.5, 15, 15.5 … — with eleven steps. Half-pixel sizes are the
+     clearest sign of a design decided one component at a time: they cannot be
+     reasoned about, they do not land on the 4px rhythm the spacing uses, and
+     the browser rounds them inconsistently anyway. Every step below is a whole
+     pixel and each is far enough from its neighbour to read as a deliberate
+     level rather than an accident.
+
+     The ramp is tight at the small end, where NASEK does most of its work
+     (labels, table cells, metadata), and opens up towards display sizes.
+     Line heights are paired with each step: dense UI text needs less leading
+     than body copy, and headings less again. Arabic overrides both — see the
+     `[dir='rtl']` rules further down — because Kufi's tall counters interlock
+     at Latin leading. */
+  --text-2xs: 0.6875rem;      /* 11px — micro labels, badges, eyebrows */
+  --text-2xs--line-height: 1.45;
+  --text-xs: 0.75rem;         /* 12px — captions, helper text */
+  --text-xs--line-height: 1.5;
+  --text-sm: 0.8125rem;       /* 13px — dense UI: table cells, menu items */
+  --text-sm--line-height: 1.55;
+  --text-base: 0.875rem;      /* 14px — the default interface size */
+  --text-base--line-height: 1.6;
+  --text-md: 0.9375rem;       /* 15px — comfortable reading, card body */
+  --text-md--line-height: 1.65;
+  --text-lg: 1.0625rem;       /* 17px — lead paragraphs, card titles */
+  --text-lg--line-height: 1.6;
+  --text-xl: 1.1875rem;       /* 19px — sub-headings */
+  --text-xl--line-height: 1.45;
+  --text-2xl: 1.375rem;       /* 22px */
+  --text-2xl--line-height: 1.35;
+  --text-3xl: 1.5rem;         /* 24px — section headings */
+  --text-3xl--line-height: 1.3;
+  --text-4xl: 1.75rem;        /* 28px — page titles */
+  --text-4xl--line-height: 1.22;
+  --text-5xl: 2.125rem;       /* 34px */
+  --text-5xl--line-height: 1.16;
+  --text-6xl: 2.625rem;       /* 42px — hero */
+  --text-6xl--line-height: 1.1;
+  --text-7xl: 3.25rem;        /* 52px — hero, large screens */
+  --text-7xl--line-height: 1.06;
+
+  /* --- Semantic status ---
+     The interface was reaching straight into Tailwind's raw red/amber/green
+     ramps, which meant "this went wrong" was spelled four slightly different
+     ways depending on which component you were looking at. Naming the roles
+     makes them consistent, and makes changing one a single edit. Each pairs a
+     surface, a border and a foreground already checked to clear 4.5:1 on that
+     surface. */
+  --color-danger-surface: #fdf2f2;
+  --color-danger-border: #e8bcbc;
+  --color-danger-fg: #9a2626;
+  --color-warn-surface: #fdf7e9;
+  --color-warn-border: #e3c98a;
+  --color-warn-fg: #7a5405;
+  --color-success-surface: #eef7f2;
+  --color-success-border: #a9d3bf;
+  --color-success-fg: #1a5b41;
+  --color-info-surface: #eef4f8;
+  --color-info-border: #b3cbdb;
+  --color-info-fg: #1d4f6d;
+
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -134,8 +197,17 @@
     letter-spacing: 0;
   }
 
+  /*
+   * The focus ring.
+   *
+   * One colour cannot serve both grounds. Gold-600 clears 3:1 against ivory and
+   * collapses to about 2:1 on the deep green of the administration sidebar;
+   * gold-300 does exactly the reverse. So the colour is a variable with a light
+   * default, and dark surfaces raise it by carrying `.on-dark` — which
+   * inherits, so one class on a container covers everything inside it.
+   */
   :focus-visible {
-    outline: 2px solid var(--color-gold-600);
+    outline: 2px solid var(--nasek-focus, var(--color-gold-600));
     outline-offset: 2px;
     border-radius: 2px;
   }
@@ -251,6 +323,11 @@ html[dir='rtl'] .eyebrow {
     transparent
   );
   height: 1px;
+}
+
+/* Marks a dark-ground container so focus rings inside it stay visible. */
+@utility on-dark {
+  --nasek-focus: var(--color-gold-300);
 }
 
 @utility scrollbar-none {

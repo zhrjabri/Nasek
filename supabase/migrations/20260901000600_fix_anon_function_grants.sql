@@ -1,0 +1,36 @@
+-- =============================================================================
+-- NASEK — let signed-out visitors read the catalogue
+--
+-- Fixes a bug in 20260901000200 that made the entire public site unusable for
+-- anyone who was not signed in.
+--
+-- The `campaigns_read` policy reads:
+--
+--     (suspended = false and deleted = false)
+--     or public.owns_provider(provider_id)
+--     or public.is_admin()
+--
+-- ...and EXECUTE on `owns_provider` was granted to `authenticated` only.
+-- `is_admin` was granted to `anon` as well, so the asymmetry was invisible
+-- until something exercised it. Postgres evaluates a policy's whole expression
+-- without any promise of short-circuiting, so an anonymous visitor selecting
+-- from `campaigns` hit `permission denied for function owns_provider` — a 401
+-- on the listing, the map, Smart Match and the home page. Every table looked
+-- correctly locked down; the one that was supposed to be open was locked too.
+--
+-- Granting EXECUTE to `anon` gives away nothing. Both functions compare against
+-- `auth.uid()`, which is null for an anonymous caller, so `owner_id = null` is
+-- never true and both return false every time. What the grant buys is the right
+-- to *ask* the question — which the policy needs in order to conclude "no".
+--
+-- `owns_campaign` is granted too, though no policy reachable by `anon` calls it
+-- today. Leaving one of a matched pair ungranted is precisely the asymmetry
+-- that caused this, and it costs nothing to close: it returns false for
+-- anonymous callers for the same reason.
+--
+-- `npm run verify:backend` covers this now — it reads `campaigns` with the
+-- public key exactly as a signed-out visitor's browser does.
+-- =============================================================================
+
+grant execute on function public.owns_provider(uuid) to anon;
+grant execute on function public.owns_campaign(uuid) to anon;

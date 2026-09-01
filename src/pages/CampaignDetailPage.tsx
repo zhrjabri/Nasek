@@ -94,7 +94,7 @@ export function CampaignDetailPage() {
   return (
     <main className="mx-auto max-w-7xl px-4 py-6 pb-28 sm:px-6 lg:px-8 lg:pb-6">
       {/* --------------------------------------------------- breadcrumb */}
-      <nav aria-label="breadcrumb" className="mb-5 flex items-center gap-1.5 text-[13px] text-ink-400">
+      <nav aria-label="breadcrumb" className="mb-5 flex items-center gap-1.5 text-sm text-ink-400">
         <Link to="/" className="hover:text-ink-700">
           {t('nav.home')}
         </Link>
@@ -128,17 +128,17 @@ export function CampaignDetailPage() {
                 <Badge tone="neutral">{t('common.demoData')}</Badge>
               </div>
 
-              <h1 className="display mt-4 text-[28px] text-ink-900 sm:text-[34px]">
+              <h1 className="display mt-4 text-4xl text-ink-900 sm:text-5xl">
                 {bl(campaign.title)}
               </h1>
 
               <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
                 <Rating value={campaign.rating} count={campaign.reviewCount} />
-                <span className="flex items-center gap-1.5 text-[13px] text-ink-500">
+                <span className="flex items-center gap-1.5 text-sm text-ink-500">
                   <MapPin className="size-4 text-nasek-600/70" />
                   {wilayahName(campaign.wilayahId, lang)}
                 </span>
-                <span className="flex items-center gap-1.5 text-[13px] text-ink-500">
+                <span className="flex items-center gap-1.5 text-sm text-ink-500">
                   {campaign.travelMethod === 'air' ? (
                     <Plane className="size-4 text-nasek-600/70" />
                   ) : (
@@ -146,7 +146,7 @@ export function CampaignDetailPage() {
                   )}
                   {t(campaign.travelMethod === 'air' ? 'common.air' : 'common.land')}
                 </span>
-                <span className="flex items-center gap-1.5 text-[13px] text-ink-500">
+                <span className="flex items-center gap-1.5 text-sm text-ink-500">
                   <Clock className="size-4 text-nasek-600/70" />
                   {t('campaign.duration', { n: n(days) })}
                 </span>
@@ -164,11 +164,11 @@ export function CampaignDetailPage() {
                   {provider.initials}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-400">
+                  <p className="text-2xs font-semibold uppercase tracking-wider text-ink-400">
                     {t('campaign.byProvider')}
                   </p>
-                  <p className="truncate text-[15px] font-bold text-ink-900">{bl(provider.name)}</p>
-                  <p className="truncate text-[12px] text-ink-500">
+                  <p className="truncate text-md font-bold text-ink-900">{bl(provider.name)}</p>
+                  <p className="truncate text-xs text-ink-500">
                     {bl(provider.tagline)} · {t('common.experience', { n: n(provider.experienceYears) })}
                   </p>
                 </div>
@@ -204,7 +204,7 @@ export function CampaignDetailPage() {
 
           {/* ------------------------------------------------------- about */}
           <Section title={t('campaign.aboutTrip')}>
-            <p className="text-[15px] leading-[1.85] text-ink-600">{bl(campaign.description)}</p>
+            <p className="text-md leading-[1.85] text-ink-600">{bl(campaign.description)}</p>
           </Section>
 
           {/* ---------------------------------------------------- services */}
@@ -216,7 +216,7 @@ export function CampaignDetailPage() {
                   className="flex items-center gap-2.5 rounded-[3px] border border-ivory-300 bg-ivory-50/60 px-3.5 py-2.5"
                 >
                   <BadgeCheck className="size-4 shrink-0 text-nasek-600" />
-                  <span className="text-[13.5px] font-medium text-ink-700">
+                  <span className="text-sm font-medium text-ink-700">
                     {serviceLabel(s, lang)}
                   </span>
                 </li>
@@ -236,12 +236,12 @@ export function CampaignDetailPage() {
           <Section title={t('compare.row.seats')}>
             <div className="rounded-[3px] border border-ivory-300 bg-ivory-50/60 p-5">
               <div className="flex items-baseline justify-between">
-                <p className="nums text-[15px] font-bold text-ink-800">
+                <p className="nums text-md font-bold text-ink-800">
                   {t('campaign.seatsBar', { booked: n(booked), total: n(campaign.seatsTotal) })}
                 </p>
                 <p
                   className={cx(
-                    'nums text-[13px] font-semibold',
+                    'nums text-sm font-semibold',
                     campaign.seatsAvailable <= 6 ? 'text-amber-700' : 'text-nasek-700',
                   )}
                 >
@@ -269,13 +269,13 @@ export function CampaignDetailPage() {
                 {reviews.map((review) => (
                   <li key={review.id} className="rounded-[3px] border border-ivory-300 bg-ivory-50 p-5">
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-[14px] font-bold text-ink-900">{review.userName}</span>
+                      <span className="text-base font-bold text-ink-900">{review.userName}</span>
                       <Rating value={review.rating} size="sm" />
                     </div>
-                    <p className="mt-2.5 text-[14px] leading-relaxed text-ink-600">
+                    <p className="mt-2.5 text-base leading-relaxed text-ink-600">
                       {bl(review.comment)}
                     </p>
-                    <p className="mt-2.5 text-[11px] text-ink-400">{date(review.date)}</p>
+                    <p className="mt-2.5 text-2xs text-ink-400">{date(review.date)}</p>
                   </li>
                 ))}
               </ul>
@@ -285,7 +285,7 @@ export function CampaignDetailPage() {
           {/* ------------------------------------------------------- terms */}
           <Section title={t('campaign.terms')}>
             <div className="rounded-[3px] border border-ivory-300 bg-ivory-50/60 p-5">
-              <p className="text-[13.5px] leading-[1.9] text-ink-600">{t('campaign.termsBody')}</p>
+              <p className="text-sm leading-[1.9] text-ink-600">{t('campaign.termsBody')}</p>
             </div>
           </Section>
 
@@ -295,14 +295,14 @@ export function CampaignDetailPage() {
               <div className="flex flex-wrap gap-3">
                 <a
                   href={`tel:${provider.phone.replace(/\s/g, '')}`}
-                  className="flex items-center gap-2.5 rounded-[3px] border border-ivory-300 bg-ivory-50 px-4 py-3 text-[13.5px] font-semibold text-ink-700 transition-colors hover:border-nasek-300 hover:text-nasek-800"
+                  className="flex items-center gap-2.5 rounded-[3px] border border-ivory-300 bg-ivory-50 px-4 py-3 text-sm font-semibold text-ink-700 transition-colors hover:border-nasek-300 hover:text-nasek-800"
                 >
                   <Phone className="size-4 text-nasek-600" />
                   <span className="nums">{provider.phone}</span>
                 </a>
                 <a
                   href={`mailto:${provider.email}`}
-                  className="flex items-center gap-2.5 rounded-[3px] border border-ivory-300 bg-ivory-50 px-4 py-3 text-[13.5px] font-semibold text-ink-700 transition-colors hover:border-nasek-300 hover:text-nasek-800"
+                  className="flex items-center gap-2.5 rounded-[3px] border border-ivory-300 bg-ivory-50 px-4 py-3 text-sm font-semibold text-ink-700 transition-colors hover:border-nasek-300 hover:text-nasek-800"
                 >
                   <Mail className="size-4 text-nasek-600" />
                   {provider.email}
@@ -314,7 +314,7 @@ export function CampaignDetailPage() {
           {/* -------------------------------------------------------- report */}
           <div className="mt-8">
             {reported ? (
-              <p className="flex items-center gap-2 rounded-[3px] border border-nasek-200 bg-nasek-50 px-4 py-3 text-[13px] font-medium text-nasek-800">
+              <p className="flex items-center gap-2 rounded-[3px] border border-nasek-200 bg-nasek-50 px-4 py-3 text-sm font-medium text-nasek-800">
                 <BadgeCheck className="size-4" />
                 {t('campaign.reported')}
               </p>
@@ -322,7 +322,7 @@ export function CampaignDetailPage() {
               <button
                 type="button"
                 onClick={() => setReported(true)}
-                className="inline-flex items-center gap-2 rounded-[3px] px-2 py-1.5 text-[13px] font-medium text-ink-400 transition-colors hover:bg-ivory-200 hover:text-red-700"
+                className="inline-flex items-center gap-2 rounded-[3px] px-2 py-1.5 text-sm font-medium text-ink-400 transition-colors hover:bg-ivory-200 hover:text-red-700"
               >
                 <Flag className="size-3.5" />
                 {t('campaign.report')}
@@ -337,12 +337,12 @@ export function CampaignDetailPage() {
             <Card className="overflow-hidden">
               <div className="border-b border-ivory-300 p-5">
                 <div className="flex items-baseline gap-2">
-                  <span className="nums display text-[34px] text-nasek-900">
+                  <span className="nums display text-5xl text-nasek-900">
                     {money(campaign.price)}
                   </span>
-                  <span className="text-[13px] text-ink-400">{t('common.perPerson')}</span>
+                  <span className="text-sm text-ink-400">{t('common.perPerson')}</span>
                 </div>
-                <p className="mt-1.5 text-[13px] text-ink-500">
+                <p className="mt-1.5 text-sm text-ink-500">
                   {dateRange(campaign.departureDate, campaign.returnDate)} ·{' '}
                   {t('campaign.duration', { n: n(days) })}
                 </p>
@@ -376,7 +376,7 @@ export function CampaignDetailPage() {
 
                 <div className="flex items-start gap-2 rounded-[3px] bg-gold-50 p-3">
                   <Info className="mt-px size-3.5 shrink-0 text-gold-700" />
-                  <p className="text-[11px] leading-relaxed text-gold-800">
+                  <p className="text-2xs leading-relaxed text-gold-800">
                     {t('booking.paymentNote')}
                   </p>
                 </div>
@@ -394,13 +394,13 @@ export function CampaignDetailPage() {
         <div className="mx-auto flex max-w-3xl items-center gap-4">
           <div className="min-w-0">
             <p className="flex items-baseline gap-1.5">
-              <span className="nums text-[20px] font-bold text-nasek-900">
+              <span className="nums text-xl font-bold text-nasek-900">
                 {money(campaign.price)}
               </span>
-              <span className="text-[12px] text-ink-400">{t('common.perPerson')}</span>
+              <span className="text-xs text-ink-400">{t('common.perPerson')}</span>
             </p>
             {!soldOut && campaign.seatsAvailable <= 10 && (
-              <p className="text-[11.5px] font-semibold text-amber-700">
+              <p className="text-2xs font-semibold text-amber-700">
                 {t('common.lastSeats', { n: n(campaign.seatsAvailable) })}
               </p>
             )}
@@ -438,7 +438,7 @@ export function CampaignDetailPage() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="mt-8">
-      <h2 className="mb-3.5 text-[13px] font-bold uppercase tracking-[0.14em] text-ink-400">
+      <h2 className="mb-3.5 text-sm font-bold uppercase tracking-[0.14em] text-ink-400">
         {title}
       </h2>
       {children}
@@ -459,13 +459,13 @@ function Glance({
 }) {
   return (
     <div className="p-4">
-      <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink-400">
+      <p className="flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wider text-ink-400">
         <span className="text-nasek-600/60">{icon}</span>
         {label}
       </p>
       <p
         className={cx(
-          'mt-1.5 text-[14px] font-bold',
+          'mt-1.5 text-base font-bold',
           tone === 'urgent' ? 'text-amber-700' : tone === 'muted' ? 'text-ink-400' : 'text-ink-900',
         )}
       >
@@ -478,8 +478,8 @@ function Glance({
 function HotelCard({ city, value }: { city: string; value: string }) {
   return (
     <div className="rounded-[3px] border border-ivory-300 bg-ivory-50 p-4">
-      <p className="text-[11px] font-bold uppercase tracking-wider text-gold-600">{city}</p>
-      <p className="mt-1.5 text-[14px] font-semibold text-ink-800">{value}</p>
+      <p className="text-2xs font-bold uppercase tracking-wider text-gold-600">{city}</p>
+      <p className="mt-1.5 text-base font-semibold text-ink-800">{value}</p>
     </div>
   )
 }

@@ -39,7 +39,7 @@ export function MapPage() {
           ) : (
             <>
               <header className="mb-5">
-                <h2 className="display text-[24px] text-ink-900">
+                <h2 className="display text-3xl text-ink-900">
                   {t('map.campaignsIn', { name: wilayah?.name[lang] ?? '' })}
                 </h2>
                 <p className="mt-1.5 text-sm text-ink-400">

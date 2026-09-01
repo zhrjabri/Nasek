@@ -107,13 +107,13 @@ export function SmartMatchPage() {
           {/* -------------------------------------------------- progress */}
           <div className="mb-8">
             <div className="mb-2.5 flex items-center justify-between">
-              <p className="text-[12px] font-bold uppercase tracking-wider text-nasek-700">
+              <p className="text-xs font-bold uppercase tracking-wider text-nasek-700">
                 {t('smart.step', { n: n(step), total: n(TOTAL_STEPS) })}
               </p>
               <button
                 type="button"
                 onClick={restart}
-                className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-ink-400 hover:text-ink-700"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-400 hover:text-ink-700"
               >
                 <RotateCcw className="size-3.5" />
                 {t('smart.restart')}
@@ -164,7 +164,7 @@ export function SmartMatchPage() {
               answered. Saying so — and offering the exit — turns a seven-screen
               form into as many screens as the person actually cares about. */}
           {step < TOTAL_STEPS && (
-            <p className="mt-4 text-center text-[12.5px] leading-relaxed text-ink-400">
+            <p className="mt-4 text-center text-xs leading-relaxed text-ink-400">
               {t('smart.answeredNote')}{' '}
               <button
                 type="button"
@@ -201,11 +201,11 @@ function Intro({ onStart }: { onStart: () => void }) {
       <span className="mx-auto mb-6 flex size-16 items-center justify-center rounded-[3px] bg-nasek-900 text-gold-400">
         <Compass className="size-8" strokeWidth={1.6} />
       </span>
-      <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.18em] text-gold-600">
+      <p className="mb-3 text-2xs font-bold uppercase tracking-[0.18em] text-gold-600">
         {t('smart.navTitle')}
       </p>
-      <h1 className="display text-[32px] text-ink-900 sm:text-[42px]">{t('smart.title')}</h1>
-      <p className="mx-auto mt-4 max-w-xl text-[15.5px] leading-relaxed text-ink-500">
+      <h1 className="display text-5xl text-ink-900 sm:text-6xl">{t('smart.title')}</h1>
+      <p className="mx-auto mt-4 max-w-xl text-md leading-relaxed text-ink-500">
         {t('smart.subtitle')}
       </p>
       <Button size="lg" className="mt-8" onClick={onStart}>
@@ -216,8 +216,8 @@ function Intro({ onStart }: { onStart: () => void }) {
       <ul className="mx-auto mt-12 grid max-w-2xl gap-3 sm:grid-cols-3">
         {(['smart.q1', 'smart.q3', 'smart.q6'] as MessageKey[]).map((key, i) => (
           <li key={key} className="surface p-4 text-start">
-            <span className="nums text-[11px] font-bold text-gold-600">0{i + 1}</span>
-            <p className="mt-1.5 text-[13px] font-semibold text-ink-700">{t(key)}</p>
+            <span className="nums text-2xs font-bold text-gold-600">0{i + 1}</span>
+            <p className="mt-1.5 text-sm font-semibold text-ink-700">{t(key)}</p>
           </li>
         ))}
       </ul>
@@ -243,8 +243,8 @@ function Question({
 
   const heading = (title: MessageKey, hint: MessageKey) => (
     <div className="mb-6">
-      <h2 className="display text-[24px] text-ink-900 sm:text-[28px]">{t(title)}</h2>
-      <p className="mt-2 text-[14px] text-ink-500">{t(hint)}</p>
+      <h2 className="display text-3xl text-ink-900 sm:text-4xl">{t(title)}</h2>
+      <p className="mt-2 text-base text-ink-500">{t(hint)}</p>
     </div>
   )
 
@@ -280,7 +280,7 @@ function Question({
             value={input.wilayahId ?? ''}
             onChange={(e) => patch({ wilayahId: e.target.value || null })}
             aria-label={t('smart.q2')}
-            className="h-13 text-[15px]"
+            className="h-13 text-md"
           >
             <option value="">{t('smart.noPreference')}</option>
             {WILAYAT.map((w) => (
@@ -298,7 +298,7 @@ function Question({
                   type="button"
                   onClick={() => patch({ wilayahId: id })}
                   className={cx(
-                    'rounded-[3px] border px-3.5 py-2 text-[13px] font-semibold transition-colors',
+                    'rounded-[3px] border px-3.5 py-2 text-sm font-semibold transition-colors',
                     input.wilayahId === id
                       ? 'border-nasek-700 bg-nasek-800 text-ivory-50'
                       : 'border-ivory-300 bg-ivory-50 text-ink-600 hover:border-nasek-300',
@@ -316,7 +316,7 @@ function Question({
       return (
         <div key={step} className="animate-fade">
           {heading('smart.q3', 'smart.q3hint')}
-          <p className="nums display text-center text-[40px] text-nasek-900">
+          <p className="nums display text-center text-6xl text-nasek-900">
             {input.budget == null ? t('smart.noPreference') : money(input.budget)}
           </p>
           <input
@@ -329,7 +329,7 @@ function Question({
             aria-label={t('smart.q3')}
             onChange={(e) => patch({ budget: Number(e.target.value) })}
           />
-          <div className="mt-2 flex justify-between text-[11px] text-ink-400">
+          <div className="mt-2 flex justify-between text-2xs text-ink-400">
             <span className="nums">{money(80)}</span>
             <span className="nums">{money(budgetCeiling)}</span>
           </div>
@@ -340,7 +340,7 @@ function Question({
                 type="button"
                 onClick={() => patch({ budget: v })}
                 className={cx(
-                  'rounded-[3px] border px-3.5 py-2 text-[13px] font-semibold transition-colors',
+                  'rounded-[3px] border px-3.5 py-2 text-sm font-semibold transition-colors',
                   input.budget === v
                     ? 'border-nasek-700 bg-nasek-800 text-ivory-50'
                     : 'border-ivory-300 bg-ivory-50 text-ink-600 hover:border-nasek-300',
@@ -353,7 +353,7 @@ function Question({
               type="button"
               onClick={() => patch({ budget: null })}
               className={cx(
-                'rounded-[3px] border px-3.5 py-2 text-[13px] font-semibold transition-colors',
+                'rounded-[3px] border px-3.5 py-2 text-sm font-semibold transition-colors',
                 input.budget == null
                   ? 'border-nasek-700 bg-nasek-800 text-ivory-50'
                   : 'border-ivory-300 bg-ivory-50 text-ink-600 hover:border-nasek-300',
@@ -435,7 +435,7 @@ function Question({
                       })
                     }
                     className={cx(
-                      'flex items-center gap-2 rounded-[3px] border px-3.5 py-2.5 text-[13px] font-semibold transition-all',
+                      'flex items-center gap-2 rounded-[3px] border px-3.5 py-2.5 text-sm font-semibold transition-all',
                       selected
                         ? 'border-nasek-700 bg-nasek-800 text-ivory-50'
                         : full
@@ -450,7 +450,7 @@ function Question({
               )
             })}
           </ul>
-          <p className="mt-4 nums text-[12px] text-ink-400">
+          <p className="mt-4 nums text-xs text-ink-400">
             {n(input.services.length)} / {n(MAX_SERVICES)}
           </p>
         </div>
@@ -470,7 +470,7 @@ function Question({
             >
               <Minus className="size-5" />
             </button>
-            <span className="nums display w-20 text-center text-[48px] text-nasek-900">
+            <span className="nums display w-20 text-center text-7xl text-nasek-900">
               {n(input.travellers)}
             </span>
             <button
@@ -511,7 +511,7 @@ function BigOption({
           : 'border-ivory-300 bg-ivory-50 text-ink-700 hover:-translate-y-0.5 hover:border-nasek-300 hover:shadow-soft',
       )}
     >
-      <span className="text-[15px] font-semibold">{label}</span>
+      <span className="text-md font-semibold">{label}</span>
       <span
         className={cx(
           'flex size-5 shrink-0 items-center justify-center rounded-full border transition-colors',
@@ -549,13 +549,13 @@ function Thinking() {
           <Sparkles className="size-7" />
         </span>
       </span>
-      <h2 className="display mt-6 text-[24px] text-ink-900">{t('smart.analysing')}</h2>
+      <h2 className="display mt-6 text-3xl text-ink-900">{t('smart.analysing')}</h2>
       <ul className="mt-6 space-y-2.5">
         {steps.map((key, i) => (
           <li
             key={key}
             className={cx(
-              'flex items-center gap-2.5 text-[14px] transition-all duration-300',
+              'flex items-center gap-2.5 text-base transition-all duration-300',
               i <= active ? 'text-ink-700' : 'text-ink-400 opacity-50',
             )}
           >
@@ -618,13 +618,13 @@ function Results({
   return (
     <div className="animate-rise">
       <header className="mb-8 text-center">
-        <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.18em] text-gold-600">
+        <p className="mb-2 text-2xs font-bold uppercase tracking-[0.18em] text-gold-600">
           {t('smart.navTitle')}
         </p>
-        <h1 className="display text-[30px] text-ink-900 sm:text-[38px]">
+        <h1 className="display text-4xl text-ink-900 sm:text-6xl">
           {t('smart.resultsTitle')}
         </h1>
-        <p className="mt-3 text-[15px] text-ink-500">{t('smart.resultsSubtitle')}</p>
+        <p className="mt-3 text-md text-ink-500">{t('smart.resultsSubtitle')}</p>
       </header>
 
       {/* what we searched for — so the ranking is legible */}
@@ -660,7 +660,7 @@ function Results({
                 )}
               >
                 {index === 0 && (
-                  <div className="flex items-center gap-2 bg-gold-400 px-5 py-2 text-[12px] font-bold text-nasek-950">
+                  <div className="flex items-center gap-2 bg-gold-400 px-5 py-2 text-xs font-bold text-nasek-950">
                     <Sparkles className="size-3.5" />
                     {t('smart.match', { n: n(result.score) })}
                   </div>
@@ -693,12 +693,12 @@ function Results({
 
                     <Link
                       to={`/campaigns/${c.id}`}
-                      className="mt-2 block text-[19px] font-bold leading-snug text-ink-900 hover:text-nasek-800"
+                      className="mt-2 block text-xl font-bold leading-snug text-ink-900 hover:text-nasek-800"
                     >
                       {bl(c.title)}
                     </Link>
 
-                    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] text-ink-500">
+                    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-ink-500">
                       <Rating value={c.rating} count={c.reviewCount} size="sm" />
                       <span>{dateRange(c.departureDate, c.returnDate)}</span>
                       <span>{t('campaign.duration', { n: n(tripDays(c)) })}</span>
@@ -706,12 +706,12 @@ function Results({
 
                     {/* the explanation — the reason to trust the number */}
                     <div className="mt-4 space-y-1.5">
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-nasek-700">
+                      <p className="text-2xs font-bold uppercase tracking-wider text-nasek-700">
                         {t('smart.whyMatch')}
                       </p>
                       <ul className="space-y-1.5">
                         {result.reasons.map((reason) => (
-                          <li key={reason} className="flex items-start gap-2 text-[13.5px] text-ink-600">
+                          <li key={reason} className="flex items-start gap-2 text-sm text-ink-600">
                             <Check className="mt-0.5 size-3.5 shrink-0 text-nasek-600" strokeWidth={3} />
                             {reason}
                           </li>
@@ -721,12 +721,12 @@ function Results({
 
                     {result.tradeoffs.length > 0 && (
                       <div className="mt-3.5 space-y-1.5 rounded-[3px] bg-gold-50/70 p-3">
-                        <p className="text-[11px] font-bold uppercase tracking-wider text-gold-700">
+                        <p className="text-2xs font-bold uppercase tracking-wider text-gold-700">
                           {t('smart.tradeoff')}
                         </p>
                         <ul className="space-y-1">
                           {result.tradeoffs.map((item) => (
-                            <li key={item} className="flex items-start gap-2 text-[13px] text-gold-900">
+                            <li key={item} className="flex items-start gap-2 text-sm text-gold-900">
                               <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
                               {item}
                             </li>
@@ -738,10 +738,10 @@ function Results({
 
                   <div className="flex shrink-0 flex-col items-end justify-between gap-3 sm:w-36">
                     <div className="text-end">
-                      <p className="nums text-[24px] font-bold leading-none text-nasek-900">
+                      <p className="nums text-3xl font-bold leading-none text-nasek-900">
                         {money(c.price)}
                       </p>
-                      <p className="mt-1 text-[11px] text-ink-400">{t('common.perPerson')}</p>
+                      <p className="mt-1 text-2xs text-ink-400">{t('common.perPerson')}</p>
                     </div>
                     <div className="flex w-full flex-col gap-2">
                       <LinkButton to={`/campaigns/${c.id}`} variant="secondary" size="sm" block>
@@ -776,7 +776,7 @@ function Results({
 
 function Chip({ children }: { children: React.ReactNode }) {
   return (
-    <li className="rounded-full border border-ivory-300 bg-ivory-50 px-3 py-1.5 text-[12px] font-semibold text-ink-600">
+    <li className="rounded-full border border-ivory-300 bg-ivory-50 px-3 py-1.5 text-xs font-semibold text-ink-600">
       {children}
     </li>
   )

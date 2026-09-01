@@ -53,7 +53,7 @@ export function Logo({
   const { lang, t } = useI18n()
 
   const markSize = size === 'sm' ? 'h-8' : size === 'lg' ? 'h-16' : 'h-11'
-  const textSize = size === 'sm' ? 'text-[19px]' : size === 'lg' ? 'text-[32px]' : 'text-[24px]'
+  const textSize = size === 'sm' ? 'text-xl' : size === 'lg' ? 'text-5xl' : 'text-3xl'
   const onDark = tone === 'ivory'
 
   return (
@@ -85,7 +85,7 @@ export function Logo({
               />
               <span
                 className={cx(
-                  'mt-1.5 text-[9px] font-semibold uppercase tracking-[0.3em]',
+                  'mt-1.5 text-2xs font-semibold uppercase tracking-[0.3em]',
                   onDark ? 'text-gold-300/75' : 'text-gold-600/80',
                 )}
               >

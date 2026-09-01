@@ -63,7 +63,7 @@ export function Footer() {
 
           {COLUMNS.map((col) => (
             <nav key={col.title} aria-label={t(col.title)}>
-              <h3 className="text-[10.5px] font-bold uppercase tracking-[0.22em] text-gold-400/90">
+              <h3 className="text-2xs font-bold uppercase tracking-[0.22em] text-gold-400/90">
                 {t(col.title)}
               </h3>
               <span className="mt-2.5 block h-px w-8 bg-gold-500/50" aria-hidden />
@@ -86,13 +86,13 @@ export function Footer() {
         {/* The honesty notice sits above the copyright, not buried under it. */}
         <div className="framed-dark mt-12 flex items-start gap-3 bg-ivory-50/5 p-5">
           <ShieldCheck className="mt-0.5 size-5 shrink-0 text-gold-400/80" />
-          <p className="text-[13px] leading-relaxed text-ivory-200/60">{t('trust.disclaimer')}</p>
+          <p className="text-sm leading-relaxed text-ivory-200/60">{t('trust.disclaimer')}</p>
         </div>
 
         <div className="mt-8 flex flex-col gap-3 border-t border-gold-500/25 pt-6 text-xs text-ivory-200/45 sm:flex-row sm:items-center sm:justify-between">
           <p>{t('footer.rights', { year })}</p>
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-            <span className="rounded-[2px] border border-gold-400/30 px-2.5 py-1 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-gold-400/80">
+            <span className="rounded-[2px] border border-gold-400/30 px-2.5 py-1 text-2xs font-semibold uppercase tracking-[0.12em] text-gold-400/80">
               {t('footer.prototype')}
             </span>
             <Link to="/about#privacy" className="hover:text-ivory-50">

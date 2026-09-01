@@ -33,9 +33,9 @@ export function GivingPage() {
           <span className="mx-auto mb-6 flex size-16 items-center justify-center rounded-[3px] bg-gold-400/15 text-gold-400">
             <HeartHandshake className="size-8" strokeWidth={1.6} />
           </span>
-          <h1 className="display text-[34px] text-ivory-50 sm:text-[46px]">{t('giving.title')}</h1>
+          <h1 className="display text-5xl text-ivory-50 sm:text-6xl">{t('giving.title')}</h1>
           <div className="rule-gold mx-auto my-6 w-24" />
-          <p className="text-[16px] leading-relaxed text-ivory-200/75 sm:text-[18px]">
+          <p className="text-lg leading-relaxed text-ivory-200/75 sm:text-lg">
             {t('giving.subtitle')}
           </p>
         </div>
@@ -46,17 +46,17 @@ export function GivingPage() {
         <Card className="flex items-start gap-4 border-gold-200 bg-gold-50 p-5">
           <Info className="mt-0.5 size-5 shrink-0 text-gold-700" />
           <div>
-            <p className="text-[14px] font-bold text-gold-900">{t('giving.plannedTitle')}</p>
-            <p className="mt-1.5 text-[13.5px] leading-relaxed text-gold-800">
+            <p className="text-base font-bold text-gold-900">{t('giving.plannedTitle')}</p>
+            <p className="mt-1.5 text-sm leading-relaxed text-gold-800">
               {t('giving.plannedBody')}
             </p>
           </div>
         </Card>
 
-        <p className="mt-10 text-[16px] leading-[1.9] text-ink-600">{t('giving.body')}</p>
+        <p className="mt-10 text-lg leading-[1.9] text-ink-600">{t('giving.body')}</p>
 
         {/* ------------------------------------------------------- how it works */}
-        <h2 className="display mt-12 text-[26px] text-ink-900">{t('giving.how')}</h2>
+        <h2 className="display mt-12 text-3xl text-ink-900">{t('giving.how')}</h2>
         <ol className="stagger mt-6 grid gap-4 sm:grid-cols-2">
           {STEPS.map((step, i) => (
             <li key={step.title} className="surface flex flex-col gap-3 p-5">
@@ -64,10 +64,10 @@ export function GivingPage() {
                 <span className="flex size-10 items-center justify-center rounded-[3px] bg-nasek-50 text-nasek-700">
                   <step.icon className="size-[18px]" strokeWidth={2} />
                 </span>
-                <span className="nums text-[12px] font-bold text-gold-600">0{i + 1}</span>
+                <span className="nums text-xs font-bold text-gold-600">0{i + 1}</span>
               </div>
-              <h3 className="text-[16px] font-bold text-ink-900">{t(step.title)}</h3>
-              <p className="text-[13.5px] leading-relaxed text-ink-500">{t(step.body)}</p>
+              <h3 className="text-lg font-bold text-ink-900">{t(step.title)}</h3>
+              <p className="text-sm leading-relaxed text-ink-500">{t(step.body)}</p>
             </li>
           ))}
         </ol>
@@ -80,23 +80,23 @@ export function GivingPage() {
             { value: n(95), label: t('giving.statCost') },
           ].map((stat) => (
             <li key={stat.label} className="rounded-[3px] border border-ivory-300 bg-ivory-50 p-5 text-center">
-              <p className="nums display text-[32px] text-nasek-900">{stat.value}</p>
-              <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-500">{stat.label}</p>
+              <p className="nums display text-5xl text-nasek-900">{stat.value}</p>
+              <p className="mt-1.5 text-xs leading-relaxed text-ink-500">{stat.label}</p>
             </li>
           ))}
         </ul>
 
         {/* ------------------------------------------------------ interest */}
         <Card className="mt-12 p-7">
-          <h2 className="display text-[22px] text-ink-900">{t('giving.interest')}</h2>
-          <p className="mt-2 text-[14px] text-ink-500">{t('giving.interestNote')}</p>
+          <h2 className="display text-2xl text-ink-900">{t('giving.interest')}</h2>
+          <p className="mt-2 text-base text-ink-500">{t('giving.interestNote')}</p>
 
           {sent ? (
             <p
               role="status"
               className={cx(
                 'mt-5 flex items-center gap-2.5 rounded-[3px] border border-nasek-200 bg-nasek-50 px-4 py-3.5',
-                'text-[14px] font-semibold text-nasek-900',
+                'text-base font-semibold text-nasek-900',
               )}
             >
               <ClipboardCheck className="size-4" />

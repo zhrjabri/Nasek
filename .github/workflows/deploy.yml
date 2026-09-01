@@ -1,8 +1,9 @@
-name: Deploy to GitHub Pages
+name: Verify and deploy
 
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -15,7 +16,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  # ---------------------------------------------------------------------------
+  # Everything that can fail, before anything is published.
+  #
+  # `verify` includes `verify:isolation`, which reads the built public bundle
+  # and fails if a single administration string reached it. That check is the
+  # reason this job builds before it verifies rather than after: the separation
+  # between the two applications is exactly the sort of property that stays
+  # true until someone imports a helper across it, and nothing else in the
+  # pipeline would notice.
+  # ---------------------------------------------------------------------------
+  verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,7 +35,45 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npm run build
+      - run: npm run typecheck
+      - name: Build both applications
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      - run: npm run verify
+
+      # Kept so a failed deployment can be inspected without a local rebuild.
+      # The administration build is uploaded but never published from here.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-admin
+          path: dist-admin
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # Publish the public site.
+  #
+  # GitHub Pages serves one site per repository, and the administration
+  # dashboard has no business on a subpath of a public one — it belongs on its
+  # own host, with its own domain and its own cookies. See docs/DEPLOYMENT.md.
+  # ---------------------------------------------------------------------------
+  build:
+    needs: verify
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Build the public site
+        run: npm run build:web
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

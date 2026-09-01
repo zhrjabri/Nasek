@@ -40,9 +40,9 @@ export function AboutPage() {
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_80%_at_50%_0%,rgba(201,169,97,0.15),transparent)]" />
         <div className="relative mx-auto max-w-3xl px-4 py-16 text-center sm:px-6 sm:py-20">
           <LogoMark className="mx-auto mb-6 h-16 w-auto" tone="ivory" />
-          <h1 className="display text-[34px] text-ivory-50 sm:text-[44px]">{t('about.title')}</h1>
+          <h1 className="display text-5xl text-ivory-50 sm:text-6xl">{t('about.title')}</h1>
           <div className="rule-gold mx-auto my-6 w-24" />
-          <p className="text-[16px] leading-relaxed text-ivory-200/75 sm:text-[17px]">
+          <p className="text-lg leading-relaxed text-ivory-200/75 sm:text-lg">
             {t('about.lead')}
           </p>
         </div>
@@ -66,10 +66,10 @@ export function AboutPage() {
                   <item.icon className="size-[18px]" strokeWidth={2} />
                 </span>
                 <div>
-                  <h3 className="text-[15px] font-bold text-ink-900">
+                  <h3 className="text-md font-bold text-ink-900">
                     {t(`trust.${item.n}.title` as MessageKey)}
                   </h3>
-                  <p className="mt-1.5 text-[13.5px] leading-relaxed text-ink-500">
+                  <p className="mt-1.5 text-sm leading-relaxed text-ink-500">
                     {t(`trust.${item.n}.body` as MessageKey)}
                   </p>
                 </div>
@@ -79,7 +79,7 @@ export function AboutPage() {
 
           <Card className="mt-5 flex items-start gap-3.5 border-gold-200 bg-gold-50 p-5">
             <ShieldCheck className="mt-0.5 size-5 shrink-0 text-gold-700" />
-            <p className="text-[13.5px] leading-relaxed text-gold-900">{t('trust.disclaimer')}</p>
+            <p className="text-sm leading-relaxed text-gold-900">{t('trust.disclaimer')}</p>
           </Card>
         </section>
 
@@ -101,14 +101,14 @@ export function AboutPage() {
                       {t('sort.recommended')}
                     </Badge>
                   )}
-                  <p className="text-[13px] font-bold uppercase tracking-wider text-gold-600">
+                  <p className="text-sm font-bold uppercase tracking-wider text-gold-600">
                     {lang === 'ar' ? plan.ar : plan.en}
                   </p>
-                  <p className="nums mt-3 text-[30px] font-bold leading-none text-ink-900">
+                  <p className="nums mt-3 text-4xl font-bold leading-none text-ink-900">
                     {money(plan.price)}
                   </p>
-                  <p className="mt-1.5 text-[12px] text-ink-400">/ {t('prov.planMonthly')}</p>
-                  <p className="mt-4 border-t border-ivory-300 pt-4 text-[13px] leading-relaxed text-ink-500">
+                  <p className="mt-1.5 text-xs text-ink-400">/ {t('prov.planMonthly')}</p>
+                  <p className="mt-4 border-t border-ivory-300 pt-4 text-sm leading-relaxed text-ink-500">
                     {t('prov.planCommission')}
                   </p>
                 </Card>
@@ -134,8 +134,8 @@ export function AboutPage() {
                 <span className="flex size-11 items-center justify-center rounded-[3px] bg-nasek-50 text-nasek-700">
                   <item.icon className="size-5" strokeWidth={1.8} />
                 </span>
-                <h3 className="mt-4 text-[16px] font-bold text-ink-900">{item.title}</h3>
-                <p className="mt-2 text-[13.5px] leading-relaxed text-ink-500">{item.body}</p>
+                <h3 className="mt-4 text-lg font-bold text-ink-900">{item.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-ink-500">{item.body}</p>
                 <Badge tone="neutral" className="mt-4">
                   {t('about.conceptNote')}
                 </Badge>
@@ -147,22 +147,22 @@ export function AboutPage() {
         {/* --------------------------------------------------- legal stubs */}
         <section id="privacy" className="mt-16 grid gap-4 sm:grid-cols-2">
           <Card className="p-6">
-            <h2 className="flex items-center gap-2 text-[15px] font-bold text-ink-900">
+            <h2 className="flex items-center gap-2 text-md font-bold text-ink-900">
               <Eye className="size-4 text-nasek-600" />
               {t('trust.privacy')}
             </h2>
-            <p className="mt-2.5 text-[13.5px] leading-relaxed text-ink-500">
+            <p className="mt-2.5 text-sm leading-relaxed text-ink-500">
               {lang === 'ar'
                 ? 'يجمع ناسِك البيانات اللازمة لإتمام الحجز فقط: الاسم ووسيلة التواصل وبيانات المسافرين المطلوبة من الحملة. لا تُشارك هذه البيانات مع أي جهة غير الحملة التي تحجز معها. في هذا النموذج الأولي تُحفظ البيانات في متصفحك ولا تُرسل إلى أي خادم.'
                 : 'NASEK collects only what a booking requires: your name, a way to reach you, and the traveller details the campaign needs. That data is not shared with anyone other than the campaign you book with. In this prototype it is stored in your browser and sent to no server at all.'}
             </p>
           </Card>
           <Card id="terms" className="p-6">
-            <h2 className="flex items-center gap-2 text-[15px] font-bold text-ink-900">
+            <h2 className="flex items-center gap-2 text-md font-bold text-ink-900">
               <ShieldCheck className="size-4 text-nasek-600" />
               {t('trust.terms')}
             </h2>
-            <p className="mt-2.5 text-[13.5px] leading-relaxed text-ink-500">
+            <p className="mt-2.5 text-sm leading-relaxed text-ink-500">
               {lang === 'ar'
                 ? 'ناسِك وسيط بين الحاج أو المعتمر وبين الحملة، والعقد قائم بينك وبين الحملة. يتحمل صاحب الحملة مسؤولية تنفيذ الخدمات المعلنة، ويتحمل ناسِك مسؤولية عرضها بدقة وشفافية.'
                 : 'NASEK is an intermediary between pilgrims and campaigns; the contract is between you and the campaign. The campaign owner is responsible for delivering the advertised services, and NASEK is responsible for presenting them accurately.'}
@@ -178,7 +178,7 @@ export function AboutPage() {
             <ContactRow icon={<Phone className="size-4" />} value="+968 2400 0000" href="tel:+96824000000" />
             <ContactRow icon={<MessageSquare className="size-4" />} value={t('trust.support')} href="#" />
           </ul>
-          <p className="mt-6 nums text-[12px] text-ink-400">
+          <p className="mt-6 nums text-xs text-ink-400">
             {t('hero.statCampaigns')}: {n(20)} · {t('common.demoData')}
           </p>
         </section>
@@ -190,8 +190,8 @@ export function AboutPage() {
 function Prose({ title, body }: { title: string; body: string }) {
   return (
     <section>
-      <h2 className="display text-[24px] text-ink-900 sm:text-[28px]">{title}</h2>
-      <p className="mt-3.5 text-[15.5px] leading-[1.9] text-ink-600">{body}</p>
+      <h2 className="display text-3xl text-ink-900 sm:text-4xl">{title}</h2>
+      <p className="mt-3.5 text-md leading-[1.9] text-ink-600">{body}</p>
     </section>
   )
 }
@@ -209,7 +209,7 @@ function ContactRow({
     <li>
       <a
         href={href}
-        className="flex items-center gap-2.5 rounded-[3px] border border-ivory-300 bg-ivory-50 px-4 py-3.5 text-[13.5px] font-semibold text-ink-700 transition-colors hover:border-nasek-300 hover:text-nasek-800"
+        className="flex items-center gap-2.5 rounded-[3px] border border-ivory-300 bg-ivory-50 px-4 py-3.5 text-sm font-semibold text-ink-700 transition-colors hover:border-nasek-300 hover:text-nasek-800"
       >
         <span className="text-nasek-600">{icon}</span>
         <span className="truncate">{value}</span>

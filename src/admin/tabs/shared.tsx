@@ -35,12 +35,12 @@ export function Kpi({
           tone === 'alert' && 'border-amber-300 bg-amber-50/60',
         )}
       >
-        <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-ink-400">
+        <div className="flex items-center gap-2 text-2xs font-bold uppercase tracking-wider text-ink-400">
           <span className={tone === 'alert' ? 'text-amber-600' : 'text-nasek-600'}>{icon}</span>
           {label}
         </div>
-        <p className="nums mt-2.5 text-[28px] font-bold leading-none text-ink-900">{value}</p>
-        {hint && <p className="mt-2 text-[11.5px] leading-snug text-ink-400">{hint}</p>}
+        <p className="nums mt-2.5 text-4xl font-bold leading-none text-ink-900">{value}</p>
+        {hint && <p className="mt-2 text-2xs leading-snug text-ink-400">{hint}</p>}
       </Card>
     </li>
   )
@@ -94,7 +94,7 @@ export function Toolbar<T extends string>({
           options={options.map((o) => ({ value: o.value, label: o.label }))}
         />
       </div>
-      <p className="nums text-[12px] text-ink-400">{count}</p>
+      <p className="nums text-xs text-ink-400">{count}</p>
     </div>
   )
 }
@@ -113,9 +113,9 @@ export function DetailRow({
 }) {
   return (
     <div className={wide ? 'sm:col-span-2' : undefined}>
-      <dt className="text-[11px] font-bold uppercase tracking-wider text-ink-400">{label}</dt>
+      <dt className="text-2xs font-bold uppercase tracking-wider text-ink-400">{label}</dt>
       <dd
-        className={cx('mt-1 break-words text-[13.5px] text-ink-800', ltr && 'nums')}
+        className={cx('mt-1 break-words text-sm text-ink-800', ltr && 'nums')}
         dir={ltr ? 'ltr' : undefined}
       >
         {value}
@@ -143,7 +143,7 @@ export function Th({ children, end }: { children: React.ReactNode; end?: boolean
 
 export function HeadRow({ children }: { children: React.ReactNode }) {
   return (
-    <tr className="border-b border-ivory-300 bg-ivory-100 text-[11px] font-bold uppercase tracking-wider text-ink-500">
+    <tr className="border-b border-ivory-300 bg-ivory-100 text-2xs font-bold uppercase tracking-wider text-ink-500">
       {children}
     </tr>
   )

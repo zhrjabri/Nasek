@@ -114,7 +114,7 @@ export function CampaignFilters({ filters, onChange, campaigns }: Props) {
               type="button"
               onClick={() => patch({ priceMin: PRICE_FLOOR, priceMax: cap })}
               className={cx(
-                'rounded-[3px] border px-2.5 py-1 text-[11px] font-semibold transition-colors',
+                'rounded-[3px] border px-2.5 py-1 text-2xs font-semibold transition-colors',
                 filters.priceMax === cap
                   ? 'border-nasek-700 bg-nasek-800 text-ivory-50'
                   : 'border-ivory-300 bg-ivory-50 text-ink-500 hover:border-nasek-300',
@@ -150,7 +150,7 @@ export function CampaignFilters({ filters, onChange, campaigns }: Props) {
             if (!relevant.length) return null
             return (
               <div key={governorate}>
-                <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-ink-400">
+                <p className="mb-1 text-2xs font-bold uppercase tracking-wider text-ink-400">
                   {governorate}
                 </p>
                 {relevant.map((w) => (
@@ -195,7 +195,7 @@ export function CampaignFilters({ filters, onChange, campaigns }: Props) {
               type="button"
               onClick={() => patch({ minRating: r })}
               className={cx(
-                'rounded-[3px] border px-2.5 py-1.5 text-[11px] font-semibold transition-colors',
+                'rounded-[3px] border px-2.5 py-1.5 text-2xs font-semibold transition-colors',
                 filters.minRating === r
                   ? 'border-nasek-700 bg-nasek-800 text-ivory-50'
                   : 'border-ivory-300 bg-ivory-50 text-ink-500 hover:border-nasek-300',
@@ -216,7 +216,7 @@ export function CampaignFilters({ filters, onChange, campaigns }: Props) {
               type="button"
               onClick={() => patch({ minSeats: s })}
               className={cx(
-                'rounded-[3px] border px-2.5 py-1.5 text-[11px] font-semibold transition-colors',
+                'rounded-[3px] border px-2.5 py-1.5 text-2xs font-semibold transition-colors',
                 filters.minSeats === s
                   ? 'border-nasek-700 bg-nasek-800 text-ivory-50'
                   : 'border-ivory-300 bg-ivory-50 text-ink-500 hover:border-nasek-300',
@@ -249,7 +249,7 @@ export function CampaignFilters({ filters, onChange, campaigns }: Props) {
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <fieldset className="border-t border-ivory-300 pt-5 first-of-type:border-0 first-of-type:pt-0">
-      <legend className="mb-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-ink-400">
+      <legend className="mb-2.5 text-2xs font-bold uppercase tracking-[0.14em] text-ink-400">
         {title}
       </legend>
       {children}

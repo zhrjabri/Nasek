@@ -146,7 +146,7 @@ export function CampaignsTab({
         />
       ) : (
         <TableShell>
-          <table className="w-full min-w-4xl text-[13.5px]">
+          <table className="w-full min-w-4xl text-sm">
             <thead>
               <HeadRow>
                 <Th>{t('admin.campaigns')}</Th>
@@ -172,7 +172,7 @@ export function CampaignsTab({
                       >
                         {bl(c.title)}
                       </button>
-                      <span className="block truncate text-[11.5px] text-ink-400">
+                      <span className="block truncate text-2xs text-ink-400">
                         {wilayahName(c.wilayahId, lang)} · {dateRange(c.departureDate, c.returnDate)}
                       </span>
                     </td>
@@ -233,7 +233,7 @@ export function CampaignsTab({
         </TableShell>
       )}
 
-      <p className="text-[11.5px] leading-relaxed text-ink-400">{t('admin.campNote')}</p>
+      <p className="text-2xs leading-relaxed text-ink-400">{t('admin.campNote')}</p>
 
       {/* ------------------------------------------------------- detail */}
       <Modal
@@ -275,7 +275,7 @@ export function CampaignsTab({
             <div className="flex flex-wrap gap-2 border-t border-ivory-300 pt-4">
               <Link
                 to={`/campaigns/${detail.id}`}
-                className="inline-flex items-center gap-1.5 rounded-[3px] border border-ivory-300 px-3 py-2 text-[13px] font-semibold text-ink-700 transition-colors hover:border-nasek-400 hover:text-nasek-800"
+                className="inline-flex items-center gap-1.5 rounded-[3px] border border-ivory-300 px-3 py-2 text-sm font-semibold text-ink-700 transition-colors hover:border-nasek-400 hover:text-nasek-800"
               >
                 <ExternalLink className="size-3.5" />
                 {t('admin.campOpenPublic')}
@@ -302,10 +302,10 @@ export function CampaignsTab({
       >
         {confirmDelete && (
           <div className="space-y-4">
-            <p className="text-[14px] leading-relaxed text-ink-700">
+            <p className="text-base leading-relaxed text-ink-700">
               {t('admin.campDeleteBody', { name: bl(confirmDelete.title) })}
             </p>
-            <p className="rounded-[3px] border border-amber-300 bg-amber-50 p-3.5 text-[12.5px] leading-relaxed text-amber-900">
+            <p className="rounded-[3px] border border-amber-300 bg-amber-50 p-3.5 text-xs leading-relaxed text-amber-900">
               {t('admin.campDeleteHint')}
             </p>
             <div className="flex justify-end gap-2">

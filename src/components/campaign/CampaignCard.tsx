@@ -61,7 +61,7 @@ export function CampaignCard({
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <p className="truncate text-[13px] font-bold text-ink-800">
+            <p className="truncate text-sm font-bold text-ink-800">
               {provider ? bl(provider.name) : ''}
             </p>
             {provider?.verification === 'verified' && (
@@ -71,7 +71,7 @@ export function CampaignCard({
               />
             )}
           </div>
-          <p className="mt-0.5 truncate text-[11px] text-ink-400">
+          <p className="mt-0.5 truncate text-2xs text-ink-400">
             {provider ? t('common.experience', { n: provider.experienceYears }) : ''}
           </p>
         </div>
@@ -84,7 +84,7 @@ export function CampaignCard({
       {/* ------------------------------------------------------------- body */}
       <div className="flex flex-1 flex-col p-4">
         <Link to={`/campaigns/${campaign.id}`} className="rounded-[2px]">
-          <h3 className="display line-clamp-2 text-[19px] text-nasek-900 transition-colors group-hover:text-nasek-600">
+          <h3 className="display line-clamp-2 text-xl text-nasek-900 transition-colors group-hover:text-nasek-600">
             {bl(campaign.title)}
           </h3>
         </Link>
@@ -94,13 +94,13 @@ export function CampaignCard({
         </div>
 
         {!compact && (
-          <p className="mt-2.5 line-clamp-2 text-[13px] leading-relaxed text-ink-500">
+          <p className="mt-2.5 line-clamp-2 text-sm leading-relaxed text-ink-500">
             {bl(campaign.description)}
           </p>
         )}
 
         {/* facts grid */}
-        <dl className="mt-4 grid grid-cols-2 gap-x-3 gap-y-2.5 text-[13px]">
+        <dl className="mt-4 grid grid-cols-2 gap-x-3 gap-y-2.5 text-sm">
           <Fact
             icon={<MapPin className="size-3.5" />}
             label={t('common.departure')}
@@ -142,7 +142,7 @@ export function CampaignCard({
                 style={{ width: `${Math.max(4, (1 - seatRatio) * 100)}%` }}
               />
             </div>
-            <p className="mt-1.5 text-[11px] text-ink-400">
+            <p className="mt-1.5 text-2xs text-ink-400">
               {t('campaign.seatsBar', {
                 booked: n(campaign.seatsTotal - campaign.seatsAvailable),
                 total: n(campaign.seatsTotal),
@@ -156,14 +156,14 @@ export function CampaignCard({
           <ul className="mt-3.5 flex flex-wrap gap-1.5">
             {campaign.services.slice(0, 3).map((s) => (
               <li key={s}>
-                <span className="inline-block rounded-[2px] border border-ivory-300 bg-ivory-100 px-2 py-1 text-[11px] font-medium text-ink-600">
+                <span className="inline-block rounded-[2px] border border-ivory-300 bg-ivory-100 px-2 py-1 text-2xs font-medium text-ink-600">
                   {serviceLabel(s, lang)}
                 </span>
               </li>
             ))}
             {campaign.services.length > 3 && (
               <li>
-                <span className="inline-block px-1.5 py-1 text-[11px] font-semibold text-nasek-600">
+                <span className="inline-block px-1.5 py-1 text-2xs font-semibold text-nasek-600">
                   {t('campaign.moreServices', { n: campaign.services.length - 3 })}
                 </span>
               </li>
@@ -175,10 +175,10 @@ export function CampaignCard({
       {/* ------------------------------------------------------------ footer */}
       <div className="flex items-end justify-between gap-3 border-t border-ivory-300 bg-ivory-100/70 p-4">
         <div>
-          <p className="nums text-[22px] font-bold leading-none text-nasek-700">
+          <p className="nums text-2xl font-bold leading-none text-nasek-700">
             {money(campaign.price)}
           </p>
-          <p className="mt-1 text-[10.5px] uppercase tracking-[0.1em] text-ink-400">
+          <p className="mt-1 text-2xs uppercase tracking-[0.1em] text-ink-400">
             {t('common.perPerson')}
           </p>
         </div>
@@ -193,7 +193,7 @@ export function CampaignCard({
           </IconButton>
           <Link
             to={`/campaigns/${campaign.id}`}
-            className="rounded-[3px] border border-nasek-900 bg-nasek-800 px-3.5 py-2 text-[13px] font-semibold text-ivory-50 transition-colors hover:bg-nasek-900"
+            className="rounded-[3px] border border-nasek-900 bg-nasek-800 px-3.5 py-2 text-sm font-semibold text-ivory-50 transition-colors hover:bg-nasek-900"
           >
             {t('common.viewDetails')}
           </Link>

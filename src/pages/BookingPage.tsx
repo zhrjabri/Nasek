@@ -118,7 +118,7 @@ export function BookingPage() {
             <Lock className="size-6" />
           </span>
           <h1 className="display text-2xl text-ink-900">{t('booking.signInFirst')}</h1>
-          <p className="mt-2.5 text-[14px] text-ink-500">{t('booking.signInNote')}</p>
+          <p className="mt-2.5 text-base text-ink-500">{t('booking.signInNote')}</p>
           <div className="mt-6 flex flex-col gap-2.5">
             <LinkButton
               to={`/signin?next=${encodeURIComponent(`/booking/${campaign.id}`)}`}
@@ -200,7 +200,7 @@ export function BookingPage() {
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-      <h1 className="display mb-6 text-[28px] text-ink-900 sm:text-[34px]">{t('booking.title')}</h1>
+      <h1 className="display mb-6 text-4xl text-ink-900 sm:text-5xl">{t('booking.title')}</h1>
 
       {/* --------------------------------------------------------- stepper */}
       <nav aria-label={t('booking.title')} className="mb-8">
@@ -213,7 +213,7 @@ export function BookingPage() {
               <li key={key} className="flex shrink-0 items-center gap-1">
                 <span
                   className={cx(
-                    'flex items-center gap-2 rounded-[3px] px-3 py-2 text-[12.5px] font-semibold transition-colors',
+                    'flex items-center gap-2 rounded-[3px] px-3 py-2 text-xs font-semibold transition-colors',
                     active
                       ? 'bg-nasek-900 text-ivory-50'
                       : done
@@ -223,7 +223,7 @@ export function BookingPage() {
                 >
                   <span
                     className={cx(
-                      'nums flex size-5 items-center justify-center rounded-full text-[10px]',
+                      'nums flex size-5 items-center justify-center rounded-full text-2xs',
                       active
                         ? 'bg-gold-400 text-nasek-950'
                         : done
@@ -263,8 +263,8 @@ export function BookingPage() {
                     <Badge tone={campaign.type === 'hajj' ? 'gold' : 'green'}>
                       {t(campaign.type === 'hajj' ? 'common.hajj' : 'common.umrah')}
                     </Badge>
-                    <p className="mt-2 text-[16px] font-bold text-ink-900">{bl(campaign.title)}</p>
-                    <p className="mt-1 text-[13px] text-ink-500">
+                    <p className="mt-2 text-lg font-bold text-ink-900">{bl(campaign.title)}</p>
+                    <p className="mt-1 text-sm text-ink-500">
                       {provider ? bl(provider.name) : ''} ·{' '}
                       {wilayahName(campaign.wilayahId, lang)}
                     </p>
@@ -276,10 +276,10 @@ export function BookingPage() {
                 <div className="mt-3 flex items-center gap-4 rounded-[3px] border border-ivory-300 bg-ivory-50/60 p-4">
                   <CalendarDays className="size-5 shrink-0 text-nasek-700" />
                   <div className="min-w-0">
-                    <p className="text-[14.5px] font-bold text-ink-900">
+                    <p className="text-base font-bold text-ink-900">
                       {dateRange(campaign.departureDate, campaign.returnDate)}
                     </p>
-                    <p className="mt-0.5 text-[12.5px] text-ink-500">
+                    <p className="mt-0.5 text-xs text-ink-500">
                       {t('campaign.duration', { n: n(tripDays(campaign)) })} ·{' '}
                       {t(campaign.travelMethod === 'air' ? 'common.air' : 'common.land')}
                     </p>
@@ -289,17 +289,17 @@ export function BookingPage() {
 
                 <Link
                   to="/campaigns"
-                  className="mt-3 inline-block text-[13px] font-semibold text-nasek-700 hover:underline"
+                  className="mt-3 inline-block text-sm font-semibold text-nasek-700 hover:underline"
                 >
                   {t('booking.changeTrip')}
                 </Link>
 
                 {/* ------------------------------------------- travellers */}
                 <div className="mt-7 border-t border-ivory-300 pt-6">
-                  <h3 className="text-[17px] font-bold text-ink-900">
+                  <h3 className="text-lg font-bold text-ink-900">
                     {t('booking.travellersTitle')}
                   </h3>
-                  <p className="mt-1 mb-5 text-[13.5px] text-ink-500">
+                  <p className="mt-1 mb-5 text-sm text-ink-500">
                     {t('booking.travellersNote', { n: n(campaign.seatsAvailable) })}
                   </p>
                   <div className="flex items-center justify-center gap-6">
@@ -313,7 +313,7 @@ export function BookingPage() {
                       <Minus className="size-5" />
                     </button>
                     <span
-                      className="nums display w-20 text-center text-[48px] text-nasek-900"
+                      className="nums display w-20 text-center text-7xl text-nasek-900"
                       aria-live="polite"
                     >
                       {n(travellersCount)}
@@ -331,7 +331,7 @@ export function BookingPage() {
                     </button>
                   </div>
                   {travellersCount >= campaign.seatsAvailable && (
-                    <p className="mt-5 flex items-center justify-center gap-2 text-[13px] font-medium text-amber-700">
+                    <p className="mt-5 flex items-center justify-center gap-2 text-sm font-medium text-amber-700">
                       <Info className="size-4" />
                       {t('booking.notEnoughSeats', { n: n(campaign.seatsAvailable) })}
                     </p>
@@ -351,7 +351,7 @@ export function BookingPage() {
                       key={i}
                       className="rounded-[3px] border border-ivory-300 bg-ivory-50/50 p-4"
                     >
-                      <legend className="px-2 text-[12px] font-bold uppercase tracking-wider text-nasek-700">
+                      <legend className="px-2 text-xs font-bold uppercase tracking-wider text-nasek-700">
                         {i === 0 ? t('booking.leadTraveller') : t('booking.travellerN', { n: n(i + 1) })}
                       </legend>
 
@@ -489,7 +489,7 @@ export function BookingPage() {
                                 />
                               )}
                             </Field>
-                            <p className="sm:col-span-2 flex items-start gap-2 rounded-[3px] bg-gold-50 p-3 text-[12px] leading-relaxed text-gold-800">
+                            <p className="sm:col-span-2 flex items-start gap-2 rounded-[3px] bg-gold-50 p-3 text-xs leading-relaxed text-gold-800">
                               <Info className="mt-px size-3.5 shrink-0" />
                               {t('booking.docsNote')}
                             </p>
@@ -501,10 +501,10 @@ export function BookingPage() {
 
                   {/* ------------------------------------------ contact */}
                   <fieldset className="rounded-[3px] border border-ivory-300 p-4">
-                    <legend className="px-2 text-[12px] font-bold uppercase tracking-wider text-nasek-700">
+                    <legend className="px-2 text-xs font-bold uppercase tracking-wider text-nasek-700">
                       {t('booking.contactTitle')}
                     </legend>
-                    <p className="mt-1 px-2 text-[12px] text-ink-400">{t('booking.contactNote')}</p>
+                    <p className="mt-1 px-2 text-xs text-ink-400">{t('booking.contactNote')}</p>
                     <div className="mt-3 grid gap-4 sm:grid-cols-2">
                       <Field
                         label={t('common.name')}
@@ -552,7 +552,7 @@ export function BookingPage() {
             {step === 3 && (
               <div className="animate-fade">
                 <StepTitle>{t('booking.reviewTitle')}</StepTitle>
-                <p className="mb-5 text-[13.5px] text-ink-500">{t('booking.reviewNote')}</p>
+                <p className="mb-5 text-sm text-ink-500">{t('booking.reviewNote')}</p>
 
                 <dl className="divide-y divide-ivory-300 rounded-[3px] border border-ivory-300">
                   <ReviewRow label={t('booking.chooseTrip')} value={bl(campaign.title)} />
@@ -576,10 +576,10 @@ export function BookingPage() {
                       className="flex items-center gap-3 rounded-[3px] border border-ivory-300 bg-ivory-50/60 px-4 py-2.5"
                     >
                       <Users className="size-4 shrink-0 text-nasek-600" />
-                      <span className="text-[13.5px] font-semibold text-ink-800">
+                      <span className="text-sm font-semibold text-ink-800">
                         {traveller.name || t('booking.travellerN', { n: n(i + 1) })}
                       </span>
-                      <span className="nums ms-auto text-[12px] text-ink-400">
+                      <span className="nums ms-auto text-xs text-ink-400">
                         {traveller.civilId}
                       </span>
                     </li>
@@ -595,7 +595,7 @@ export function BookingPage() {
 
                 <div className="mb-5 flex items-start gap-3 rounded-[3px] border border-gold-200 bg-gold-50 p-4">
                   <Info className="mt-0.5 size-4 shrink-0 text-gold-700" />
-                  <p className="text-[13px] leading-relaxed text-gold-900">
+                  <p className="text-sm leading-relaxed text-gold-900">
                     {t('booking.paymentNote')}
                   </p>
                 </div>
@@ -604,7 +604,7 @@ export function BookingPage() {
                 <div className="rounded-[3px] border border-ivory-300 bg-ivory-50/60 p-5 opacity-60">
                   <div className="flex items-center gap-2.5 text-ink-500">
                     <CreditCard className="size-5" />
-                    <span className="text-[13px] font-semibold">•••• •••• •••• ••••</span>
+                    <span className="text-sm font-semibold">•••• •••• •••• ••••</span>
                   </div>
                   <div className="mt-4 grid grid-cols-2 gap-3">
                     <div className="h-10 rounded-[3px] border border-ivory-300 bg-ivory-50" />
@@ -654,17 +654,17 @@ export function BookingPage() {
         <aside>
           <div className="lg:sticky lg:top-24">
             <Card className="p-5">
-              <p className="text-[12px] font-bold uppercase tracking-wider text-ink-400">
+              <p className="text-xs font-bold uppercase tracking-wider text-ink-400">
                 {t('common.total')}
               </p>
-              <p className="mt-3 text-[15px] font-bold leading-snug text-ink-900">
+              <p className="mt-3 text-md font-bold leading-snug text-ink-900">
                 {bl(campaign.title)}
               </p>
-              <p className="mt-1 text-[12.5px] text-ink-500">
+              <p className="mt-1 text-xs text-ink-500">
                 {date(campaign.departureDate)} · {t('campaign.duration', { n: n(tripDays(campaign)) })}
               </p>
 
-              <dl className="mt-5 space-y-2.5 border-t border-ivory-300 pt-4 text-[13.5px]">
+              <dl className="mt-5 space-y-2.5 border-t border-ivory-300 pt-4 text-sm">
                 <SummaryRow label={t('booking.pricePerPerson')} value={money(campaign.price)} />
                 <SummaryRow label={t('booking.travellersCount')} value={n(travellersCount)} />
                 <SummaryRow label={t('booking.subtotal')} value={money(subtotal)} />
@@ -672,8 +672,8 @@ export function BookingPage() {
               </dl>
 
               <div className="mt-4 flex items-baseline justify-between border-t border-ivory-300 pt-4">
-                <span className="text-[13px] font-bold text-ink-700">{t('booking.grandTotal')}</span>
-                <span className="nums text-[24px] font-bold text-nasek-900">
+                <span className="text-sm font-bold text-ink-700">{t('booking.grandTotal')}</span>
+                <span className="nums text-3xl font-bold text-nasek-900">
                   {money(total, { decimals: true })}
                 </span>
               </div>
@@ -688,14 +688,14 @@ export function BookingPage() {
 // ------------------------------------------------------------------- pieces
 
 function StepTitle({ children }: { children: React.ReactNode }) {
-  return <h2 className="display mb-5 text-[22px] text-ink-900 sm:text-[26px]">{children}</h2>
+  return <h2 className="display mb-5 text-2xl text-ink-900 sm:text-3xl">{children}</h2>
 }
 
 function ReviewRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-start justify-between gap-4 px-4 py-3">
-      <dt className="text-[13px] text-ink-500">{label}</dt>
-      <dd className="text-end text-[13.5px] font-semibold text-ink-900">{value}</dd>
+      <dt className="text-sm text-ink-500">{label}</dt>
+      <dd className="text-end text-sm font-semibold text-ink-900">{value}</dd>
     </div>
   )
 }
@@ -730,20 +730,20 @@ function Confirmation({ booking, campaign }: { booking: Booking; campaign: Campa
         <span className="mx-auto mb-6 flex size-16 items-center justify-center rounded-[3px] bg-nasek-50 text-nasek-700">
           <BadgeCheck className="size-8" strokeWidth={1.8} />
         </span>
-        <h1 className="display text-[30px] text-ink-900 sm:text-[36px]">
+        <h1 className="display text-4xl text-ink-900 sm:text-5xl">
           {t('booking.confirmTitle')}
         </h1>
-        <p className="mx-auto mt-3 max-w-md text-[15px] leading-relaxed text-ink-500">
+        <p className="mx-auto mt-3 max-w-md text-md leading-relaxed text-ink-500">
           {t('booking.confirmBody')}
         </p>
       </div>
 
       <Card className="mt-9 overflow-hidden">
         <div className="girih-gold border-b border-gold-500/40 bg-nasek-900 px-6 py-5 text-center">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gold-300/80">
+          <p className="text-2xs font-semibold uppercase tracking-[0.18em] text-gold-300/80">
             {t('booking.reference')}
           </p>
-          <p className="nums mt-1.5 text-[26px] font-bold tracking-wide text-ivory-50">
+          <p className="nums mt-1.5 text-3xl font-bold tracking-wide text-ivory-50">
             {booking.reference}
           </p>
         </div>
@@ -762,7 +762,7 @@ function Confirmation({ booking, campaign }: { booking: Booking; campaign: Campa
             value={money(booking.totalPrice, { decimals: true })}
           />
           <div className="flex items-center justify-between gap-4 px-4 py-3">
-            <dt className="text-[13px] text-ink-500">{t('common.status')}</dt>
+            <dt className="text-sm text-ink-500">{t('common.status')}</dt>
             <dd>
               <Badge tone="green">
                 <Check className="size-3" strokeWidth={3.5} />

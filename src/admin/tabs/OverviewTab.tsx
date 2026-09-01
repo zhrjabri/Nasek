@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Bar,
   BarChart,
@@ -53,16 +54,18 @@ export function OverviewTab({
   providers,
   suspendedCampaigns,
   suspendedUsers,
-  onGoTo,
 }: {
   campaigns: Campaign[]
   providers: Provider[]
   suspendedCampaigns: number
   suspendedUsers: number
-  onGoTo: (tab: 'users' | 'owners' | 'campaigns') => void
 }) {
   const { t, lang, bl, money, n } = useI18n()
   const { dispatch, toast } = useStore()
+  // Each section is an address now rather than a tab index, so the work queue
+  // can hand out real links: an admin can open the verification queue in a new
+  // tab, bookmark it, or send it to a colleague.
+  const navigate = useNavigate()
 
   const stats = useMemo(() => {
     const paid = SEED_BOOKINGS.filter((b) => b.status !== 'cancelled')
@@ -121,8 +124,8 @@ export function OverviewTab({
 
       {/* --------------------------------------------------- work queue */}
       <Card className="p-6">
-        <h2 className="mb-1 text-[15px] font-bold text-ink-900">{t('admin.attention')}</h2>
-        <p className="mb-4 text-[12.5px] text-ink-500">{t('admin.attentionSub')}</p>
+        <h2 className="mb-1 text-md font-bold text-ink-900">{t('admin.attention')}</h2>
+        <p className="mb-4 text-xs text-ink-500">{t('admin.attentionSub')}</p>
 
         {nothingWaiting ? (
           <p className="flex items-center justify-center gap-2 rounded-[3px] border border-dashed border-ivory-400 bg-ivory-50 p-6 text-center text-sm text-ink-400">
@@ -146,10 +149,10 @@ export function OverviewTab({
                   {p.initials}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[14px] font-bold text-ink-900">{bl(p.name)}</p>
-                  <p className="truncate text-[12px] text-ink-500">{t('admin.awaitingVerification')}</p>
+                  <p className="truncate text-base font-bold text-ink-900">{bl(p.name)}</p>
+                  <p className="truncate text-xs text-ink-500">{t('admin.awaitingVerification')}</p>
                 </div>
-                <Button size="sm" variant="secondary" onClick={() => onGoTo('owners')}>
+                <Button size="sm" variant="secondary" onClick={() => navigate('/owners')}>
                   {t('admin.reviewPermit')}
                 </Button>
                 <Button
@@ -170,7 +173,7 @@ export function OverviewTab({
                 icon={<Ban className="size-4" />}
                 label={t('admin.queueSuspendedCampaigns', { n: n(suspendedCampaigns) })}
                 cta={t('admin.campaigns')}
-                onClick={() => onGoTo('campaigns')}
+                onClick={() => navigate('/campaigns')}
               />
             )}
             {suspendedUsers > 0 && (
@@ -178,7 +181,7 @@ export function OverviewTab({
                 icon={<Users className="size-4" />}
                 label={t('admin.queueSuspendedUsers', { n: n(suspendedUsers) })}
                 cta={t('admin.users')}
-                onClick={() => onGoTo('users')}
+                onClick={() => navigate('/users')}
               />
             )}
           </div>
@@ -188,7 +191,7 @@ export function OverviewTab({
       {/* ------------------------------------------------------- charts */}
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="p-6">
-          <h2 className="mb-5 text-[15px] font-bold text-ink-900">{t('admin.revenueSplit')}</h2>
+          <h2 className="mb-5 text-md font-bold text-ink-900">{t('admin.revenueSplit')}</h2>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -212,7 +215,7 @@ export function OverviewTab({
         </Card>
 
         <Card className="p-6">
-          <h2 className="mb-5 text-[15px] font-bold text-ink-900">{t('admin.bookingsByType')}</h2>
+          <h2 className="mb-5 text-md font-bold text-ink-900">{t('admin.bookingsByType')}</h2>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={byType} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
@@ -231,7 +234,7 @@ export function OverviewTab({
       </div>
 
       <Card className="p-6">
-        <h2 className="mb-5 text-[15px] font-bold text-ink-900">{t('admin.growth')}</h2>
+        <h2 className="mb-5 text-md font-bold text-ink-900">{t('admin.growth')}</h2>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={growth} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
@@ -271,8 +274,8 @@ function QueueLink({
       )}
     >
       <span className="text-ink-400">{icon}</span>
-      <span className="flex-1 text-[13.5px] font-semibold text-ink-700">{label}</span>
-      <span className="flex items-center gap-1 text-[12.5px] font-bold text-nasek-700">
+      <span className="flex-1 text-sm font-semibold text-ink-700">{label}</span>
+      <span className="flex items-center gap-1 text-xs font-bold text-nasek-700">
         {cta}
         <ArrowRight className="size-3.5 rtl:rotate-180" />
       </span>

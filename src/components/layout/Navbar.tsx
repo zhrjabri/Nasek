@@ -8,11 +8,11 @@ import {
   LayoutGrid,
   LogOut,
   Menu,
-  ShieldCheck,
   User as UserIcon,
   X,
 } from 'lucide-react'
 import { useI18n, type MessageKey } from '@/i18n'
+import { signOutRemote } from '@/services/auth/session'
 import { useStore } from '@/store/AppStore'
 import { Badge, Button, cx } from '@/components/ui'
 import { Logo } from '@/components/brand/Logo'
@@ -56,8 +56,10 @@ export function Navbar() {
     return () => document.removeEventListener('mousedown', onClick)
   }, [menuOpen])
 
-  const dashboardPath =
-    user?.role === 'provider' ? '/provider' : user?.role === 'admin' ? '/admin' : '/dashboard'
+  // Two destinations, because the public site now has two kinds of account.
+  // Administration is not among them: it is a different application on a
+  // different host, and this navigation has no way to name it.
+  const dashboardPath = user?.role === 'provider' ? '/provider' : '/dashboard'
 
   return (
     <header
@@ -84,7 +86,7 @@ export function Navbar() {
                 to={link.to}
                 className={({ isActive }) =>
                   cx(
-                    'relative rounded-[2px] px-3.5 py-2 text-[14px] font-semibold tracking-wide transition-colors',
+                    'relative rounded-[2px] px-3.5 py-2 text-base font-semibold tracking-wide transition-colors',
                     isActive
                       ? 'text-nasek-800'
                       : 'text-ink-500 hover:bg-ivory-200/70 hover:text-ink-800',
@@ -109,7 +111,7 @@ export function Navbar() {
           <button
             type="button"
             onClick={toggleLang}
-            className="flex items-center gap-1.5 rounded-[3px] px-2.5 py-2 text-[13px] font-semibold text-ink-600 transition-colors hover:bg-ivory-200 hover:text-ink-900"
+            className="flex items-center gap-1.5 rounded-[3px] px-2.5 py-2 text-sm font-semibold text-ink-600 transition-colors hover:bg-ivory-200 hover:text-ink-900"
             aria-label={t('common.language')}
           >
             <Globe className="size-4" strokeWidth={2} />
@@ -149,13 +151,13 @@ export function Navbar() {
                 className="flex items-center gap-2 rounded-[3px] border border-ivory-400 bg-ivory-50 ps-1.5 pe-2.5 py-1.5 transition-colors hover:border-nasek-600"
               >
                 <span
-                  className="flex size-7 items-center justify-center rounded-[2px] text-[12px] font-bold text-ivory-50"
+                  className="flex size-7 items-center justify-center rounded-[2px] text-xs font-bold text-ivory-50"
                   style={{ background: user.avatarColor }}
                   aria-hidden
                 >
                   {user.name.trim().charAt(0)}
                 </span>
-                <span className="hidden max-w-28 truncate text-[13px] font-semibold text-ink-700 sm:block">
+                <span className="hidden max-w-28 truncate text-sm font-semibold text-ink-700 sm:block">
                   {user.name.split(' ')[0]}
                 </span>
                 <ChevronDown className="size-3.5 text-ink-400" />
@@ -170,20 +172,9 @@ export function Navbar() {
                     <p className="truncate text-sm font-bold text-ink-900">{user.name}</p>
                     <p className="truncate text-xs text-ink-400">{user.email}</p>
                   </div>
-                  {/* Administration is part of the site for the one account
-                      that has it, rather than a page reached only by typing
-                      an address. The item renders inside the signed-in menu
-                      and only for that role, so it stays invisible to
-                      everyone else exactly as before. */}
-                  {user.role === 'admin' ? (
-                    <MenuItem to="/admin" icon={<ShieldCheck className="size-4" />} accent>
-                      {t('nav.administration')}
-                    </MenuItem>
-                  ) : (
-                    <MenuItem to={dashboardPath} icon={<LayoutGrid className="size-4" />}>
-                      {t('nav.dashboard')}
-                    </MenuItem>
-                  )}
+                  <MenuItem to={dashboardPath} icon={<LayoutGrid className="size-4" />}>
+                    {t('nav.dashboard')}
+                  </MenuItem>
                   {user.role === 'customer' && (
                     <>
                       <MenuItem to="/dashboard?tab=bookings" icon={<UserIcon className="size-4" />}>
@@ -197,7 +188,12 @@ export function Navbar() {
                   <button
                     type="button"
                     role="menuitem"
-                    onClick={() => {
+                    onClick={async () => {
+                      // Clear the server session first. Dispatching locally
+                      // first would leave a window in which the interface says
+                      // signed out while the token is still live, and a reload
+                      // in that window would sign the person straight back in.
+                      await signOutRemote()
                       dispatch({ type: 'signOut' })
                       navigate('/')
                     }}
@@ -246,7 +242,7 @@ export function Navbar() {
                   to={link.to}
                   className={({ isActive }) =>
                     cx(
-                      'block rounded-[3px] px-3 py-3 text-[15px] font-semibold transition-colors',
+                      'block rounded-[3px] px-3 py-3 text-md font-semibold transition-colors',
                       isActive ? 'bg-nasek-50 text-nasek-900' : 'text-ink-600 hover:bg-ivory-200',
                     )
                   }
@@ -261,9 +257,7 @@ export function Navbar() {
             {user && (
               <>
                 <li className="mt-2 border-t border-ivory-300 pt-2">
-                  <MobileLink to={dashboardPath}>
-                    {t(user.role === 'admin' ? 'nav.administration' : 'nav.dashboard')}
-                  </MobileLink>
+                  <MobileLink to={dashboardPath}>{t('nav.dashboard')}</MobileLink>
                 </li>
                 {user.role === 'customer' && (
                   <>
@@ -313,7 +307,7 @@ function MobileLink({
   return (
     <Link
       to={to}
-      className="flex items-center gap-2 rounded-[3px] px-3 py-3 text-[15px] font-semibold text-ink-600 transition-colors hover:bg-ivory-200"
+      className="flex items-center gap-2 rounded-[3px] px-3 py-3 text-md font-semibold text-ink-600 transition-colors hover:bg-ivory-200"
     >
       {children}
       {count != null && count > 0 && (
@@ -353,7 +347,7 @@ function IconLink({
       {count > 0 && (
         <Badge
           tone={tone === 'gold' ? 'gold' : 'solid'}
-          className="absolute -end-0.5 -top-0.5 min-w-4 justify-center px-1 py-0.5 text-[10px]"
+          className="absolute -end-0.5 -top-0.5 min-w-4 justify-center px-1 py-0.5 text-2xs"
         >
           <span className="nums">{count}</span>
         </Badge>

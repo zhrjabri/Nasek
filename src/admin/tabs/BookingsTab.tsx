@@ -92,7 +92,7 @@ export function BookingsTab({ campaigns }: { campaigns: Campaign[] }) {
         />
       ) : (
         <TableShell>
-          <table className="w-full min-w-4xl text-[13.5px]">
+          <table className="w-full min-w-4xl text-sm">
             <thead>
               <HeadRow>
                 <Th>{t('booking.reference')}</Th>
@@ -114,7 +114,7 @@ export function BookingsTab({ campaigns }: { campaigns: Campaign[] }) {
                     <td className="nums p-3.5 font-semibold text-ink-700">{b.reference}</td>
                     <td className="max-w-40 p-3.5">
                       <span className="block truncate text-ink-700">{b.contactName}</span>
-                      <span className="block truncate text-[11.5px] text-ink-400" dir="ltr">
+                      <span className="block truncate text-2xs text-ink-400" dir="ltr">
                         {b.contactPhone}
                       </span>
                     </td>
@@ -136,7 +136,7 @@ export function BookingsTab({ campaigns }: { campaigns: Campaign[] }) {
       )}
 
       {visible.length > 100 && (
-        <p className="text-[11.5px] text-ink-400">{t('admin.bookingCapped', { n: n(100) })}</p>
+        <p className="text-2xs text-ink-400">{t('admin.bookingCapped', { n: n(100) })}</p>
       )}
     </section>
   )

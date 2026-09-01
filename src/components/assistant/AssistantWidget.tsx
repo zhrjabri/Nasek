@@ -105,7 +105,7 @@ export function AssistantWidget() {
               <span className="relative inline-flex size-2.5 rounded-full bg-gold-400" />
             </span>
           </span>
-          <span className="hidden text-[13px] font-semibold sm:block">{t('assistant.name')}</span>
+          <span className="hidden text-sm font-semibold sm:block">{t('assistant.name')}</span>
         </button>
       )}
 
@@ -121,7 +121,7 @@ export function AssistantWidget() {
             <LogoMark className="h-8 w-auto" tone="gold" />
             <div className="min-w-0 flex-1">
               <p className="text-sm font-bold">{t('assistant.name')}</p>
-              <p className="flex items-center gap-1.5 text-[11px] text-ivory-200/60">
+              <p className="flex items-center gap-1.5 text-2xs text-ivory-200/60">
                 <span className="size-1.5 rounded-full bg-emerald-400" />
                 {t('common.appName')}
               </p>
@@ -151,7 +151,7 @@ export function AssistantWidget() {
               <div key={message.id}>
                 <div
                   className={cx(
-                    'max-w-[88%] rounded-[3px] px-3.5 py-2.5 text-[13.5px] leading-relaxed whitespace-pre-line',
+                    'max-w-[88%] rounded-[3px] px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-line',
                     message.role === 'user'
                       ? 'ms-auto bg-nasek-900 text-ivory-50'
                       : 'me-auto border border-ivory-300 bg-ivory-50 text-ink-700 shadow-soft',
@@ -177,10 +177,10 @@ export function AssistantWidget() {
                               <Sparkles className="size-4" />
                             </span>
                             <span className="min-w-0 flex-1">
-                              <span className="block truncate text-[13px] font-bold text-ink-900">
+                              <span className="block truncate text-sm font-bold text-ink-900">
                                 {bl(campaign.title)}
                               </span>
-                              <span className="nums block text-[11px] text-ink-400">
+                              <span className="nums block text-2xs text-ink-400">
                                 {money(campaign.price)} · {campaign.seatsAvailable}{' '}
                                 {t('common.seats')}
                               </span>
@@ -203,7 +203,7 @@ export function AssistantWidget() {
                           <button
                             type="button"
                             onClick={() => void send(s)}
-                            className="rounded-full border border-nasek-200 bg-ivory-50 px-3 py-1.5 text-[11.5px] font-medium text-nasek-800 transition-colors hover:bg-nasek-50"
+                            className="rounded-full border border-nasek-200 bg-ivory-50 px-3 py-1.5 text-2xs font-medium text-nasek-800 transition-colors hover:bg-nasek-50"
                           >
                             {s}
                           </button>
@@ -230,7 +230,7 @@ export function AssistantWidget() {
           {/* the guardrail is part of the UI, not a footnote */}
           <div className="flex items-start gap-2 border-t border-ivory-300 bg-gold-50/60 px-4 py-2.5">
             <Info className="mt-px size-3.5 shrink-0 text-gold-700" />
-            <p className="text-[10.5px] leading-relaxed text-gold-800">
+            <p className="text-2xs leading-relaxed text-gold-800">
               {t('assistant.disclaimer')}
             </p>
           </div>

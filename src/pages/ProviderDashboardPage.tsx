@@ -182,10 +182,10 @@ export function ProviderDashboardPage() {
           {provider?.initials ?? user?.name.charAt(0)}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-gold-600">
+          <p className="text-2xs font-bold uppercase tracking-wider text-gold-600">
             {t('prov.title')}
           </p>
-          <h1 className="display text-[26px] text-ink-900 sm:text-[32px]">
+          <h1 className="display text-3xl text-ink-900 sm:text-5xl">
             {provider ? bl(provider.name) : user?.name}
           </h1>
         </div>
@@ -212,7 +212,7 @@ export function ProviderDashboardPage() {
             onClick={() => setTab(item.id)}
             aria-current={tab === item.id ? 'page' : undefined}
             className={cx(
-              'relative flex shrink-0 items-center gap-2 px-4 py-3 text-[14px] font-semibold transition-colors',
+              'relative flex shrink-0 items-center gap-2 px-4 py-3 text-base font-semibold transition-colors',
               tab === item.id ? 'text-nasek-900' : 'text-ink-400 hover:text-ink-700',
             )}
           >
@@ -254,10 +254,10 @@ export function ProviderDashboardPage() {
               <div className="flex items-start gap-3">
                 <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-700" />
                 <div className="min-w-0">
-                  <p className="text-[13.5px] font-bold text-amber-900">
+                  <p className="text-sm font-bold text-amber-900">
                     {t('prov.lowSeats', { n: n(almostFull.length) })}
                   </p>
-                  <p className="mt-0.5 text-[12.5px] text-amber-800/80">{t('prov.lowSeatsFix')}</p>
+                  <p className="mt-0.5 text-xs text-amber-800/80">{t('prov.lowSeatsFix')}</p>
                 </div>
               </div>
               <ul className="mt-3 space-y-1.5">
@@ -266,10 +266,10 @@ export function ProviderDashboardPage() {
                     key={c.id}
                     className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-[3px] bg-ivory-50/70 px-3 py-2"
                   >
-                    <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ink-800">
+                    <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink-800">
                       {bl(c.title)}
                     </span>
-                    <span className="nums text-[12px] font-semibold text-amber-800">
+                    <span className="nums text-xs font-semibold text-amber-800">
                       {t('common.seatsLeft', { n: n(c.seatsAvailable) })}
                     </span>
                     <Button variant="secondary" size="sm" onClick={() => setEditing(c)}>
@@ -284,8 +284,8 @@ export function ProviderDashboardPage() {
 
           {/* the business model, shown where the owner actually feels it */}
           <Card className="p-6">
-            <h2 className="text-[15px] font-bold text-ink-900">{t('prov.plan')}</h2>
-            <p className="mt-1.5 max-w-2xl text-[13px] leading-relaxed text-ink-500">
+            <h2 className="text-md font-bold text-ink-900">{t('prov.plan')}</h2>
+            <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-500">
               {t('prov.planNote')}
             </p>
             <dl className="mt-5 grid gap-4 sm:grid-cols-3">
@@ -304,7 +304,7 @@ export function ProviderDashboardPage() {
           </Card>
 
           <Card className="p-6">
-            <h2 className="mb-5 text-[15px] font-bold text-ink-900">{t('prov.chartBookings')}</h2>
+            <h2 className="mb-5 text-md font-bold text-ink-900">{t('prov.chartBookings')}</h2>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={monthly} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
@@ -362,8 +362,8 @@ export function ProviderDashboardPage() {
                           {t(c.travelMethod === 'air' ? 'common.air' : 'common.land')}
                         </Badge>
                       </div>
-                      <p className="mt-2 text-[15.5px] font-bold text-ink-900">{bl(c.title)}</p>
-                      <p className="mt-1 text-[12.5px] text-ink-500">
+                      <p className="mt-2 text-md font-bold text-ink-900">{bl(c.title)}</p>
+                      <p className="mt-1 text-xs text-ink-500">
                         {wilayahName(c.wilayahId, lang)} · {date(c.departureDate)} ·{' '}
                         <span className="nums">{money(c.price)}</span>
                       </p>
@@ -374,7 +374,7 @@ export function ProviderDashboardPage() {
                           tone={c.seatsAvailable <= 6 ? 'amber' : 'green'}
                           label={t('compare.row.seats')}
                         />
-                        <p className="mt-1.5 nums text-[11px] text-ink-400">
+                        <p className="mt-1.5 nums text-2xs text-ink-400">
                           {t('campaign.seatsBar', {
                             booked: n(c.seatsTotal - c.seatsAvailable),
                             total: n(c.seatsTotal),
@@ -389,8 +389,8 @@ export function ProviderDashboardPage() {
                         belongs to and says what will happen. */}
                     {confirmDelete === c.id ? (
                       <div className="rounded-[3px] border border-red-200 bg-red-50 p-3 sm:w-72">
-                        <p className="text-[13px] font-bold text-red-800">{t('prov.deleteAsk')}</p>
-                        <p className="mt-0.5 text-[12px] leading-relaxed text-red-700/80">
+                        <p className="text-sm font-bold text-red-800">{t('prov.deleteAsk')}</p>
+                        <p className="mt-0.5 text-xs leading-relaxed text-red-700/80">
                           {t('prov.deleteConfirm')}
                         </p>
                         <div className="mt-2.5 flex gap-2">
@@ -495,7 +495,7 @@ export function ProviderDashboardPage() {
                 />
               ) : (
                 <>
-                  <p className="mb-2.5 text-[12.5px] font-semibold text-ink-500" aria-live="polite">
+                  <p className="mb-2.5 text-xs font-semibold text-ink-500" aria-live="polite">
                     {t('prov.showingCount', {
                       shown: n(Math.min(visibleRows, filteredBookings.length)),
                       total: n(filteredBookings.length),
@@ -503,9 +503,9 @@ export function ProviderDashboardPage() {
                   </p>
 
                   <div className="overflow-x-auto rounded-[3px] border border-ivory-300 bg-ivory-50">
-                    <table className="w-full min-w-2xl text-start text-[13.5px]">
+                    <table className="w-full min-w-2xl text-start text-sm">
                       <thead>
-                        <tr className="border-b border-ivory-300 bg-ivory-100 text-[11px] font-bold uppercase tracking-wider text-ink-500">
+                        <tr className="border-b border-ivory-300 bg-ivory-100 text-2xs font-bold uppercase tracking-wider text-ink-500">
                           <th scope="col" className="p-3.5 text-start">{t('prov.customerName')}</th>
                           <th scope="col" className="p-3.5 text-start">{t('prov.customerTrip')}</th>
                           <th scope="col" className="p-3.5 text-start">{t('prov.customerPeople')}</th>
@@ -523,7 +523,7 @@ export function ProviderDashboardPage() {
                                 <span className="font-semibold text-ink-800">{b.contactName}</span>
                                 {/* the reference is what a caller reads out, so
                                     it belongs beside the name, not hidden */}
-                                <span className="nums block text-[11px] text-ink-400">
+                                <span className="nums block text-2xs text-ink-400">
                                   {b.reference}
                                 </span>
                               </td>
@@ -568,14 +568,14 @@ export function ProviderDashboardPage() {
                 <li key={review.id}>
                   <Card className="p-5">
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-[14px] font-bold text-ink-900">{review.userName}</span>
+                      <span className="text-base font-bold text-ink-900">{review.userName}</span>
                       <Rating value={review.rating} size="sm" />
                     </div>
-                    <p className="mt-2.5 text-[14px] leading-relaxed text-ink-600">
+                    <p className="mt-2.5 text-base leading-relaxed text-ink-600">
                       {bl(review.comment)}
                     </p>
                     <div className="mt-3 flex items-center justify-between">
-                      <span className="text-[11px] text-ink-400">{date(review.date)}</span>
+                      <span className="text-2xs text-ink-400">{date(review.date)}</span>
                       {/* The Reply button did nothing at all — the one thing an
                           owner comes to this tab to do. It now writes a reply
                           that shows under the review. */}
@@ -614,23 +614,23 @@ export function ProviderDashboardPage() {
                           <Button variant="ghost" size="sm" onClick={() => setReplyTo(null)}>
                             {t('common.cancel')}
                           </Button>
-                          <span className="text-[11px] text-ink-400">{t('prov.replyNote')}</span>
+                          <span className="text-2xs text-ink-400">{t('prov.replyNote')}</span>
                         </div>
                       </div>
                     )}
 
                     {replies[review.id] && (
                       <div className="mt-3 rounded-[3px] border-s-2 border-nasek-600 bg-nasek-50/60 px-4 py-3">
-                        <p className="text-[11px] font-bold uppercase tracking-wider text-nasek-700">
+                        <p className="text-2xs font-bold uppercase tracking-wider text-nasek-700">
                           {t('prov.replyYours')}
                         </p>
-                        <p className="mt-1 text-[13.5px] leading-relaxed text-ink-700">
+                        <p className="mt-1 text-sm leading-relaxed text-ink-700">
                           {replies[review.id]}
                         </p>
                         <button
                           type="button"
                           onClick={() => setReplyTo({ id: review.id, text: replies[review.id] })}
-                          className="mt-2 text-[12px] font-semibold text-nasek-700 hover:underline"
+                          className="mt-2 text-xs font-semibold text-nasek-700 hover:underline"
                         >
                           {t('common.edit')}
                         </button>
@@ -648,7 +648,7 @@ export function ProviderDashboardPage() {
       {tab === 'analytics' && (
         <section className="grid gap-6 lg:grid-cols-2">
           <Card className="p-6 lg:col-span-2">
-            <h2 className="mb-5 text-[15px] font-bold text-ink-900">{t('prov.chartRevenue')}</h2>
+            <h2 className="mb-5 text-md font-bold text-ink-900">{t('prov.chartRevenue')}</h2>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={monthly} margin={{ top: 4, right: 8, left: -12, bottom: 0 }}>
@@ -663,7 +663,7 @@ export function ProviderDashboardPage() {
           </Card>
 
           <Card className="p-6">
-            <h2 className="mb-5 text-[15px] font-bold text-ink-900">{t('prov.chartTrips')}</h2>
+            <h2 className="mb-5 text-md font-bold text-ink-900">{t('prov.chartTrips')}</h2>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={byTrip} layout="vertical" margin={{ left: 0, right: 12 }}>
@@ -685,7 +685,7 @@ export function ProviderDashboardPage() {
           </Card>
 
           <Card className="p-6">
-            <h2 className="mb-5 text-[15px] font-bold text-ink-900">{t('prov.chartLocations')}</h2>
+            <h2 className="mb-5 text-md font-bold text-ink-900">{t('prov.chartLocations')}</h2>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -761,11 +761,11 @@ function Kpi({
   return (
     <li>
       <Card className="p-5">
-        <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-ink-400">
+        <div className="flex items-center gap-2 text-2xs font-bold uppercase tracking-wider text-ink-400">
           <span className="text-nasek-600">{icon}</span>
           {label}
         </div>
-        <p className="nums mt-2.5 text-[28px] font-bold leading-none text-ink-900">{value}</p>
+        <p className="nums mt-2.5 text-4xl font-bold leading-none text-ink-900">{value}</p>
         {progress != null && <ProgressBar className="mt-3" value={progress} label={label} />}
       </Card>
     </li>
@@ -790,10 +790,10 @@ function PlanFigure({
         highlight ? 'border-nasek-200 bg-nasek-50' : 'border-ivory-300 bg-ivory-50/60',
       )}
     >
-      <dt className="text-[11px] font-bold uppercase tracking-wider text-ink-400">{label}</dt>
-      <dd className="nums mt-2 text-[22px] font-bold text-ink-900">{value}</dd>
+      <dt className="text-2xs font-bold uppercase tracking-wider text-ink-400">{label}</dt>
+      <dd className="nums mt-2 text-2xl font-bold text-ink-900">{value}</dd>
       {note && (
-        <dd className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-gold-600">
+        <dd className="mt-1 text-2xs font-semibold uppercase tracking-wider text-gold-600">
           {note}
         </dd>
       )}
@@ -952,8 +952,8 @@ function CampaignForm({
             role="alert"
             className="rounded-[3px] border border-red-200 bg-red-50 p-4 focus:outline-none focus:ring-1 focus:ring-red-400"
           >
-            <p className="text-[13px] font-bold text-red-800">{t('prov.fixErrors')}</p>
-            <ul className="mt-1.5 list-disc space-y-0.5 ps-5 text-[12.5px] leading-relaxed text-red-700">
+            <p className="text-sm font-bold text-red-800">{t('prov.fixErrors')}</p>
+            <ul className="mt-1.5 list-disc space-y-0.5 ps-5 text-xs leading-relaxed text-red-700">
               {Object.entries(errors).map(([key, message]) => (
                 <li key={key}>
                   <span className="font-semibold">{FIELD_LABEL[key] ?? key}</span> — {message}
@@ -1125,7 +1125,7 @@ function CampaignForm({
         </div>
 
         <fieldset>
-          <legend className="mb-2 text-[13px] font-semibold text-ink-700">
+          <legend className="mb-2 text-sm font-semibold text-ink-700">
             {t('prov.formServices')}
           </legend>
           <div className="grid gap-x-4 sm:grid-cols-2">
@@ -1145,7 +1145,7 @@ function CampaignForm({
               />
             ))}
           </div>
-          <p className="mt-2 nums text-[11px] text-ink-400">
+          <p className="mt-2 nums text-2xs text-ink-400">
             {t('prov.servicesCount', {
               n: n(form.services.length),
               total: n(SERVICE_KEYS.length),
@@ -1155,7 +1155,7 @@ function CampaignForm({
 
         {confirmClose ? (
           <div className="rounded-[3px] border border-amber-200 bg-amber-50 p-4">
-            <p className="text-[13px] font-bold text-amber-900">{t('prov.discardAsk')}</p>
+            <p className="text-sm font-bold text-amber-900">{t('prov.discardAsk')}</p>
             <div className="mt-2.5 flex gap-2">
               <Button type="button" variant="danger" size="sm" onClick={onClose}>
                 {t('prov.discard')}

@@ -1,0 +1,3 @@
+# The public NASEK site. Crawl it freely.
+User-agent: *
+Allow: /

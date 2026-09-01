@@ -1,7 +1,9 @@
-import { Suspense, lazy, useEffect, useState } from 'react'
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { Suspense, lazy, useEffect } from 'react'
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { useI18n } from '@/i18n'
 import { useStore } from '@/store/AppStore'
+import { useSessionSync } from '@/hooks/useSessionSync'
+import { useAuthRedirect } from '@/hooks/useAuthRedirect'
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
 import { ToastHost } from '@/components/layout/ToastHost'
@@ -22,7 +24,6 @@ import {
   SignUpPage,
 } from '@/pages/AuthPages'
 import { ProviderSignUpPage } from '@/pages/ProviderSignUpPage'
-import { isAdminGatePath } from '@/services/api/adminAccess'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { GivingPage } from '@/pages/GivingPage'
 import { AboutPage } from '@/pages/AboutPage'
@@ -36,13 +37,6 @@ import { AboutPage } from '@/pages/AboutPage'
 const ProviderDashboardPage = lazy(() =>
   import('@/pages/ProviderDashboardPage').then((m) => ({ default: m.ProviderDashboardPage })),
 )
-const AdminDashboardPage = lazy(() => import('@/pages/admin'))
-/*
- * The gate is split out, and every chunk is named by hash alone (see
- * vite.config.ts) — a file called AdminAccessPage-x7.js would announce itself
- * in the deployed directory listing no matter how well the route was hidden.
- */
-const AdminAccessPage = lazy(() => import('@/pages/AdminAccessPage'))
 
 function RouteFallback() {
   return (
@@ -64,36 +58,46 @@ function ScrollToTop() {
 /**
  * Gate a route behind a signed-in account of a given role.
  *
- * `unlisted` marks a route that should not admit to existing. Sending an
- * unauthenticated visitor to the sign-in page, or telling a signed-in one
- * that they hold the wrong sort of account, both confirm that the route is
- * real; an unlisted route answers "not found" to everyone who is not already
- * the admin, which is what the route looks like from outside anyway. Used for
- * administration.
+ * There used to be a second mode here — `unlisted` — which answered "not
+ * found" rather than "wrong account", so that the administration route would
+ * not admit to existing. It is gone because the route is gone: administration
+ * is a separate application on a separate host, and the only thing this file
+ * now guards is which of a pilgrim's own pages they are looking at.
+ *
+ * Worth being precise about what this does and does not do. It decides what to
+ * render. It does not decide what data anyone may read — that is settled by
+ * row-level security in Postgres, before a row is returned, and would still be
+ * settled there if every line of this function were deleted.
  */
 function Protected({
   role,
-  unlisted,
   children,
 }: {
-  role?: 'customer' | 'provider' | 'admin'
-  unlisted?: boolean
+  role?: 'customer' | 'provider'
   children: React.ReactNode
 }) {
   const { user } = useStore()
   const { t } = useI18n()
   const location = useLocation()
+  const settled = useSessionSync()
+
+  /*
+   * Wait for the server's answer before acting on the stored one.
+   *
+   * Without this, a restored session would render the dashboard, the
+   * reconciliation would land a moment later, and a signed-out or suspended
+   * visitor would be thrown to the sign-in page having just been shown a page
+   * that looked like theirs. Holding a blank frame for one round trip is a
+   * better lie than a page that has to be taken back.
+   */
+  if (!settled) return <div className="min-h-[60dvh]" />
 
   if (!user) {
-    // The gate is listed on the sign-in page now, so a lapsed admin session
-    // can be sent there rather than dead-ending on "not found".
-    if (unlisted) return <Navigate to="/signin/admin" replace />
     return (
       <Navigate to={`/signin?next=${encodeURIComponent(location.pathname + location.search)}`} replace />
     )
   }
   if (role && user.role !== role) {
-    if (unlisted) return <NotFoundPage />
     return (
       <main className="mx-auto max-w-3xl px-4 py-20 sm:px-6">
         <EmptyState
@@ -105,6 +109,34 @@ function Protected({
     )
   }
   return <>{children}</>
+}
+
+/**
+ * What someone sees between clicking a link in an email and being signed in.
+ *
+ * Two round trips happen here — exchanging the code, then reading the profile
+ * back — and a blank home page for that second is how people conclude the link
+ * did not work and click it again, spending the single use it had.
+ */
+function AuthRedirectScreen({ error }: { error?: string }) {
+  const { t } = useI18n()
+  return (
+    <main className="mx-auto flex min-h-[70dvh] max-w-md flex-col items-center justify-center px-4 text-center">
+      {error ? (
+        <>
+          <EmptyState title={t('auth.linkRetry')} body={error} />
+          <LinkButton to="/signin" className="mt-6">
+            {t('nav.signIn')}
+          </LinkButton>
+        </>
+      ) : (
+        <>
+          <Spinner className="size-8 text-nasek-600" />
+          <p className="mt-4 text-base font-medium text-ink-600">{t('auth.completingSignIn')}</p>
+        </>
+      )}
+    </main>
+  )
 }
 
 function NotFoundPage() {
@@ -120,46 +152,21 @@ function NotFoundPage() {
   )
 }
 
-/**
- * Every address the app does not recognise arrives here — including, once,
- * the administration gate.
- *
- * The gate has no route of its own because a route needs its path written
- * down, and that path would then be readable in the built JavaScript by
- * anyone who cared to look. Instead the typed address is hashed and compared,
- * so what ships is a hash and nothing else.
- *
- * The check is asynchronous, and the wait is spent on a blank frame rather
- * than on "not found". Showing the miss first and correcting it a moment
- * later would flash a wrong answer at the one person entitled to the right
- * one, and would tell everybody else that this address is treated specially.
- */
-function UnknownRoute() {
-  const { pathname } = useLocation()
-  const [verdict, setVerdict] = useState<'checking' | 'gate' | 'missing'>('checking')
-
-  useEffect(() => {
-    let live = true
-    setVerdict('checking')
-    void isAdminGatePath(pathname).then((isGate) => {
-      if (live) setVerdict(isGate ? 'gate' : 'missing')
-    })
-    return () => {
-      live = false
-    }
-  }, [pathname])
-
-  if (verdict === 'checking') return <div className="min-h-[60dvh]" />
-  if (verdict === 'missing') return <NotFoundPage />
-  return (
-    <Suspense fallback={<RouteFallback />}>
-      <AdminAccessPage />
-    </Suspense>
-  )
-}
-
 export function App() {
   const { t } = useI18n()
+  const navigate = useNavigate()
+  // Mounted at the root as well as inside `Protected`, so a stale session is
+  // cleared on any page — the navigation bar should not offer an account menu
+  // for someone who is no longer signed in.
+  useSessionSync()
+  // Finishes a sign-in that began in an email. Does nothing on an ordinary
+  // page load, which is almost all of them.
+  const redirect = useAuthRedirect(navigate)
+
+  if (redirect.phase === 'working') return <AuthRedirectScreen />
+  if (redirect.phase === 'error') {
+    return <AuthRedirectScreen error={t(redirect.message)} />
+  }
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -185,14 +192,6 @@ export function App() {
           <Route path="/signin" element={<SignInPage />} />
           <Route path="/signin/customer" element={<CustomerSignInPage />} />
           <Route path="/signin/owner" element={<OwnerSignInPage />} />
-          <Route
-            path="/signin/admin"
-            element={
-              <Suspense fallback={<RouteFallback />}>
-                <AdminAccessPage />
-              </Suspense>
-            }
-          />
           <Route path="/signup" element={<SignUpPage />} />
           <Route path="/signup/customer" element={<CustomerSignUpPage />} />
           <Route path="/signup/provider" element={<ProviderSignUpPage />} />
@@ -215,17 +214,7 @@ export function App() {
               </Protected>
             }
           />
-          <Route
-            path="/admin"
-            element={
-              <Protected role="admin" unlisted>
-                <Suspense fallback={<RouteFallback />}>
-                  <AdminDashboardPage />
-                </Suspense>
-              </Protected>
-            }
-          />
-          <Route path="*" element={<UnknownRoute />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </div>
 

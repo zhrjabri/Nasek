@@ -97,7 +97,7 @@ export function OwnersTab({ providers }: { providers: Provider[] }) {
         />
       ) : (
         <TableShell>
-          <table className="w-full min-w-4xl text-[13.5px]">
+          <table className="w-full min-w-4xl text-sm">
             <thead>
               <HeadRow>
                 <Th>{t('admin.providers')}</Th>
@@ -127,7 +127,7 @@ export function OwnersTab({ providers }: { providers: Provider[] }) {
                           <span className="block truncate font-semibold text-ink-800">
                             {bl(p.name)}
                           </span>
-                          <span className="block truncate text-[11.5px] text-ink-400" dir="ltr">
+                          <span className="block truncate text-2xs text-ink-400" dir="ltr">
                             {p.email}
                           </span>
                         </span>
@@ -148,7 +148,7 @@ export function OwnersTab({ providers }: { providers: Provider[] }) {
                         <button
                           type="button"
                           onClick={() => setPermit(p)}
-                          className="flex items-center gap-2 rounded-[3px] border border-ivory-300 bg-ivory-50 p-1.5 pe-2.5 text-[12px] font-semibold text-ink-600 transition-colors hover:border-nasek-700 hover:text-nasek-800"
+                          className="flex items-center gap-2 rounded-[3px] border border-ivory-300 bg-ivory-50 p-1.5 pe-2.5 text-xs font-semibold text-ink-600 transition-colors hover:border-nasek-700 hover:text-nasek-800"
                         >
                           <img
                             src={p.licenceImage}
@@ -158,7 +158,7 @@ export function OwnersTab({ providers }: { providers: Provider[] }) {
                           {t('admin.viewLicence')}
                         </button>
                       ) : (
-                        <span className="text-[12px] text-ink-400">{t('admin.noLicence')}</span>
+                        <span className="text-xs text-ink-400">{t('admin.noLicence')}</span>
                       )}
                     </td>
                     <td className="p-3.5">
@@ -199,32 +199,32 @@ export function OwnersTab({ providers }: { providers: Provider[] }) {
                 className="max-h-[60vh] w-full rounded-[3px] border border-ivory-300 bg-ivory-50 object-contain"
               />
             ) : (
-              <p className="flex items-center gap-2 text-[13px] text-ink-400">
+              <p className="flex items-center gap-2 text-sm text-ink-400">
                 <FileImage className="size-4" />
                 {t('admin.noLicence')}
               </p>
             )}
             <dl className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
               <div>
-                <dt className="text-[11px] font-bold uppercase tracking-wider text-ink-400">
+                <dt className="text-2xs font-bold uppercase tracking-wider text-ink-400">
                   {t('common.experience')
                     .replace('{n}', '')
                     .trim()}
                 </dt>
-                <dd className="nums mt-1 text-[13.5px] text-ink-800">{n(permit.experienceYears)}</dd>
+                <dd className="nums mt-1 text-sm text-ink-800">{n(permit.experienceYears)}</dd>
               </div>
               <div>
-                <dt className="text-[11px] font-bold uppercase tracking-wider text-ink-400">
+                <dt className="text-2xs font-bold uppercase tracking-wider text-ink-400">
                   {t('admin.userJoined')}
                 </dt>
-                <dd className="mt-1 text-[13.5px] text-ink-800">{date(permit.joinedAt)}</dd>
+                <dd className="mt-1 text-sm text-ink-800">{date(permit.joinedAt)}</dd>
               </div>
               {permit.licenceFileName && (
                 <div className="sm:col-span-2">
-                  <dt className="text-[11px] font-bold uppercase tracking-wider text-ink-400">
+                  <dt className="text-2xs font-bold uppercase tracking-wider text-ink-400">
                     {t('admin.licence')}
                   </dt>
-                  <dd className="mt-1 text-[12px] text-ink-500">{permit.licenceFileName}</dd>
+                  <dd className="mt-1 text-xs text-ink-500">{permit.licenceFileName}</dd>
                 </div>
               )}
             </dl>

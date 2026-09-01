@@ -1,28 +1,15 @@
 import { useState } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
-import { Building2, ChevronRight, Eye, EyeOff, Lock, ShieldCheck, User as UserIcon } from 'lucide-react'
-import type { Role } from '@/types'
-import { useI18n } from '@/i18n'
+import { Building2, ChevronRight, ShieldCheck, User as UserIcon } from 'lucide-react'
+import { useI18n, type MessageKey } from '@/i18n'
 import { WILAYAT } from '@/data/geo'
-import { authApi } from '@/services/api/auth'
-import {
-  createCredential,
-  findCredential,
-  identifierKey,
-  lockRemainingMs,
-  verifyPassword,
-  MAX_ATTEMPTS,
-} from '@/services/api/credentials'
+import { isValidPhone } from '@/services/auth/phone'
+import type { OtpChannel } from '@/services/auth/otp'
+import { useCompleteSignIn, landingFor } from '@/hooks/useSignIn'
 import { useStore } from '@/store/AppStore'
 import { Logo } from '@/components/brand/Logo'
-import { Button, Card, Checkbox, Field, Input, Select } from '@/components/ui'
-
-/** Where to send each role after authenticating. */
-const HOME_FOR: Record<Role, string> = {
-  customer: '/dashboard',
-  provider: '/provider',
-  admin: '/admin',
-}
+import { OtpFlow } from '@/components/auth/OtpFlow'
+import { Button, Card, Checkbox, Field, Input, Notice, Select } from '@/components/ui'
 
 export function AuthShell({
   title,
@@ -33,7 +20,7 @@ export function AuthShell({
   title: string
   subtitle: string
   children: React.ReactNode
-  footer: React.ReactNode
+  footer?: React.ReactNode
 }) {
   const { t } = useI18n()
   return (
@@ -42,15 +29,15 @@ export function AuthShell({
         <Link to="/" className="inline-block">
           <Logo size="lg" />
         </Link>
-        <h1 className="display mt-7 text-[28px] text-ink-900 sm:text-[34px]">{title}</h1>
-        <p className="mt-2.5 text-[15px] text-ink-500">{subtitle}</p>
+        <h1 className="display mt-7 text-4xl text-ink-900 sm:text-5xl">{title}</h1>
+        <p className="mt-2.5 text-md text-ink-500">{subtitle}</p>
       </div>
 
       <Card className="p-6 sm:p-7">{children}</Card>
 
-      <p className="mt-6 text-center text-[13.5px] text-ink-500">{footer}</p>
+      {footer && <p className="mt-6 text-center text-sm text-ink-500">{footer}</p>}
 
-      <p className="mt-8 flex items-start gap-2 rounded-[3px] border border-ivory-300 bg-ivory-50 p-3.5 text-[11.5px] leading-relaxed text-ink-400">
+      <p className="mt-8 flex items-start gap-2 rounded-[3px] border border-ivory-300 bg-ivory-50 p-3.5 text-2xs leading-relaxed text-ink-400">
         <ShieldCheck className="mt-px size-3.5 shrink-0" />
         {t('trust.disclaimer')}
       </p>
@@ -59,7 +46,7 @@ export function AuthShell({
 }
 
 /**
- * One of the two doors on the sign-in and sign-up screens.
+ * One of the two doors on the sign-up screen.
  *
  * Sized like a card rather than a button: the choice between customer and
  * campaign owner decides which half of the product someone sees, so it should
@@ -71,307 +58,127 @@ function RoleOption({
   note,
   badge,
   to,
-  onClick,
-  disabled,
 }: {
   icon: React.ReactNode
   title: string
   note: string
   badge?: string
-  to?: string
-  onClick?: () => void
-  disabled?: boolean
+  to: string
 }) {
-  const className =
-    'group flex w-full items-start gap-3.5 rounded-[3px] border border-ivory-300 bg-ivory-50 p-4 text-start transition-all hover:border-nasek-400 hover:bg-nasek-50/40 disabled:pointer-events-none disabled:opacity-50'
-
-  const body = (
-    <>
+  return (
+    <Link
+      to={to}
+      className="group flex w-full items-start gap-3.5 rounded-[3px] border border-ivory-300 bg-ivory-50 p-4 text-start transition-all hover:border-nasek-400 hover:bg-nasek-50/40"
+    >
       <span className="mt-px flex size-9 shrink-0 items-center justify-center rounded-[3px] bg-nasek-50 text-nasek-700 transition-colors group-hover:bg-nasek-100">
         {icon}
       </span>
       <span className="flex-1">
-        <span className="block text-[14.5px] font-bold text-ink-900 group-hover:text-nasek-900">
+        <span className="block text-base font-bold text-ink-900 group-hover:text-nasek-900">
           {title}
         </span>
-        <span className="mt-1 block text-[12.5px] leading-relaxed text-ink-500">{note}</span>
+        <span className="mt-1 block text-xs leading-relaxed text-ink-500">{note}</span>
         {badge && (
-          <span className="mt-2 inline-flex items-center rounded-[3px] bg-gold-100 px-2 py-1 text-[11px] font-bold text-gold-800">
+          <span className="mt-2 inline-flex items-center rounded-[3px] bg-gold-100 px-2 py-1 text-2xs font-bold text-gold-800">
             {badge}
           </span>
         )}
       </span>
       <ChevronRight className="mt-2 size-4 shrink-0 text-ink-300 transition-colors group-hover:text-nasek-600 rtl:rotate-180" />
-    </>
-  )
-
-  return to ? (
-    <Link to={to} className={className}>
-      {body}
     </Link>
-  ) : (
-    <button type="button" onClick={onClick} disabled={disabled} className={className}>
-      {body}
-    </button>
   )
 }
 
 // ------------------------------------------------------------------ sign in
 
 /**
- * Three doors: customer, campaign owner, administration.
+ * Signing in.
  *
- * Administration used to be absent from this page and reachable only at an
- * unlisted address. It is listed here now because remembering a secret address
- * is a cost paid every single time, while the thing that actually keeps the
- * dashboard shut is the passphrase behind this door. The unlisted address
- * still works for anyone who bookmarked it.
+ * There is one screen now, and it does not ask what kind of account you have.
+ *
+ * It used to ask, and there is a reason that was wrong beyond the extra click:
+ * the person signing in already knows who they are, and making them declare it
+ * meant the form could reject a correct identifier for being typed under the
+ * wrong heading — a campaign owner picking "Customer" got "those details do not
+ * match an account", which is both true and useless. Identity comes from the
+ * code; the role comes from the account the code unlocked; the destination
+ * follows from the role. Nobody has to classify themselves to get in.
+ *
+ * There is also no separate registration path from here. Verifying a code on an
+ * unknown address creates the account, so the same screen serves a returning
+ * pilgrim and a first-time one.
  */
 export function SignInPage() {
   const { t } = useI18n()
+  const navigate = useNavigate()
   const [params] = useSearchParams()
+  const complete = useCompleteSignIn()
+  const [error, setError] = useState<MessageKey | null>(null)
 
-  // Carry any "next" destination through the chooser to the form.
   const next = params.get('next')
-  const suffix = next ? `?next=${encodeURIComponent(next)}` : ''
 
   return (
     <AuthShell
-      title={t('auth.signInTitle')}
-      subtitle={t('auth.signInChoose')}
+      title={t('auth.otpTitle')}
+      subtitle={t('auth.otpSubtitle')}
       footer={
         <>
-          {t('auth.noAccount')}{' '}
-          <Link to="/signup" className="font-semibold text-nasek-700 hover:underline">
-            {t('nav.signUp')}
+          {t('auth.ownerRedirect')}{' '}
+          <Link to="/signup/provider" className="font-semibold text-nasek-700 hover:underline">
+            {t('auth.ownerRegisterLink')}
           </Link>
         </>
       }
     >
-      <div className="grid gap-3">
-        <RoleOption
-          icon={<UserIcon className="size-4.5" />}
-          title={t('auth.signInCustomer')}
-          note={t('auth.signInCustomerNote')}
-          to={`/signin/customer${suffix}`}
-        />
-        <RoleOption
-          icon={<Building2 className="size-4.5" />}
-          title={t('auth.signInOwner')}
-          note={t('auth.signInOwnerNote')}
-          to={`/signin/owner${suffix}`}
-        />
-        {/* Administration sits with the other two rather than behind an
-            address only one person knows. What protects it is the passphrase,
-            not obscurity: being easy to find and easy to enter are different
-            things. */}
-        <RoleOption
-          icon={<ShieldCheck className="size-4.5" />}
-          title={t('auth.signInAdmin')}
-          note={t('auth.signInAdminNote')}
-          to="/signin/admin"
-        />
-      </div>
+      {error && (
+        <Notice tone="danger" live className="mb-5">
+          {t(error)}
+        </Notice>
+      )}
+
+      <OtpFlow
+        onSuccess={async (target) => {
+          const outcome = await complete(target)
+          if (outcome.error || !outcome.user) {
+            setError(outcome.error ?? 'auth.sessionFailed')
+            return
+          }
+          navigate(next ?? landingFor(outcome.user), { replace: true })
+        }}
+      />
     </AuthShell>
   )
-}
-
-// ------------------------------------------------------------- credentials
-
-export function CustomerSignInPage() {
-  return <SignInForm role="customer" />
-}
-
-export function OwnerSignInPage() {
-  return <SignInForm role="provider" />
 }
 
 /**
- * The credential form.
+ * The old per-role sign-in addresses.
  *
- * Both roles share it because the checks are identical — only the account it
- * looks for and where it lands afterwards differ.
- *
- * Every rejection says the same thing. Telling someone "no such account"
- * rather than "wrong password" would let a stranger discover which addresses
- * are registered here simply by trying them, which is a privacy leak before
- * it is a security one. The single message costs a little clarity and closes
- * that off. The one exception is a suspended account, which has to say so —
- * a person locked out by a decision NASEK made deserves to know that is why,
- * and not be left retyping a password that was correct all along.
+ * Kept as redirects rather than deleted. They were linked from the sign-in
+ * chooser, from the footer and from anywhere a person bookmarked them, and a
+ * bookmark that returns "not found" is indistinguishable from a site that is
+ * broken. `next` is carried through so an interrupted journey still resumes
+ * where it left off.
  */
-function SignInForm({ role }: { role: 'customer' | 'provider' }) {
-  const { t } = useI18n()
-  const navigate = useNavigate()
+function RedirectToSignIn() {
   const [params] = useSearchParams()
-  const {
-    dispatch,
-    credentials,
-    lockouts,
-    sessionUsers,
-    suspendedUserIds,
-    removedUserIds,
-  } = useStore()
-
-  const [identifier, setIdentifier] = useState('')
-  const [password, setPassword] = useState('')
-  const [reveal, setReveal] = useState(false)
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  const [notice, setNotice] = useState('')
-  const [busy, setBusy] = useState(false)
-
   const next = params.get('next')
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setNotice('')
-
-    const found: Record<string, string> = {}
-    if (!identifier.trim()) found.identifier = t('auth.identifierRequired')
-    if (!password) found.password = t('auth.passwordRequired')
-    setErrors(found)
-    if (Object.keys(found).length) return
-
-    const key = identifierKey(identifier)
-    const now = Date.now()
-
-    // A locked identifier is turned away before any work is done, so a
-    // guessing script cannot keep the expensive hash running either.
-    const waiting = lockRemainingMs(lockouts[key], now)
-    if (waiting > 0) {
-      setNotice(t('auth.signInLocked', { n: Math.ceil(waiting / 1000) }))
-      return
-    }
-
-    setBusy(true)
-    const credential = findCredential(credentials, identifier, role)
-    const ok = credential ? await verifyPassword(credential, password) : false
-
-    if (!ok) {
-      dispatch({ type: 'signInFailed', key, now })
-      const fails = (lockouts[key]?.fails ?? 0) + 1
-      const left = MAX_ATTEMPTS - fails
-      setBusy(false)
-      setPassword('')
-      setNotice(
-        left > 0
-          ? `${t('auth.signInFailed')} ${t('auth.attemptsLeft', { n: left })}`
-          : t('auth.signInLocked', { n: 60 }),
-      )
-      return
-    }
-
-    // The admin's decisions are enforced here rather than only displayed in
-    // the dashboard: suspending an account has to actually keep it out.
-    if (removedUserIds.includes(credential!.userId)) {
-      setBusy(false)
-      setNotice(t('auth.signInFailed'))
-      return
-    }
-    if (suspendedUserIds.includes(credential!.userId)) {
-      setBusy(false)
-      setNotice(t('auth.signInSuspended'))
-      return
-    }
-
-    const account = sessionUsers.find((u) => u.id === credential!.userId)
-    if (!account) {
-      // The credential outlived the account it belonged to — nothing to sign
-      // in to, and saying more would leak that the credential was right.
-      setBusy(false)
-      setNotice(t('auth.signInFailed'))
-      return
-    }
-
-    dispatch({ type: 'signInSucceeded', key })
-    dispatch({ type: 'signIn', user: account })
-    setBusy(false)
-    navigate(next ?? HOME_FOR[role], { replace: true })
-  }
-
-  return (
-    <AuthShell
-      title={t(role === 'provider' ? 'auth.signInOwner' : 'auth.signInCustomer')}
-      subtitle={t('auth.credentialsSubtitle')}
-      footer={
-        <>
-          {t('auth.noAccount')}{' '}
-          <Link
-            to={role === 'provider' ? '/signup/provider' : '/signup/customer'}
-            className="font-semibold text-nasek-700 hover:underline"
-          >
-            {t('nav.signUp')}
-          </Link>
-        </>
-      }
-    >
-      <form onSubmit={submit} className="space-y-4" noValidate>
-        <Field label={t('auth.identifier')} hint={t('auth.identifierHint')} required error={errors.identifier}>
-          {(p) => (
-            <Input
-              {...p}
-              dir="ltr"
-              autoFocus
-              autoComplete="username"
-              value={identifier}
-              onChange={(e) => setIdentifier(e.target.value)}
-            />
-          )}
-        </Field>
-
-        <Field label={t('auth.password')} required error={errors.password}>
-          {(p) => (
-            <div className="relative">
-              <Input
-                {...p}
-                type={reveal ? 'text' : 'password'}
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="pe-10"
-              />
-              <button
-                type="button"
-                onClick={() => setReveal((v) => !v)}
-                aria-label={t(reveal ? 'auth.hidePassword' : 'auth.showPassword')}
-                className="absolute top-1/2 end-2 -translate-y-1/2 rounded-[3px] p-1.5 text-ink-400 transition-colors hover:text-ink-700"
-              >
-                {reveal ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-              </button>
-            </div>
-          )}
-        </Field>
-
-        {notice && (
-          <p
-            role="alert"
-            className="rounded-[3px] border border-red-200 bg-red-50 p-3 text-[12.5px] font-medium leading-relaxed text-red-700"
-          >
-            {notice}
-          </p>
-        )}
-
-        <Button type="submit" size="lg" block loading={busy}>
-          {busy ? t('auth.signInChecking') : t('nav.signIn')}
-        </Button>
-      </form>
-
-      <p className="mt-5 flex items-start gap-2 border-t border-ivory-300 pt-4 text-[11.5px] leading-relaxed text-ink-400">
-        <Lock className="mt-px size-3.5 shrink-0" />
-        {t('auth.securityNote')}
-      </p>
-    </AuthShell>
-  )
+  return <Navigate to={next ? `/signin?next=${encodeURIComponent(next)}` : '/signin'} replace />
 }
+
+export const CustomerSignInPage = RedirectToSignIn
+export const OwnerSignInPage = RedirectToSignIn
 
 // ------------------------------------------------------------------ sign up
 
 /**
  * The account-type chooser.
  *
- * The owner route is listed first and carries the permit badge, because the
- * permit is the whole basis of trust on NASEK and someone registering a
- * campaign should know it is coming before they start filling anything in.
+ * Still here, and still worth a screen, even though signing in no longer asks.
+ * The two registrations genuinely differ: a campaign owner uploads a trade
+ * permit and registers a company, a pilgrim does not. The owner route is listed
+ * first and carries the permit badge, because the permit is the whole basis of
+ * trust on NASEK and someone registering a campaign should know it is coming
+ * before they start filling anything in.
  */
 export function SignUpPage() {
   const { t } = useI18n()
@@ -414,63 +221,95 @@ export function SignUpPage() {
   )
 }
 
-// --------------------------------------------------------- customer sign up
+// --------------------------------------------------- customer registration
 
+/**
+ * Registering as a pilgrim.
+ *
+ * Two steps: the details NASEK needs, then the code that proves the address is
+ * yours. The password and its confirmation are gone — there is nothing left for
+ * them to protect, and they were the two fields most likely to end a
+ * registration halfway through.
+ *
+ * The details are collected *before* the code rather than after, which is worth
+ * a word. Asking afterwards would let someone abandon the form with a live
+ * account and no name on it; asking first means the account that gets created
+ * is complete from its first moment, and the code stays the last thing between
+ * a finished form and a working dashboard.
+ */
 export function CustomerSignUpPage() {
   const { t, lang } = useI18n()
   const navigate = useNavigate()
-  const { dispatch, toast } = useStore()
+  const { toast } = useStore()
 
   const [form, setForm] = useState({
     name: '',
     email: '',
     phone: '',
     wilayahId: 'muscat',
-    password: '',
-    confirm: '',
   })
+  const [channel, setChannel] = useState<OtpChannel>('email')
   const [agreed, setAgreed] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [busy, setBusy] = useState(false)
+  const [stage, setStage] = useState<'details' | 'verify'>('details')
+  const [failure, setFailure] = useState<MessageKey | null>(null)
 
   const set = (key: keyof typeof form, value: string) =>
     setForm((f) => ({ ...f, [key]: value }))
 
-  const submit = async (e: React.FormEvent) => {
+  const submitDetails = (e: React.FormEvent) => {
     e.preventDefault()
     const next: Record<string, string> = {}
     if (!form.name.trim()) next.name = t('auth.nameRequired')
     if (!/^\S+@\S+\.\S+$/.test(form.email)) next.email = t('auth.emailInvalid')
-    if (form.phone.replace(/\D/g, '').length < 8) next.phone = t('auth.phoneInvalid')
-    if (form.password.length < 8) next.password = t('auth.passwordShort')
-    if (form.password !== form.confirm) next.confirm = t('auth.passwordMismatch')
+    if (!isValidPhone(form.phone)) next.phone = t('auth.phoneInvalid')
     if (!agreed) next.terms = t('auth.termsRequired')
     setErrors(next)
     if (Object.keys(next).length) return
+    setStage('verify')
+  }
 
-    setBusy(true)
-    const user = await authApi.signUp({
-      name: form.name,
-      email: form.email,
-      phone: form.phone,
-      wilayahId: form.wilayahId,
-      role: 'customer',
-    })
-    // The password is turned into a stored credential here and nowhere else:
-    // this is the only moment it exists in the app, and it leaves as a hash.
-    const credential = await createCredential({
-      userId: user.id,
-      role: 'customer',
-      email: form.email,
-      phone: form.phone,
-      password: form.password,
-    })
-    dispatch({ type: 'addCredential', credential })
-    dispatch({ type: 'registerUser', user })
-    dispatch({ type: 'signIn', user })
-    setBusy(false)
-    toast(t('dash.profileSaved'))
-    navigate('/dashboard', { replace: true })
+  if (stage === 'verify') {
+    return (
+      <AuthShell
+        title={t('auth.customerSignUpTitle')}
+        subtitle={t('auth.signUpSubtitle')}
+        footer={
+          <button
+            type="button"
+            onClick={() => setStage('details')}
+            className="font-semibold text-nasek-700 hover:underline"
+          >
+            {t('common.back')}
+          </button>
+        }
+      >
+        {failure && (
+          <Notice tone="danger" live className="mb-5">
+            {t(failure)}
+          </Notice>
+        )}
+
+        {/* The channel is fixed to whichever identifier the form is verifying,
+            so the two screens cannot disagree about which address is being
+            confirmed. */}
+        <VerifyStep
+          channel={channel}
+          value={channel === 'email' ? form.email : form.phone}
+          details={{
+            name: form.name,
+            phone: form.phone,
+            wilayahId: form.wilayahId,
+            role: 'customer',
+          }}
+          onFailure={setFailure}
+          onDone={(path) => {
+            toast(t('dash.profileSaved'))
+            navigate(path, { replace: true })
+          }}
+        />
+      </AuthShell>
+    )
   }
 
   return (
@@ -488,7 +327,7 @@ export function CustomerSignUpPage() {
     >
       {/* Campaign owners register on their own page: the licence upload and
           company details do not belong behind a toggle on this form. */}
-      <p className="mb-6 flex items-start gap-2 rounded-[3px] border border-nasek-200 bg-nasek-50/60 p-3.5 text-[12.5px] leading-relaxed text-ink-600">
+      <p className="mb-6 flex items-start gap-2 rounded-[3px] border border-nasek-200 bg-nasek-50/60 p-3.5 text-xs leading-relaxed text-ink-600">
         <Building2 className="mt-px size-4 shrink-0 text-nasek-700" />
         <span>
           {t('auth.ownerRedirect')}{' '}
@@ -498,7 +337,7 @@ export function CustomerSignUpPage() {
         </span>
       </p>
 
-      <form onSubmit={submit} className="space-y-4">
+      <form onSubmit={submitDetails} className="space-y-4" noValidate>
         <Field label={t('common.name')} required error={errors.name}>
           {(p) => (
             <Input {...p} value={form.name} onChange={(e) => set('name', e.target.value)} autoComplete="name" />
@@ -524,6 +363,7 @@ export function CustomerSignUpPage() {
                 {...p}
                 type="tel"
                 dir="ltr"
+                autoComplete="tel"
                 placeholder="+968 9xxx xxxx"
                 value={form.phone}
                 onChange={(e) => set('phone', e.target.value)}
@@ -544,30 +384,30 @@ export function CustomerSignUpPage() {
           )}
         </Field>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label={t('auth.password')} required error={errors.password}>
-            {(p) => (
-              <Input
-                {...p}
-                type="password"
-                autoComplete="new-password"
-                value={form.password}
-                onChange={(e) => set('password', e.target.value)}
-              />
-            )}
-          </Field>
-          <Field label={t('auth.confirmPassword')} required error={errors.confirm}>
-            {(p) => (
-              <Input
-                {...p}
-                type="password"
-                autoComplete="new-password"
-                value={form.confirm}
-                onChange={(e) => set('confirm', e.target.value)}
-              />
-            )}
-          </Field>
-        </div>
+        {/* Which of the two identifiers to confirm. Both were collected; only
+            one has to be proved, and the person should pick which — an email
+            they can open on this device beats an SMS they cannot. */}
+        <Field label={t('auth.chooseChannel')}>
+          {() => (
+            <div className="grid grid-cols-2 gap-2">
+              {(['email', 'phone'] as const).map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => setChannel(option)}
+                  aria-pressed={channel === option}
+                  className={
+                    channel === option
+                      ? 'rounded-[3px] border border-nasek-700 bg-nasek-50 px-3 py-2.5 text-sm font-bold text-nasek-900'
+                      : 'rounded-[3px] border border-ivory-400 bg-ivory-50 px-3 py-2.5 text-sm font-semibold text-ink-600 transition-colors hover:border-ink-400/60'
+                  }
+                >
+                  {t(option === 'email' ? 'auth.continueEmail' : 'auth.continuePhone')}
+                </button>
+              ))}
+            </div>
+          )}
+        </Field>
 
         <div>
           <Checkbox checked={agreed} onChange={setAgreed} label={t('auth.termsAgree')} />
@@ -578,10 +418,47 @@ export function CustomerSignUpPage() {
           )}
         </div>
 
-        <Button type="submit" size="lg" block loading={busy}>
-          {busy ? t('auth.creating') : t('nav.signUp')}
+        <Button type="submit" size="lg" block>
+          {t('common.continue')}
         </Button>
       </form>
     </AuthShell>
+  )
+}
+
+/**
+ * The verification half of a registration form.
+ *
+ * Shared by the pilgrim and campaign-owner registrations, which collect very
+ * different things and finish identically.
+ */
+export function VerifyStep({
+  channel,
+  value,
+  details,
+  onDone,
+  onFailure,
+}: {
+  channel: OtpChannel
+  value: string
+  details: Parameters<ReturnType<typeof useCompleteSignIn>>[1]
+  onDone: (path: string) => void
+  onFailure: (error: MessageKey) => void
+}) {
+  const complete = useCompleteSignIn()
+
+  return (
+    <OtpFlow
+      channels={[channel]}
+      initialValue={value}
+      onSuccess={async (target) => {
+        const outcome = await complete(target, details)
+        if (outcome.error || !outcome.user) {
+          onFailure(outcome.error ?? 'auth.sessionFailed')
+          return
+        }
+        onDone(landingFor(outcome.user))
+      }}
+    />
   )
 }

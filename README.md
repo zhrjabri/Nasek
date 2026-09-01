@@ -17,29 +17,49 @@ and the 32 app mockups), extended into a modern bilingual web application.
 
 ```bash
 npm install
-npm run dev        # http://localhost:5173
+npm run dev          # public site       http://localhost:5173
+npm run dev:admin    # administration    http://localhost:5174
 ```
+
+It runs with no configuration at all. Without a Supabase project NASEK falls
+back to on-device data and shows sign-in codes on screen — useful for a demo,
+and it says so in a banner rather than pretending otherwise. See
+`docs/SUPABASE.md` to connect a real backend, which takes about twenty minutes.
 
 | Script | What it does |
 | --- | --- |
-| `npm run dev` | Dev server with HMR |
-| `npm run build` | Typecheck, then production build to `dist/` |
-| `npm run preview` | Serve the production build |
+| `npm run dev` / `dev:admin` | Dev server for each application |
+| `npm run build` | Typecheck, then build both to `dist/` and `dist-admin/` |
+| `npm run build:web` / `build:admin` | Build one |
+| `npm run preview` / `preview:admin` | Serve a production build |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm run verify:ai` | Runs the intelligence layer against fixed inputs and prints what it extracted, scored and answered |
-| `npm run verify:map` | Checks every wilayah marker projects inside Oman's borders and that distances are realistic |
-| `npm run build:map` | Regenerates `src/data/omanOutline.ts` from the boundary GeoJSON in `scripts/data/` |
+| `npm run verify` | All 163 checks below |
+| `npm run verify:auth` | Phone normalisation and the one-time-code lifecycle |
+| `npm run verify:isolation` | That no administration code reached the public bundle |
+| `npm run verify:journeys` | Owner → pilgrim → admin, end to end |
+| `npm run verify:ai` | The intelligence layer against fixed inputs |
+| `npm run verify:map` | Every wilayah marker projects inside Oman's borders |
 
-### Demo accounts
+### Signing in
 
-The sign-in page has one-click entry for all three roles — no password is checked
-anywhere. You can also type the addresses directly:
+There are no demo accounts and no passwords. Type an email address or an Omani
+phone number and prove you received the message — that is the whole of it, for
+a first-time pilgrim and a returning one alike.
 
-| Role | Email | Lands on |
-| --- | --- | --- |
-| Customer | `customer@nasek.demo` | `/dashboard` |
-| Campaign owner | `provider@nasek.demo` | `/provider` |
-| NASEK admin | `admin@nasek.demo` | `/admin` |
+What arrives depends on the project's email templates, and NASEK accepts either:
+a **six-digit code** to type, or a **sign-in link** to click. Supabase's default
+templates send a link and cannot be edited without custom SMTP, so the link is
+the common case; `services/auth/redirect.ts` completes that sign-in and lands
+the person on the right dashboard. With no backend configured at all, a code is
+generated on-device and shown on screen.
+
+Administration is a **separate application on its own host** and is not
+reachable from the public site at any address. Granting it is a database
+operation, never a screen:
+
+```sql
+select * from public.promote_to_admin('you@example.com');
+```
 
 ---
 
@@ -51,8 +71,9 @@ compare up to 3 → 4-step booking → confirmation with reference → dashboard
 **Campaign owner** — Register as owner → dashboard → add a trip → it appears
 immediately in the public listing, map and search → manage bookings → analytics.
 
-**Admin** — Verification queue → verify a provider → the "Verified by NASEK"
-badge appears across every listing in the same session.
+**Admin** — On its own host: sign in with a one-time code → Postgres confirms
+the account holds the role → verification queue → verify a provider → the
+"Verified by NASEK" badge appears across every listing.
 
 **Smart Match** — up to 7 questions, every one skippable → weighted scoring →
 ranked matches with the reasons *and* the trade-offs behind each score.
@@ -61,26 +82,72 @@ ranked matches with the reasons *and* the trade-offs behind each score.
 
 ## Architecture
 
+Two applications, one database.
+
+```
+  nasek.om                        admin.nasek.om
+  index.html                      admin.html
+  src/main.tsx                    src/admin/main.tsx
+       │                                │
+       └──────────► shared ◄────────────┘
+                      │
+                 Supabase (Postgres + Auth + RLS)
+```
+
+They share the domain model, the design system, the i18n dictionaries and the
+Supabase client — a campaign is the same campaign on both sides.
+
+> **Known gap.** Only identity currently flows through Postgres: sessions,
+> one-time codes, roles, profiles and campaign-owner registration. The
+> catalogue — campaigns, bookings, reviews, notifications, saved trips and the
+> admin's moderation decisions — is still held in `localStorage` per browser.
+> The tables are there and are correctly locked down; nothing reads or writes
+> them yet. Until that is finished, a trip one owner publishes is invisible to
+> everyone else, and an admin's verification is invisible outside the browser
+> that made it. They do not
+share a bundle. Nothing under `src/admin/` is reachable from the public entry
+point, so the JavaScript a pilgrim downloads contains no administration
+screens, no table of accounts, and no evidence that either exists. That is
+checked, against the built output, by `npm run verify:isolation`.
+
 ```
 src/
-  types.ts                  Domain model (User, Provider, Campaign, Booking, Review…)
-  data/                     Seed data — wilayat, providers, 20 campaigns, reviews,
-                            generated booking history
-  i18n/                     ar.ts / en.ts + I18nProvider (t, bl, money, date, dir)
+  types.ts                  Domain model (User, Provider, Campaign, Booking…)
+  data/                     Seed reference data — wilayat with real coordinates
+  i18n/                     ar.ts / en.ts, plus adminAr/adminEn which ship
+                            ONLY to the dashboard — see the note below
   services/
     ai/                     The intelligence layer, behind one interface
-      types.ts              AIProvider — the seam
-      lexicon.ts            Bilingual keyword tables + Arabic normalisation
-      nlSearch.ts           Free text → search filters, with evidence
-      smartMatch.ts         Weighted scoring → ranked matches + explanations
-      assistant.ts          Intent routing over the live catalogue
-      index.ts              LocalAIProvider (default) / RemoteAIProvider (stub)
-    api/                    Mock backend: latency, failures, filtering, sorting
+    api/                    The no-backend fallback: latency, filtering, sorting
+    auth/                   Passwordless sign-in
+      otp.ts                Send and verify a code — Supabase, or on-device
+      session.ts            Who is signed in, according to the server
+      phone.ts              Omani numbers → E.164, and back for display
+    supabase/               Client and hand-written schema types
   store/AppStore.tsx        Session state, persisted to localStorage
-  hooks/useCatalogue.ts     The catalogue as this session sees it
-  components/               ui primitives, layout, campaign, map, search, assistant
-  pages/                    13 routes
+  components/               ui primitives, layout, campaign, map, search, auth
+  pages/                    The public site
+  admin/                    The dashboard — a separate application
+    main.tsx                Its entry point
+    AdminApp.tsx            Its router and its one security gate
+    session.ts              Asks Postgres whether this account administers NASEK
+    layout/, tabs/          Sidebar shell and the six sections
+supabase/migrations/        The schema, its policies, and admin provisioning
 ```
+
+### Why the admin dictionary is a separate file
+
+`i18n/adminEn.ts` and `adminAr.ts` hold the dashboard's strings and are
+imported only by `src/admin/main.tsx`. Without the split, a pilgrim's browser
+would download the phrase "NASEK administration", "Suspend account" and "Review
+permit" along with everything else — and anyone reading that bundle would learn
+an administration area exists and roughly what it can do. Routes and components
+are the obvious half of separating two applications; the dictionary is the half
+that is easy to miss.
+
+The *keys* still appear in `MessageKey`, because types are erased at build time
+and cost nothing at runtime. `t('admin.users')` stays type-checked everywhere,
+while the string it resolves to ships only where it is needed.
 
 ### Language
 
@@ -145,12 +212,16 @@ would return. The API key must live on that server route — never in this bundl
 
 | Area | Now | For production |
 | --- | --- | --- |
-| Data | Seed files in `src/data` | Postgres via a REST/GraphQL API |
+| Identity, sessions, roles | **Real.** Supabase Auth + Postgres, enforced by RLS | — |
+| Owner registration | **Real.** Writes to `providers` via a guarded RPC | — |
+| Campaigns, bookings, reviews, notifications, saved trips | **Still `localStorage`, per browser.** The tables exist, are indexed and are policy-protected — the app does not read or write them yet | Move `useCatalogue` and the booking path onto Postgres |
+| Admin moderation (verify, suspend, feature) | **Still `localStorage`.** A decision is invisible to any other browser | Same |
 | Transport | `services/api/client.ts` adds 180–520 ms latency and can fail on demand | `fetch` against the real API |
-| Auth | Email is looked up; **passwords are never checked or stored** | Real identity provider, httpOnly session cookies, hashed credentials |
+| Auth | **Real.** Supabase Auth, one-time codes, no passwords anywhere | Configure your own SMTP; add an SMS provider for phone codes |
+| Authorisation | **Real.** Postgres row-level security, evaluated before any row is returned | — |
 | Payments | "Simulate payment" button; no card fields collect anything | Thawani or another licensed Omani gateway, server-side |
 | Persistence | `localStorage`, per browser | Server-side, per account |
-| Verification | Admin toggles a session flag | Document upload, review workflow, audit trail |
+| Verification | Admin decision, recorded with who and when in `admin_audit` | Document review workflow on top of the trail |
 | Map | Real Oman borders from public-domain GeoJSON, rendered as offline SVG | Interactive tiles only if street-level detail is ever needed |
 | AI | On-device parser and scorer | Hosted model behind `RemoteAIProvider` |
 | Notifications | In-app only | Push / SMS / email, plus the NASEK watch |
@@ -160,23 +231,61 @@ would return. The API key must live on that server route — never in this bundl
 
 ## What to build next
 
-1. **A real backend** — the schema in `types.ts` maps 1:1 onto tables; the API
-   surface `services/api` already defines the endpoints needed.
-2. **Real payments** via Thawani, with server-side booking creation so seat
-   counts can't be raced.
-3. **Provider onboarding and verification**, including document upload — the
-   trust badge currently rests on nothing but an admin toggle.
-4. **Review integrity** — only travellers with a completed booking may review.
-   The rule is stated in the UI but not enforced anywhere yet.
-5. **Hosted AI** behind `RemoteAIProvider`, keeping the deterministic local
+1. **Real payments** via Thawani, with server-side booking creation so seat
+   counts can't be raced. `docs/DATA-MODEL.md` describes the race precisely;
+   the columns exist, the transaction does not.
+2. **Encrypt traveller documents.** `travellers.civil_id` and `passport_no` are
+   protected by policy but stored in plain text. `pgsodium` is the next step.
+3. **Move permit images to Storage.** `providers.licence_image` holds a data URL
+   because the prototype had nowhere else to put it; a bucket with short-lived
+   signed URLs is where it belongs.
+4. **Hosted AI** behind `RemoteAIProvider`, keeping the deterministic local
    provider as the offline fallback and as the test oracle.
 6. **The wearables** from the original plan — the NASEK watch (prayer times,
    qibla, supervisor notifications) and bracelet (emergency contacts,
    locating a pilgrim separated from the group).
-7. **Accessibility audit with real assistive tech.** The build uses semantic
+6. **Accessibility audit with real assistive tech.** The build uses semantic
    landmarks, labelled controls, visible focus, `aria-live` on results and a
    keyboard-navigable equivalent for the map — but that has been reasoned
    through, not tested with a screen reader.
+
+---
+
+## Security
+
+Three properties, and it is worth being precise about which mechanism provides
+each — because two of them used to be claims and are now facts.
+
+**A normal user never sees the administration area.** Not a hidden button: the
+code is not in the bundle. Separate entry point, separate Rollup graph,
+separate `dist`, separate host — and the dictionary is split too, so not even
+the word "administration" ships to the public site. `npm run verify:isolation`
+checks this against the built output in CI, from two directions: that the
+public graph reaches nothing under `src/admin/`, and that the strings which
+should be admin-only appear in one bundle and not the other.
+
+**A normal user cannot reach administration data.** This one is not in the
+client at all, and could not be. `supabase/migrations/*_rls_policies.sql`
+enforces it in Postgres, against a JWT the browser cannot forge, before a row
+is returned. Type the administration URL, guess a table name, call the REST
+endpoint directly with your own token — you get an empty result set. The
+interface is not the security boundary; the database is. Turning the client's
+`is_admin` check to `true` by hand gets you a dashboard frame drawn around
+empty tables.
+
+**Administration cannot be self-granted.** There is no "create admin" screen,
+no role selector on any form, and the sign-up trigger hard-codes every new
+profile to `customer`. A trigger reverts any attempt by a non-admin to change
+their own `role`. The only path in is `promote_to_admin()`, which is granted to
+`service_role` — the role the SQL editor runs as, and one the browser can never
+hold. Campaign owners are the one legitimate promotion, and they go through
+`register_provider()`, a function that takes no role argument and always
+promotes the caller to `provider`, never to `admin`.
+
+What none of this covers: NASEK is a static site plus a database, so anyone who
+controls a browser controls what that browser *displays*. The guarantee is
+about data, not pixels — which is the right place for it, and the opposite of
+where the guarantee used to be.
 
 ---
 

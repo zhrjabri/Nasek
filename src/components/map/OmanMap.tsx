@@ -142,9 +142,17 @@ export function OmanMap({
                 fill="transparent"
                 onClick={() => onSelect(selected ? null : wilayah.id)}
               >
+                {/*
+                  One interpolation, not four nodes. React treats `<title>` as
+                  special and requires a single string child; written as
+                  `{name} — {count}` it receives an array and warns, and the
+                  accessible name a screen reader announces for this marker is
+                  then at the mercy of how the array is joined.
+                */}
                 <title>
-                  {wilayah.name[lang]} —{' '}
-                  {count > 0 ? t('map.count', { n: count }) : t('map.none')}
+                  {`${wilayah.name[lang]} — ${
+                    count > 0 ? t('map.count', { n: count }) : t('map.none')
+                  }`}
                 </title>
               </circle>
             </g>
@@ -152,7 +160,7 @@ export function OmanMap({
         })}
       </svg>
 
-      <p className="mt-3 text-center text-[11px] text-ink-400">
+      <p className="mt-3 text-center text-2xs text-ink-400">
         {t('map.legend')} · {t('map.source')}
       </p>
 
@@ -170,14 +178,14 @@ export function OmanMap({
                   onClick={() => onSelect(selected ? null : wilayah.id)}
                   aria-pressed={selected}
                   className={cx(
-                    'flex items-center gap-1.5 rounded-[3px] border px-2.5 py-1.5 text-[12px] font-semibold transition-colors',
+                    'flex items-center gap-1.5 rounded-[3px] border px-2.5 py-1.5 text-xs font-semibold transition-colors',
                     selected
                       ? 'border-gold-400 bg-gold-50 text-gold-800'
                       : 'border-ivory-400 bg-ivory-50 text-ink-600 hover:border-nasek-500 hover:text-nasek-700',
                   )}
                 >
                   {wilayah.name[lang]}
-                  <span className="nums rounded-[2px] bg-ivory-200 px-1.5 text-[10px] text-ink-500">
+                  <span className="nums rounded-[2px] bg-ivory-200 px-1.5 text-2xs text-ink-500">
                     {n(count)}
                   </span>
                 </button>

@@ -71,8 +71,8 @@ export function CampaignsPage() {
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       {/* ------------------------------------------------------- page head */}
       <header className="mb-6">
-        <h1 className="display text-[30px] text-ink-900 sm:text-[36px]">{t('nav.campaigns')}</h1>
-        <p className="mt-2 text-[15px] text-ink-500">{t('common.tagline')}</p>
+        <h1 className="display text-4xl text-ink-900 sm:text-5xl">{t('nav.campaigns')}</h1>
+        <p className="mt-2 text-md text-ink-500">{t('common.tagline')}</p>
       </header>
 
       {/* ---------------------------------------------------- search + sort */}
@@ -119,7 +119,7 @@ export function CampaignsPage() {
           </Button>
 
           <label className="flex items-center gap-2">
-            <span className="hidden text-[13px] font-semibold text-ink-500 sm:block">
+            <span className="hidden text-sm font-semibold text-ink-500 sm:block">
               {t('sort.label')}
             </span>
             <Select
@@ -299,7 +299,7 @@ function ActiveFilterChips({
           <button
             type="button"
             onClick={chip.clear}
-            className="inline-flex items-center gap-1.5 rounded-[3px] border border-nasek-200 bg-nasek-50 py-1.5 ps-3 pe-2 text-[12.5px] font-semibold text-nasek-800 transition-colors hover:border-nasek-400 hover:bg-nasek-100"
+            className="inline-flex items-center gap-1.5 rounded-[3px] border border-nasek-200 bg-nasek-50 py-1.5 ps-3 pe-2 text-xs font-semibold text-nasek-800 transition-colors hover:border-nasek-400 hover:bg-nasek-100"
           >
             <span>{chip.label}</span>
             <X className="size-3.5 text-nasek-600" aria-hidden />
@@ -312,7 +312,7 @@ function ActiveFilterChips({
           <button
             type="button"
             onClick={() => onChange({ ...defaultFilters(), query: filters.query })}
-            className="rounded-[3px] px-2 py-1.5 text-[12.5px] font-semibold text-ink-500 transition-colors hover:bg-ivory-200 hover:text-ink-900"
+            className="rounded-[3px] px-2 py-1.5 text-xs font-semibold text-ink-500 transition-colors hover:bg-ivory-200 hover:text-ink-900"
           >
             {t('common.clearAll')}
           </button>

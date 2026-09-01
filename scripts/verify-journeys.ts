@@ -12,7 +12,7 @@
 import type { Booking, Campaign, Provider, User } from '@/types'
 import { authApi } from '@/services/api/auth'
 import { createCredential, findCredential, verifyPassword } from '@/services/api/credentials'
-import { verifyAdminPassphrase } from '@/services/api/adminAccess'
+import { verifyAdminPassphrase } from '@/admin/access'
 import { applyFilters, applySort, campaignsApi, defaultFilters } from '@/services/api/campaigns'
 import { bookingsApi, priceBreakdown } from '@/services/api/bookings'
 import { getAI } from '@/services/ai'

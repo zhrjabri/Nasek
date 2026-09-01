@@ -1,0 +1,3 @@
+# NASEK administration. Staff tooling — not for indexing.
+User-agent: *
+Disallow: /

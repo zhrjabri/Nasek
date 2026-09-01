@@ -6,7 +6,7 @@
  * simulated with a stand-in data URL.
  */
 import { authApi } from '@/services/api/auth'
-import { isAdminGatePath, verifyAdminPassphrase } from '@/services/api/adminAccess'
+import { verifyAdminPassphrase } from '@/admin/access'
 import {
   createCredential,
   findCredential,
@@ -258,15 +258,6 @@ const main = async () => {
   // door.
   check('the retired passphrase no longer opens the gate',
     (await verifyAdminPassphrase('nasek-admin-2026')) === false)
-
-  // The gate's address is a second secret and is likewise absent from this
-  // repository, so what can be checked is that ordinary addresses -- and the
-  // one this replaced, whose hash is in the history -- do not reach it.
-  check('the retired address no longer reaches the gate',
-    (await isAdminGatePath('/admin-access')) === false)
-  check('an empty address does not reach the gate', (await isAdminGatePath('/')) === false)
-  check('a guessed address does not reach the gate', (await isAdminGatePath('/admin')) === false)
-  check('a likely guess does not reach the gate', (await isAdminGatePath('/administrator')) === false)
 
   console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} CHECK(S) FAILED`)
   if (failures > 0) process.exitCode = 1

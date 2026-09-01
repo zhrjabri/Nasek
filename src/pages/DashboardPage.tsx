@@ -13,6 +13,7 @@ import type { Booking, BookingStatus } from '@/types'
 import { useI18n, type MessageKey } from '@/i18n'
 import { WILAYAT, wilayahName } from '@/data/geo'
 import { bookingsApi } from '@/services/api/bookings'
+import { saveProfile } from '@/services/auth/session'
 import { useStore } from '@/store/AppStore'
 import { useCatalogue } from '@/hooks/useCatalogue'
 import { CampaignCard } from '@/components/campaign/CampaignCard'
@@ -88,10 +89,10 @@ export function DashboardPage() {
           {user.name.trim().charAt(0)}
         </span>
         <div>
-          <h1 className="display text-[28px] text-ink-900 sm:text-[34px]">
+          <h1 className="display text-4xl text-ink-900 sm:text-5xl">
             {t('dash.welcome', { name: user.name.split(' ')[0] })}
           </h1>
-          <p className="mt-1 text-[14px] text-ink-500">{t('dash.welcomeSub')}</p>
+          <p className="mt-1 text-base text-ink-500">{t('dash.welcomeSub')}</p>
         </div>
       </header>
 
@@ -114,14 +115,14 @@ export function DashboardPage() {
               onClick={() => setTab(item.id)}
               aria-current={active ? 'page' : undefined}
               className={cx(
-                'relative flex shrink-0 items-center gap-2 px-4 py-3 text-[14px] font-semibold transition-colors',
+                'relative flex shrink-0 items-center gap-2 px-4 py-3 text-base font-semibold transition-colors',
                 active ? 'text-nasek-900' : 'text-ink-400 hover:text-ink-700',
               )}
             >
               <item.icon className="size-4" />
               {t(item.key)}
               {count > 0 && (
-                <span className="nums rounded-full bg-ivory-200 px-1.5 py-0.5 text-[10px] text-ink-600">
+                <span className="nums rounded-full bg-ivory-200 px-1.5 py-0.5 text-2xs text-ink-600">
                   {n(count)}
                 </span>
               )}
@@ -153,7 +154,7 @@ export function DashboardPage() {
             ).map(([key, list, Icon]) =>
               list.length === 0 ? null : (
                 <div key={key}>
-                  <h2 className="mb-3.5 flex items-center gap-2 text-[13px] font-bold uppercase tracking-wider text-ink-400">
+                  <h2 className="mb-3.5 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-ink-400">
                     <Icon className="size-4" />
                     {t(key)}
                     <span className="nums">({n(list.length)})</span>
@@ -181,17 +182,17 @@ export function DashboardPage() {
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-center gap-2">
                                 <StatusBadge status={booking.status} />
-                                <span className="nums text-[11px] font-semibold text-ink-400">
+                                <span className="nums text-2xs font-semibold text-ink-400">
                                   {booking.reference}
                                 </span>
                               </div>
                               <Link
                                 to={campaign ? `/campaigns/${campaign.id}` : '/campaigns'}
-                                className="mt-1.5 block text-[15.5px] font-bold text-ink-900 hover:text-nasek-800"
+                                className="mt-1.5 block text-md font-bold text-ink-900 hover:text-nasek-800"
                               >
                                 {campaign ? bl(campaign.title) : '—'}
                               </Link>
-                              <p className="mt-1 text-[12.5px] text-ink-500">
+                              <p className="mt-1 text-xs text-ink-500">
                                 {campaign ? date(campaign.departureDate) : ''} ·{' '}
                                 {n(booking.travellersCount)} {t('common.travellers')}
                                 {key === 'dash.upcoming' && daysToGo > 0 && (
@@ -201,14 +202,14 @@ export function DashboardPage() {
                             </div>
 
                             <div className="flex items-center gap-3 sm:flex-col sm:items-end">
-                              <span className="nums text-[18px] font-bold text-nasek-900">
+                              <span className="nums text-lg font-bold text-nasek-900">
                                 {money(booking.totalPrice, { decimals: true })}
                               </span>
                               {booking.status !== 'cancelled' && key === 'dash.upcoming' && (
                                 <button
                                   type="button"
                                   onClick={() => void cancel(booking)}
-                                  className="text-[12px] font-semibold text-ink-400 transition-colors hover:text-red-700"
+                                  className="text-xs font-semibold text-ink-400 transition-colors hover:text-red-700"
                                 >
                                   {t('dash.cancelBooking')}
                                 </button>
@@ -283,13 +284,13 @@ export function DashboardPage() {
                           <span className="mt-1.5 size-2 shrink-0 rounded-full bg-gold-500" />
                         )}
                         <div className="min-w-0 flex-1">
-                          <p className="text-[14px] font-bold text-ink-900">
+                          <p className="text-base font-bold text-ink-900">
                             {bl(notification.title)}
                           </p>
-                          <p className="mt-1 text-[13px] leading-relaxed text-ink-500">
+                          <p className="mt-1 text-sm leading-relaxed text-ink-500">
                             {bl(notification.body)}
                           </p>
-                          <p className="mt-1.5 text-[11px] text-ink-400">
+                          <p className="mt-1.5 text-2xs text-ink-400">
                             {date(notification.date)}
                           </p>
                         </div>
@@ -308,9 +309,21 @@ export function DashboardPage() {
         <section className="max-w-xl">
           <Card className="p-6">
             <form
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault()
-                dispatch({ type: 'updateProfile', patch: profile })
+                /*
+                 * Write through to the database, then apply locally.
+                 *
+                 * `saveProfile` sends only the fields a person owns and returns
+                 * the row as it actually landed — which may differ from what was
+                 * typed, because the guard trigger reverts anything privileged.
+                 * Applying the returned row rather than the form's own state is
+                 * what stops the interface from displaying a change the database
+                 * declined to make. With no backend configured it returns null
+                 * and the local patch stands, exactly as before.
+                 */
+                const saved = await saveProfile(profile)
+                dispatch({ type: 'updateProfile', patch: saved ?? profile })
                 toast(t('dash.profileSaved'))
               }}
               className="space-y-4"
@@ -371,7 +384,7 @@ export function DashboardPage() {
           </Card>
 
           <div className="mt-5">
-            <p className="mb-2 text-[13px] font-semibold text-ink-700">{t('common.language')}</p>
+            <p className="mb-2 text-sm font-semibold text-ink-700">{t('common.language')}</p>
             <Segmented
               className="w-full"
               label={t('common.language')}

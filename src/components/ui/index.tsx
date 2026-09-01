@@ -10,7 +10,16 @@ import {
   type TextareaHTMLAttributes,
 } from 'react'
 import { Link } from 'react-router-dom'
-import { Check, ChevronDown, Star, X } from 'lucide-react'
+import {
+  Check,
+  ChevronDown,
+  CircleAlert,
+  CircleCheck,
+  Info,
+  Star,
+  TriangleAlert,
+  X,
+} from 'lucide-react'
 import { useI18n } from '@/i18n'
 
 export const cx = (...parts: (string | false | null | undefined)[]) =>
@@ -36,10 +45,18 @@ const VARIANTS: Record<ButtonVariant, string> = {
   danger: 'bg-ivory-50 text-red-800 border border-red-300/70 hover:bg-red-50 hover:border-red-400',
 }
 
+/*
+ * Heights, not paddings, so a row of buttons lines up whatever is inside them.
+ *
+ * `sm` was 36px and is now 40. WCAG 2.2 asks for 24px on the web and Apple asks
+ * for 44 on touch; 40 with the 8px gaps used around it clears the first
+ * comfortably and comes close enough to the second that the small variant can
+ * still sit in a dense table row without turning it into a list.
+ */
 const SIZES: Record<ButtonSize, string> = {
-  sm: 'h-9 px-3.5 text-[13px] gap-1.5 rounded-[3px]',
+  sm: 'h-10 px-3.5 text-sm gap-1.5 rounded-[3px]',
   md: 'h-11 px-5 text-sm gap-2 rounded-[3px]',
-  lg: 'h-12.5 px-8 text-[15px] gap-2.5 rounded-[3px] tracking-[0.02em]',
+  lg: 'h-12.5 px-8 text-md gap-2.5 rounded-[3px] tracking-[0.02em]',
 }
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -57,6 +74,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
     <button
       ref={ref}
       disabled={disabled || loading}
+      // Disabling alone tells a screen reader the control is unavailable, not
+      // that it is working — and the two call for very different reactions.
+      aria-busy={loading || undefined}
       className={cx(
         'inline-flex items-center justify-center font-semibold whitespace-nowrap',
         'transition-all duration-200 ease-out',
@@ -151,7 +171,7 @@ export function Badge({
     <span
       className={cx(
         'inline-flex items-center gap-1 rounded-[2px] border px-2 py-1',
-        'text-[10.5px] font-semibold uppercase leading-none tracking-[0.1em]',
+        'text-2xs font-semibold uppercase leading-none tracking-[0.1em]',
         BADGE_TONES[tone],
         className,
       )}
@@ -274,7 +294,7 @@ export function Field({
 
   return (
     <div className={cx('flex flex-col gap-1.5', className)}>
-      <label htmlFor={id} className="text-[13px] font-semibold text-ink-700">
+      <label htmlFor={id} className="text-sm font-semibold text-ink-700">
         {label}
         {required && <span className="text-red-600 ms-1" aria-hidden>*</span>}
       </label>
@@ -293,8 +313,17 @@ export function Field({
   )
 }
 
+/*
+ * The shared control skin.
+ *
+ * `text-base sm:text-sm` is not a style choice — it is a bug fix. Safari on iOS
+ * zooms the whole page in whenever a focused input's text is under 16px, and
+ * then leaves it zoomed, so filling a form meant the layout lurching sideways
+ * on every field. The interface size applies from the small breakpoint up,
+ * where no phone keyboard is involved.
+ */
 const CONTROL =
-  'w-full rounded-[3px] border bg-ivory-50 px-3.5 text-sm text-ink-800 placeholder:text-ink-400 ' +
+  'w-full rounded-[3px] border bg-ivory-50 px-3.5 text-[16px] sm:text-sm text-ink-800 placeholder:text-ink-400 ' +
   'transition-colors duration-150 border-ivory-400 hover:border-ink-400/60 ' +
   'focus:border-nasek-700 focus:bg-ivory-50 focus:outline-none focus:ring-1 focus:ring-nasek-700/25 ' +
   'aria-[invalid=true]:border-red-400 aria-[invalid=true]:ring-red-500/20 disabled:bg-ivory-200'
@@ -411,7 +440,7 @@ export function Segmented<T extends string>({
             onClick={() => onChange(opt.value)}
             className={cx(
               'flex-1 rounded-[2px] font-semibold transition-all duration-200',
-              size === 'sm' ? 'px-3 py-1.5 text-[13px]' : 'px-4 py-2 text-sm',
+              size === 'sm' ? 'px-3 py-1.5 text-sm' : 'px-4 py-2 text-sm',
               active
                 ? 'bg-nasek-800 text-ivory-50'
                 : 'text-ink-500 hover:text-ink-800',
@@ -480,7 +509,7 @@ export function Modal({
         )}
       >
         <header className="flex items-center justify-between gap-4 border-b border-ivory-300 bg-ivory-100 px-5 py-4">
-          <h2 className="display text-[19px] text-nasek-900">{title}</h2>
+          <h2 className="display text-xl text-nasek-900">{title}</h2>
           <button
             type="button"
             onClick={onClose}
@@ -491,6 +520,77 @@ export function Modal({
           </button>
         </header>
         <div className="max-h-[75vh] overflow-y-auto px-5 py-5">{children}</div>
+      </div>
+    </div>
+  )
+}
+
+// ------------------------------------------------------------------ Notice
+
+type NoticeTone = 'danger' | 'warn' | 'success' | 'info'
+
+/*
+ * Every tone, defined once.
+ *
+ * These blocks were being written inline wherever one was needed, which is how
+ * an interface ends up spelling "something went wrong" four slightly different
+ * ways — `border-red-200 bg-red-50 text-red-700` in one place, `border-red-300
+ * bg-red-50 text-red-600` a screen later. The colours come from the semantic
+ * tokens in index.css, each pair already checked to clear 4.5:1 on its own
+ * surface, so a tone can be adjusted in one file rather than hunted for.
+ */
+const NOTICE_TONES: Record<NoticeTone, string> = {
+  danger: 'border-danger-border bg-danger-surface text-danger-fg',
+  warn: 'border-warn-border bg-warn-surface text-warn-fg',
+  success: 'border-success-border bg-success-surface text-success-fg',
+  info: 'border-info-border bg-info-surface text-info-fg',
+}
+
+const NOTICE_ICON: Record<NoticeTone, typeof CircleAlert> = {
+  danger: CircleAlert,
+  warn: TriangleAlert,
+  success: CircleCheck,
+  info: Info,
+}
+
+/**
+ * An inline message about what just happened.
+ *
+ * Carries an icon as well as a colour, always. Colour alone is not information:
+ * roughly one man in twelve cannot separate the danger tone from the success
+ * one, and nobody can when a page is printed or read in bright sun.
+ *
+ * `role="alert"` is opt-in via `live`, because the two cases genuinely differ.
+ * A message that appears in response to something the person just did should
+ * interrupt and be read out; a standing note that was on the page when it
+ * loaded should not, and marking every one of them live turns the screen
+ * reader into noise nobody listens to.
+ */
+export function Notice({
+  tone = 'info',
+  title,
+  live,
+  className,
+  children,
+}: {
+  tone?: NoticeTone
+  title?: string
+  live?: boolean
+  className?: string
+  children: ReactNode
+}) {
+  const Icon = NOTICE_ICON[tone]
+  return (
+    <div
+      role={live ? 'alert' : undefined}
+      className={cx('flex gap-2.5 rounded-[3px] border p-3.5', NOTICE_TONES[tone], className)}
+    >
+      <Icon className="mt-px size-4 shrink-0" aria-hidden />
+      <div className="min-w-0 flex-1">
+        {title && (
+          <p className="text-2xs font-bold uppercase tracking-wider">{title}</p>
+        )}
+        <div className={cx('text-xs leading-relaxed', title && 'mt-1.5')}>{children}</div>
       </div>
     </div>
   )
@@ -554,7 +654,7 @@ export function SectionHeading({
     >
       <div className={cx('max-w-2xl', align === 'center' && 'mx-auto text-center')}>
         {eyebrow && <p className="eyebrow mb-3">{eyebrow}</p>}
-        <h2 className="display text-[26px] text-nasek-900 sm:text-[34px]">{title}</h2>
+        <h2 className="display text-3xl text-nasek-900 sm:text-5xl">{title}</h2>
         <div
           className={cx(
             'rule-gold mt-3.5 w-16',
@@ -563,7 +663,7 @@ export function SectionHeading({
           aria-hidden
         />
         {subtitle && (
-          <p className="mt-3.5 text-[15px] leading-relaxed text-ink-500">{subtitle}</p>
+          <p className="mt-3.5 text-md leading-relaxed text-ink-500">{subtitle}</p>
         )}
       </div>
       {action && <div className="shrink-0">{action}</div>}

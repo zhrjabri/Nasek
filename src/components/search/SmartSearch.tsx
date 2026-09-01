@@ -112,7 +112,7 @@ function SmartMode({
           }}
           placeholder={t('search.smartPlaceholder')}
           aria-label={t('search.smartTab')}
-          className="w-full resize-none rounded-[3px] border border-ivory-300 bg-ivory-50 px-4 py-3.5 pe-12 text-[15px] leading-relaxed text-ink-800 placeholder:text-ink-400 transition-colors focus:border-nasek-600 focus:bg-ivory-50 focus:outline-none focus:ring-2 focus:ring-nasek-600/15"
+          className="w-full resize-none rounded-[3px] border border-ivory-300 bg-ivory-50 px-4 py-3.5 pe-12 text-md leading-relaxed text-ink-800 placeholder:text-ink-400 transition-colors focus:border-nasek-600 focus:bg-ivory-50 focus:outline-none focus:ring-2 focus:ring-nasek-600/15"
         />
         {query && (
           <button
@@ -129,12 +129,12 @@ function SmartMode({
         )}
       </div>
 
-      <p className="mt-2 text-[11px] text-ink-400">{t('search.smartHint')}</p>
+      <p className="mt-2 text-2xs text-ink-400">{t('search.smartHint')}</p>
 
       {/* Examples set React state directly — writing to the DOM node would be
           invisible to the controlled textarea. */}
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <span className="text-[11px] font-semibold text-ink-400">{t('search.tryExample')}:</span>
+        <span className="text-2xs font-semibold text-ink-400">{t('search.tryExample')}:</span>
         {EXAMPLE_QUERIES[lang].slice(0, 2).map((example) => (
           <button
             key={example}
@@ -143,7 +143,7 @@ function SmartMode({
               setQuery(example)
               setResult(null)
             }}
-            className="rounded-full border border-ivory-300 bg-ivory-100 px-3 py-1 text-[11px] font-medium text-ink-600 transition-colors hover:border-nasek-300 hover:bg-nasek-50 hover:text-nasek-800"
+            className="rounded-full border border-ivory-300 bg-ivory-100 px-3 py-1 text-2xs font-medium text-ink-600 transition-colors hover:border-nasek-300 hover:bg-nasek-50 hover:text-nasek-800"
           >
             {example}
           </button>
@@ -167,10 +167,10 @@ function SmartMode({
       {result && (
         <div className="mt-4 rounded-[3px] border border-nasek-200 bg-nasek-50/60 p-4 animate-rise">
           {result.empty ? (
-            <p className="text-[13px] leading-relaxed text-ink-600">{t('search.smartNothing')}</p>
+            <p className="text-sm leading-relaxed text-ink-600">{t('search.smartNothing')}</p>
           ) : (
             <>
-              <p className="mb-3 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-nasek-700">
+              <p className="mb-3 flex items-center gap-1.5 text-2xs font-bold uppercase tracking-wider text-nasek-700">
                 <Sparkles className="size-3.5" />
                 {t('search.smartUnderstood')}
               </p>
@@ -185,9 +185,9 @@ function SmartMode({
                         : 'border-dashed border-gold-300',
                     )}
                   >
-                    <span className="text-[13px] font-semibold text-ink-800">{facet.label}</span>
+                    <span className="text-sm font-semibold text-ink-800">{facet.label}</span>
                     {facet.evidence && (
-                      <span className="rounded-md bg-ivory-200 px-1.5 py-0.5 text-[10px] text-ink-400">
+                      <span className="rounded-md bg-ivory-200 px-1.5 py-0.5 text-2xs text-ink-400">
                         “{facet.evidence}”
                       </span>
                     )}
@@ -228,7 +228,7 @@ function ClassicMode({ onSubmit }: { onSubmit: (filters: SearchFilters) => void 
       className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
     >
       <label className="flex flex-col gap-1.5">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-ink-400">
+        <span className="text-2xs font-bold uppercase tracking-wider text-ink-400">
           {t('search.type')}
         </span>
         <Select
@@ -242,7 +242,7 @@ function ClassicMode({ onSubmit }: { onSubmit: (filters: SearchFilters) => void 
       </label>
 
       <label className="flex flex-col gap-1.5">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-ink-400">
+        <span className="text-2xs font-bold uppercase tracking-wider text-ink-400">
           {t('search.where')}
         </span>
         <Select
@@ -259,7 +259,7 @@ function ClassicMode({ onSubmit }: { onSubmit: (filters: SearchFilters) => void 
       </label>
 
       <label className="flex flex-col gap-1.5">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-ink-400">
+        <span className="text-2xs font-bold uppercase tracking-wider text-ink-400">
           {t('search.budget')}
         </span>
         <Select
@@ -276,7 +276,7 @@ function ClassicMode({ onSubmit }: { onSubmit: (filters: SearchFilters) => void 
       </label>
 
       <label className="flex flex-col gap-1.5">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-ink-400">
+        <span className="text-2xs font-bold uppercase tracking-wider text-ink-400">
           {t('search.travellers')}
         </span>
         <Select

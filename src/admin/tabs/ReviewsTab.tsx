@@ -119,20 +119,20 @@ export function ReviewsTab({ campaigns }: { campaigns: Campaign[] }) {
                 <Card className={cx('flex h-full flex-col p-5', isHidden && 'opacity-60')}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate text-[14px] font-bold text-ink-900">{review.userName}</p>
+                      <p className="truncate text-base font-bold text-ink-900">{review.userName}</p>
                       {campaign && (
-                        <p className="truncate text-[11.5px] text-ink-400">{bl(campaign.title)}</p>
+                        <p className="truncate text-2xs text-ink-400">{bl(campaign.title)}</p>
                       )}
                     </div>
                     <Rating value={review.rating} size="sm" />
                   </div>
 
-                  <p className="mt-2.5 flex-1 text-[13.5px] leading-relaxed text-ink-600">
+                  <p className="mt-2.5 flex-1 text-sm leading-relaxed text-ink-600">
                     {bl(review.comment)}
                   </p>
 
                   <div className="mt-3.5 flex items-center justify-between gap-3 border-t border-ivory-300 pt-3">
-                    <span className="text-[11px] text-ink-400">{date(review.date)}</span>
+                    <span className="text-2xs text-ink-400">{date(review.date)}</span>
                     <div className="flex items-center gap-2">
                       {isHidden && <Badge tone="red">{t('admin.reviewsHidden')}</Badge>}
                       <Button
@@ -158,7 +158,7 @@ export function ReviewsTab({ campaigns }: { campaigns: Campaign[] }) {
         </ul>
       )}
 
-      <p className="text-[11.5px] leading-relaxed text-ink-400">{t('admin.reviewNote')}</p>
+      <p className="text-2xs leading-relaxed text-ink-400">{t('admin.reviewNote')}</p>
     </section>
   )
 }
