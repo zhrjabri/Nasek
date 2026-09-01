@@ -14,7 +14,12 @@
  * Neither shows up in a typecheck, and neither can be exercised by clicking
  * around without a live inbox. So the URL shapes are pinned here.
  */
-import { authRedirectTarget, completeAuthRedirect, isAuthRedirect } from '@/services/auth/redirect'
+import {
+  authRedirectTarget,
+  completeAuthRedirect,
+  isAuthRedirect,
+  parseSignInLink,
+} from '@/services/auth/redirect'
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = '') => {
@@ -108,6 +113,57 @@ async function main() {
     const outcome = await completeAuthRedirect()
     check(`no backend, no crash: ${href.slice(21) || '/'}`, outcome.kind === 'none', outcome.kind)
   }
+
+  console.log('')
+  console.log('--- reading a link someone pasted in ------------------------')
+  console.log('')
+
+  const base = 'https://abcd.supabase.co/auth/v1/verify'
+  const confirm = `${base}?token=abc123hash&type=signup&redirect_to=http%3A%2F%2Flocalhost%3A5173%2F`
+
+  const signup = parseSignInLink(confirm)
+  check(
+    'a Confirm-signup link yields its token and type',
+    signup?.tokenHash === 'abc123hash' && signup?.type === 'signup',
+    JSON.stringify(signup),
+  )
+
+  const magic = parseSignInLink(
+    `${base}?token=xyz789&type=magiclink&redirect_to=http%3A%2F%2Flocalhost%3A5173%2F`,
+  )
+  check(
+    'a Magic Link link yields its token and type',
+    magic?.type === 'magiclink' && magic?.tokenHash === 'xyz789',
+  )
+
+  check(
+    'the newer token_hash parameter is understood too',
+    parseSignInLink(`${base}?token_hash=hash999&type=email`)?.tokenHash === 'hash999',
+  )
+
+  // People paste with whitespace, and mail clients wrap links in redirectors.
+  check(
+    'surrounding whitespace and newlines are tolerated',
+    parseSignInLink(`  ${confirm}  `)?.tokenHash === 'abc123hash',
+  )
+  check(
+    'a link wrapped in a mail-client redirector is unwrapped',
+    parseSignInLink(
+      `https://mail.example.com/redirect?url=${encodeURIComponent(confirm)}`,
+    )?.tokenHash === 'abc123hash',
+  )
+  check(
+    'a link buried in pasted surrounding text is still found',
+    parseSignInLink(`Follow this link: ${confirm} to finish signing up`)?.tokenHash === 'abc123hash',
+  )
+  check(
+    'a link with no type defaults to magiclink rather than being refused',
+    parseSignInLink(`${base}?token=notype`)?.type === 'magiclink',
+  )
+
+  check('empty input yields nothing', parseSignInLink('') === null)
+  check('unrelated text yields nothing', parseSignInLink('hello there') === null)
+  check('a URL with no token yields nothing', parseSignInLink('https://nasek.om/#/signin') === null)
 
   console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} CHECK(S) FAILED`)
   if (failures > 0) process.exitCode = 1

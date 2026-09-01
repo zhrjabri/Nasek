@@ -49,16 +49,30 @@ export const supabase: SupabaseClient<Database> | null =
           persistSession: true,
           autoRefreshToken: true,
           /*
-           * PKCE rather than the implicit flow, for a reason specific to this
-           * app: NASEK uses `HashRouter`, so the fragment already means
-           * something. The implicit flow returns the session *in* the fragment
-           * — `#access_token=…` — which the router would try to read as a
-           * route, and which would sit in the address bar as a bearer token
-           * the browser keeps in history. PKCE returns `?code=…` in the query
-           * string instead, where nothing collides and the code is single-use
-           * and worthless without the verifier held in this browser.
+           * The implicit flow, not PKCE, and the reason is the phone in
+           * someone's hand.
+           *
+           * PKCE is the better default almost everywhere: the emailed token is
+           * useless without a verifier held by the browser that asked for it,
+           * so an intercepted link buys an attacker nothing. But that same
+           * property means the link can only ever be completed on the device
+           * that requested it — and email is read on phones. Someone signing in
+           * on a laptop and opening the message on their handset gets a token
+           * their handset cannot use, which is indistinguishable from a broken
+           * link.
+           *
+           * The implicit flow issues a plain token hash instead, which
+           * `verifyEmailLink()` can redeem from anywhere. That is what makes
+           * "paste the link from your email" work at all, and during local
+           * development it is the only thing that can: a link pointing at
+           * `localhost` is meaningless on a phone, so following it is never an
+           * option there.
+           *
+           * The cost is that a completed link puts a token in the URL fragment,
+           * where it reaches browser history. `completeAuthRedirect()` strips it
+           * on arrival, and the token is single-use and short-lived.
            */
-          flowType: 'pkce',
+          flowType: 'implicit',
           /*
            * Handled by `completeAuthRedirect()` rather than automatically.
            *

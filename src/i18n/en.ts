@@ -453,6 +453,13 @@ export const en = {
     'Open the link in the same browser you asked for it from. For security, a link cannot finish signing you in anywhere else.',
   'auth.linkFailed': 'We could not finish signing you in from that link. Try asking for a new one.',
   'auth.linkRetry': 'Back to sign in',
+  'auth.pasteLinkTitle': 'Got a link instead of a code?',
+  'auth.pasteLinkBody':
+    'Reading the email on another device? Copy the sign-in link from it and paste it here — you do not need to open it.',
+  'auth.pasteLinkLabel': 'Sign-in link from your email',
+  'auth.pasteLinkAction': 'Sign me in',
+  'auth.pasteLinkEmpty': 'Paste the link from your email first.',
+  'auth.pasteLinkInvalid': 'That does not look like a NASEK sign-in link. Copy the whole link from the email.',
 
   // ------------------------------------------------------- user dashboard
   'dash.welcome': 'Welcome, {name}',

@@ -151,3 +151,105 @@ export function isAuthRedirect(): boolean {
   if (query.has('code') || query.has('error_description') || query.has('error_code')) return true
   return authFragment() !== null
 }
+
+// ---------------------------------------------------------------- pasted link
+
+/** The confirmation types Supabase can put in a sign-in link. */
+const LINK_TYPES = ['signup', 'magiclink', 'email', 'invite', 'recovery', 'email_change'] as const
+export type LinkType = (typeof LINK_TYPES)[number]
+
+export interface ParsedSignInLink {
+  tokenHash: string
+  type: LinkType
+}
+
+/**
+ * Pull the token out of a sign-in link someone pasted in.
+ *
+ * This exists because of a situation local development makes unavoidable and
+ * production makes merely common: the message is read on a different device
+ * from the one signing in. A link to `localhost:5173` is meaningless on a
+ * phone — there is no version of "click it" that works — and even on a real
+ * domain, people read email on whichever device is nearest.
+ *
+ * Redeeming the token directly sidesteps the whole redirect. Nothing has to be
+ * allow-listed, no browser has to match, and the link does not have to be
+ * followed at all: copy it, paste it, done.
+ *
+ * Deliberately forgiving about what it is given. Mail clients wrap links in
+ * trackers and safe-browsing redirectors, and people paste with stray
+ * whitespace or surrounding text, so a strict `new URL()` is tried first and a
+ * search of the raw string second.
+ */
+export function parseSignInLink(input: string): ParsedSignInLink | null {
+  const text = input.trim()
+  if (!text) return null
+
+  const read = (token: string | null | undefined, type: string | null | undefined) => {
+    if (!token) return null
+    const kind = (type ?? 'magiclink').toLowerCase()
+    const matched = LINK_TYPES.find((t) => t === kind)
+    // An unrecognised type is treated as a magic link rather than refused: the
+    // token is what carries the meaning, and Supabase adds new types over time.
+    return { tokenHash: token, type: matched ?? 'magiclink' } satisfies ParsedSignInLink
+  }
+
+  try {
+    const url = new URL(text)
+    const direct = read(
+      url.searchParams.get('token_hash') ?? url.searchParams.get('token'),
+      url.searchParams.get('type'),
+    )
+    if (direct) return direct
+
+    // Some clients wrap the real link inside a `url=`/`q=` parameter.
+    for (const key of ['url', 'q', 'target', 'u']) {
+      const wrapped = url.searchParams.get(key)
+      if (wrapped) {
+        const inner = parseSignInLink(decodeURIComponent(wrapped))
+        if (inner) return inner
+      }
+    }
+  } catch {
+    /* not a URL — fall through to the text search */
+  }
+
+  const token = text.match(/[?&](?:token_hash|token)=([^&\s"'<>]+)/)?.[1]
+  const type = text.match(/[?&]type=([^&\s"'<>]+)/)?.[1]
+  return read(token ? decodeURIComponent(token) : null, type)
+}
+
+/**
+ * Redeem a pasted sign-in link.
+ *
+ * `verifyOtp` with a `token_hash` is the same call the code screen makes with a
+ * typed code — the token simply arrived by a different route. It needs nothing
+ * from this browser's storage, which is precisely why this works when the
+ * message was opened somewhere else.
+ */
+export async function verifyEmailLink(input: string): Promise<RedirectOutcome> {
+  if (!supabase) return { kind: 'none' }
+
+  const parsed = parseSignInLink(input)
+  if (!parsed) return { kind: 'error', reason: 'failed', detail: 'no token in that text' }
+
+  const { error } = await supabase.auth.verifyOtp({
+    token_hash: parsed.tokenHash,
+    type: parsed.type,
+  })
+  if (!error) return { kind: 'signed-in' }
+
+  /*
+   * A `pkce_`-prefixed token cannot be redeemed this way — it needs the
+   * verifier held by the browser that requested it. NASEK asks for the implicit
+   * flow precisely so this does not happen, but a link produced before that
+   * change, or by another client, would still be in someone's inbox.
+   */
+  const needsVerifier =
+    parsed.tokenHash.startsWith('pkce_') || /verifier|code challenge/i.test(error.message)
+  return {
+    kind: 'error',
+    reason: needsVerifier ? 'wrong_browser' : /expired|invalid/i.test(error.message) ? 'expired' : 'failed',
+    detail: error.message,
+  }
+}
