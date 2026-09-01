@@ -163,8 +163,27 @@ async function main() {
    * be a way to alter seat counts without an account. 404 here means the
    * migration has not been applied; anything but 200 means it is closed.
    */
+  /*
+   * Every required argument has to be sent, even to prove a function is closed.
+   *
+   * PostgREST resolves an RPC by the exact set of *named* arguments it is
+   * given, and answers 404 when no overload matches. Probing `book_campaign`
+   * with two of its five required parameters therefore reported "not found" for
+   * a function that was present and correctly locked — a false alarm that sent
+   * someone to re-apply a migration they had already applied. A 404 here means
+   * the signature does not exist; it does not mean the function does not.
+   */
   for (const [fn, body] of [
-    ['book_campaign', { p_campaign_id: '00000000-0000-0000-0000-000000000000', p_travellers: [] }],
+    [
+      'book_campaign',
+      {
+        p_campaign_id: '00000000-0000-0000-0000-000000000000',
+        p_travellers: [],
+        p_contact_name: 'probe',
+        p_contact_phone: 'probe',
+        p_contact_email: 'probe@example.com',
+      },
+    ],
     ['cancel_booking', { p_booking_id: '00000000-0000-0000-0000-000000000000' }],
   ]) {
     const res = await fetch(`${url}/rest/v1/rpc/${fn}`, {
