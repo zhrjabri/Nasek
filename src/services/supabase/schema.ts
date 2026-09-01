@@ -245,6 +245,18 @@ export type Database = {
         }
         Returns: ProviderRow
       }
+      book_campaign: {
+        Args: {
+          p_campaign_id: string
+          p_travellers: never
+          p_contact_name: string
+          p_contact_phone: string
+          p_contact_email: string
+          p_notes?: string | null
+        }
+        Returns: BookingRow
+      }
+      cancel_booking: { Args: { p_booking_id: string }; Returns: BookingRow }
     }
     Enums: {
       user_role: UserRole

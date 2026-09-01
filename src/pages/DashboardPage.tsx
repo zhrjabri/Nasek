@@ -13,6 +13,7 @@ import type { Booking, BookingStatus } from '@/types'
 import { useI18n, type MessageKey } from '@/i18n'
 import { WILAYAT, wilayahName } from '@/data/geo'
 import { bookingsApi } from '@/services/api/bookings'
+import { markNotificationRead } from '@/services/data/catalogue'
 import { saveProfile } from '@/services/auth/session'
 import { useStore } from '@/store/AppStore'
 import { useCatalogue } from '@/hooks/useCatalogue'
@@ -271,7 +272,10 @@ export function DashboardPage() {
                   <li key={notification.id}>
                     <button
                       type="button"
-                      onClick={() => dispatch({ type: 'readNotification', id: notification.id })}
+                      onClick={() => {
+                        void markNotificationRead(notification.id)
+                        dispatch({ type: 'readNotification', id: notification.id })
+                      }}
                       className={cx(
                         'w-full rounded-[3px] border p-4 text-start transition-colors',
                         notification.read

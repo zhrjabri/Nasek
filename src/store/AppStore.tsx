@@ -13,9 +13,11 @@ import type {
   Campaign,
   Notification,
   Provider,
+  Review,
   User,
   VerificationStatus,
 } from '@/types'
+import type { RemoteSnapshot } from '@/services/data/catalogue'
 import type { Credential, Lockout } from '@/services/api/credentials'
 import { LOCKOUT_MS, MAX_ATTEMPTS } from '@/services/api/credentials'
 import { DEMO_CUSTOMER_BOOKINGS, DEMO_NOTIFICATIONS } from '@/data/seed'
@@ -54,6 +56,23 @@ export interface PersistedState {
   credentials: Credential[]
   /** Failed sign-in attempts, keyed by the identifier that was tried. */
   lockouts: Record<string, Lockout>
+
+  // ------------------------------------------------------------ from the server
+  /*
+   * The slices below are the database's, not this browser's.
+   *
+   * They are held in the same store so that every screen keeps reading one
+   * place — `useCatalogue`, the dashboards and the admin tables did not have to
+   * change — but they are deliberately excluded from what gets written to
+   * localStorage. Persisting them would mean showing a stale catalogue on the
+   * next load and, worse, showing rows to whoever opens the browser next rather
+   * than to whoever the policies said could see them.
+   */
+  /** True once a snapshot has been loaded, so the catalogue knows to prefer it. */
+  remoteReady: boolean
+  remoteProviders: Provider[]
+  remoteCampaigns: Campaign[]
+  reviews: Review[]
 }
 
 export type Action =
@@ -81,6 +100,7 @@ export type Action =
   | { type: 'signInFailed'; key: string; now: number }
   | { type: 'signInSucceeded'; key: string }
   | { type: 'hydrate'; state: PersistedState }
+  | { type: 'hydrateRemote'; snapshot: RemoteSnapshot }
 
 export const emptyState: PersistedState = {
   user: null,
@@ -99,6 +119,10 @@ export const emptyState: PersistedState = {
   hiddenReviewIds: [],
   credentials: [],
   lockouts: {},
+  remoteReady: false,
+  remoteProviders: [],
+  remoteCampaigns: [],
+  reviews: [],
 }
 
 export function reducer(state: PersistedState, action: Action): PersistedState {
@@ -112,6 +136,27 @@ export function reducer(state: PersistedState, action: Action): PersistedState {
        * from the empty shape and lay the stored values on top.
        */
       return { ...emptyState, ...action.state }
+
+    case 'hydrateRemote':
+      /*
+       * The server's answer replaces this browser's guess wholesale.
+       *
+       * Merging would be worse than useless: a trip an administrator took down
+       * is absent from the snapshot precisely because it should no longer be
+       * visible, and merging would put it back. The personal slices are
+       * replaced too, because row-level security already scoped them to this
+       * account.
+       */
+      return {
+        ...state,
+        remoteReady: true,
+        remoteProviders: action.snapshot.providers,
+        remoteCampaigns: action.snapshot.campaigns,
+        bookings: action.snapshot.bookings,
+        reviews: action.snapshot.reviews,
+        notifications: action.snapshot.notifications,
+        savedIds: action.snapshot.savedIds,
+      }
 
     case 'signIn': {
       // The demo customer arrives with a history so the dashboard isn't blank.
@@ -154,6 +199,12 @@ export function reducer(state: PersistedState, action: Action): PersistedState {
         hiddenReviewIds: state.hiddenReviewIds,
         credentials: state.credentials,
         lockouts: state.lockouts,
+        // Everything below was fetched under the departing session's policies
+        // and is not this browser's to keep.
+        remoteReady: false,
+        remoteProviders: [],
+        remoteCampaigns: [],
+        reviews: [],
       }
 
     case 'updateProfile':
@@ -372,7 +423,18 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    if (hydrated) storage.write(KEY, state)
+    if (!hydrated) return
+    /*
+     * Server-owned slices are stripped before writing.
+     *
+     * They would be stale on the next load, they would bloat the quota with a
+     * whole catalogue, and — the reason that actually matters — they would
+     * leave rows on disk that were fetched under one account's policies and
+     * would be read back under whoever opens the browser next.
+     */
+    const { remoteReady: _r, remoteProviders: _p, remoteCampaigns: _c, reviews: _v, ...persistable } =
+      state
+    storage.write(KEY, persistable)
   }, [state, hydrated])
 
   const toast = useCallback((message: string, tone: Toast['tone'] = 'success') => {

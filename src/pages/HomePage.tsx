@@ -19,7 +19,7 @@ import {
 import type { Campaign } from '@/types'
 import { useI18n, type MessageKey } from '@/i18n'
 import { WILAYAT } from '@/data/geo'
-import { REVIEWS } from '@/data/reviews'
+
 import { campaignsApi } from '@/services/api/campaigns'
 import { useCatalogue } from '@/hooks/useCatalogue'
 import { useStore } from '@/store/AppStore'
@@ -32,7 +32,7 @@ import { Badge, LinkButton, Ornament, Rating, SectionHeading } from '@/component
 export function HomePage() {
   const { t, lang, isRtl, n, bl } = useI18n()
   const { campaigns, providers, getProvider } = useCatalogue()
-  const { hiddenReviewIds } = useStore()
+  const { hiddenReviewIds, reviews } = useStore()
   const [featured, setFeatured] = useState<Campaign[] | null>(null)
   const [popular, setPopular] = useState<Campaign[] | null>(null)
   const [mapWilayah, setMapWilayah] = useState<string | null>(null)
@@ -66,7 +66,7 @@ export function HomePage() {
   )
 
   /** The three five-star quotes the home page pulls out, if there are any. */
-  const testimonials = REVIEWS.filter(
+  const testimonials = reviews.filter(
     (r) => r.rating === 5 && !hiddenReviewIds.includes(r.id),
   ).slice(0, 3)
 

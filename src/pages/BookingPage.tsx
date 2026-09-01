@@ -19,6 +19,8 @@ import type { Booking, Campaign, Traveller } from '@/types'
 import { useI18n, type MessageKey } from '@/i18n'
 import { wilayahName } from '@/data/geo'
 import { bookingsApi, priceBreakdown } from '@/services/api/bookings'
+import { isSupabaseConfigured } from '@/services/supabase/client'
+import { createBooking } from '@/services/data/catalogue'
 import { useStore } from '@/store/AppStore'
 import { useCatalogue } from '@/hooks/useCatalogue'
 import { tripDays } from '@/lib/trip'
@@ -159,15 +161,45 @@ export function BookingPage() {
   const pay = async () => {
     setProcessing(true)
     try {
-      const created = await bookingsApi.create({
-        user,
-        campaign,
-        travellersCount,
-        travellers,
-        contactName: contact.name,
-        contactPhone: contact.phone,
-        contactEmail: contact.email,
-      })
+      /*
+       * With a database, booking is one transaction on the server.
+       *
+       * `book_campaign` locks the campaign row, re-checks availability after
+       * the lock, decrements the seats and inserts the booking and its
+       * travellers together. Doing that here in separate statements is the race
+       * docs/DATA-MODEL.md has always described: two people read one remaining
+       * seat, both decide it is theirs, and the trip is oversold with nothing
+       * in the system aware of it.
+       *
+       * The server's own message is surfaced when it refuses. "Only 2 seat(s)
+       * remain on this trip" is actionable; a generic failure is not.
+       */
+      let created: Booking
+      if (isSupabaseConfigured) {
+        const result = await createBooking({
+          campaignId: campaign.id,
+          travellers,
+          contactName: contact.name,
+          contactPhone: contact.phone,
+          contactEmail: contact.email,
+        })
+        if ('error' in result) {
+          setProcessing(false)
+          toast(result.error, 'warning')
+          return
+        }
+        created = { ...result.booking, travellers }
+      } else {
+        created = await bookingsApi.create({
+          user,
+          campaign,
+          travellersCount,
+          travellers,
+          contactName: contact.name,
+          contactPhone: contact.phone,
+          contactEmail: contact.email,
+        })
+      }
       dispatch({ type: 'addBooking', booking: created })
       dispatch({
         type: 'pushNotification',

@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useI18n } from '@/i18n'
 import { useStore } from '@/store/AppStore'
 import { useCatalogue } from '@/hooks/useCatalogue'
+import { useRemoteData } from '@/hooks/useRemoteData'
 import { Spinner } from '@/components/ui'
 import { AdminShell } from '@/admin/layout/AdminShell'
 import { loadAdminSession, type AdminGateReason } from '@/admin/session'
@@ -116,6 +117,9 @@ export function AdminApp() {
 /** The dashboard proper. Only ever rendered behind a resolved admin session. */
 function AdminRoutes() {
   const { pathname } = useLocation()
+  // Only mounted behind a resolved administrator session, so the snapshot it
+  // fetches is the platform-wide one the policies grant that role.
+  useRemoteData()
   const {
     sessionUsers,
     suspendedUserIds,

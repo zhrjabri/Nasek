@@ -35,8 +35,8 @@ import type { BookingStatus, Campaign, CampaignType, ServiceKey, TravelMethod } 
 import { useI18n, type MessageKey } from '@/i18n'
 import { WILAYAT, wilayahName } from '@/data/geo'
 import { SERVICE_KEYS, serviceLabel } from '@/data/services'
-import { reviewsForProvider } from '@/data/reviews'
-import { SEED_BOOKINGS } from '@/data/seed'
+
+import { removeCampaign, saveCampaign } from '@/services/data/catalogue'
 import { NASEK_FEE_RATE } from '@/services/api/bookings'
 import { useStore } from '@/store/AppStore'
 import { useCatalogue } from '@/hooks/useCatalogue'
@@ -73,7 +73,7 @@ const PLAN_PRICE = { basic: 15, plus: 35, premium: 75 } as const
 
 export function ProviderDashboardPage() {
   const { t, lang, bl, money, n, date } = useI18n()
-  const { user, dispatch, toast } = useStore()
+  const { user, dispatch, toast, bookings: allBookings, reviews: allReviews } = useStore()
   const { campaignsOf, getProvider } = useCatalogue()
   // The tab lives in the URL, as it does on the customer dashboard: a
   // refresh, a bookmark or a link from the low-seat warning all land where
@@ -94,11 +94,22 @@ export function ProviderDashboardPage() {
   const provider = getProvider(providerId)
   const campaigns = campaignsOf(providerId)
 
-  // Bookings for this owner's trips, from the shared demo history.
+  /*
+    * Bookings on this owner's trips.
+    *
+    * Read from the store, which `useRemoteData` fills from Postgres — and
+    * `bookings_read` there already returns exactly the rows this account may
+    * see: their own, plus every booking on a campaign they own. The filter
+    * below is presentational, narrowing to the trips currently listed; it is
+    * not what keeps one owner from reading another's ledger.
+    *
+    * It used to read SEED_BOOKINGS, a generated demo history derived from a
+    * campaign list that is empty — so this panel showed nothing at all.
+    */
   const bookings = useMemo(() => {
     const ids = new Set(campaigns.map((c) => c.id))
-    return SEED_BOOKINGS.filter((b) => ids.has(b.campaignId))
-  }, [campaigns])
+    return allBookings.filter((b) => ids.has(b.campaignId))
+  }, [campaigns, allBookings])
 
   const stats = useMemo(() => {
     const paid = bookings.filter((b) => b.status !== 'cancelled')
@@ -168,7 +179,7 @@ export function ProviderDashboardPage() {
     })
   }, [bookings, campaigns, customerQuery, statusFilter, bl])
 
-  const reviews = reviewsForProvider(providerId)
+  const reviews = allReviews.filter((r) => r.providerId === providerId)
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -398,6 +409,7 @@ export function ProviderDashboardPage() {
                             variant="danger"
                             size="sm"
                             onClick={() => {
+                              void removeCampaign(c.id)
                               dispatch({ type: 'deleteCampaign', id: c.id })
                               toast(t('prov.campaignDeleted'), 'info')
                               setConfirmDelete(null)
@@ -716,8 +728,12 @@ export function ProviderDashboardPage() {
           campaign={editing === 'new' ? null : editing}
           providerId={providerId}
           onClose={() => setEditing(null)}
-          onSave={(campaign) => {
-            dispatch({ type: 'upsertCampaign', campaign })
+          onSave={async (campaign) => {
+            // Written to the database first, then to the store with whatever
+            // the database actually stored — an insert comes back with a real
+            // id, and keeping the local one would orphan every later edit.
+            const stored = await saveCampaign(campaign)
+            dispatch({ type: 'upsertCampaign', campaign: stored ?? campaign })
             toast(t('prov.campaignSaved'))
             setEditing(null)
           }}

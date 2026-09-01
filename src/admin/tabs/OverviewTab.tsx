@@ -27,10 +27,11 @@ import {
   Ticket,
   Users,
 } from 'lucide-react'
-import type { Campaign, Provider } from '@/types'
+import type { Booking, Campaign, Provider } from '@/types'
 import { useI18n } from '@/i18n'
-import { SEED_BOOKINGS } from '@/data/seed'
+
 import { NASEK_FEE_RATE } from '@/services/api/bookings'
+import { setProviderVerification } from '@/services/data/catalogue'
 import { useStore } from '@/store/AppStore'
 import { Button, Card, cx } from '@/components/ui'
 import { Kpi } from './shared'
@@ -61,14 +62,17 @@ export function OverviewTab({
   suspendedUsers: number
 }) {
   const { t, lang, bl, money, n } = useI18n()
-  const { dispatch, toast } = useStore()
+  // Platform-wide bookings, scoped to administrators by policy. Previously a
+  // generated demo history over an empty catalogue, which made every figure on
+  // this page zero.
+  const { dispatch, toast, bookings } = useStore()
   // Each section is an address now rather than a tab index, so the work queue
   // can hand out real links: an admin can open the verification queue in a new
   // tab, bookmark it, or send it to a colleague.
   const navigate = useNavigate()
 
   const stats = useMemo(() => {
-    const paid = SEED_BOOKINGS.filter((b) => b.status !== 'cancelled')
+    const paid = bookings.filter((b) => b.status !== 'cancelled')
     const gmv = paid.reduce((s, b) => s + b.totalPrice, 0)
     const commission = gmv * NASEK_FEE_RATE
     const subscriptions = providers.reduce((s, p) => s + PLAN_PRICE[p.plan] * 12, 0)
@@ -91,16 +95,16 @@ export function OverviewTab({
   ]
 
   const byType = useMemo(() => {
-    const hajj = SEED_BOOKINGS.filter(
+    const hajj = bookings.filter(
       (b) => campaigns.find((c) => c.id === b.campaignId)?.type === 'hajj',
     ).length
     return [
-      { name: t('common.umrah'), value: SEED_BOOKINGS.length - hajj },
+      { name: t('common.umrah'), value: bookings.length - hajj },
       { name: t('common.hajj'), value: hajj },
     ]
   }, [campaigns, t])
 
-  const growth = useMemo(() => buildGrowth(lang), [lang])
+  const growth = useMemo(() => buildGrowth(lang, bookings), [lang, bookings])
 
   const pendingQueue = providers.filter((p) => p.verification !== 'verified')
   const nothingWaiting =
@@ -158,6 +162,7 @@ export function OverviewTab({
                 <Button
                   size="sm"
                   onClick={() => {
+                    void setProviderVerification(p.id, 'verified')
                     dispatch({ type: 'setVerification', providerId: p.id, status: 'verified' })
                     toast(t('admin.verifiedToast', { name: bl(p.name) }))
                   }}
@@ -288,7 +293,7 @@ function QueueLink({
  * history; the provider curve is a plausible onboarding ramp so the chart
  * reads as a platform story rather than a single metric.
  */
-function buildGrowth(lang: 'ar' | 'en') {
+function buildGrowth(lang: 'ar' | 'en', bookings: Booking[]) {
   const now = new Date()
   const fmt = new Intl.DateTimeFormat(lang === 'ar' ? 'ar-OM' : 'en-GB', { month: 'short' })
   const months: { key: string; month: string }[] = []
@@ -303,7 +308,7 @@ function buildGrowth(lang: 'ar' | 'en') {
 
   return months.map((m, i) => ({
     month: m.month,
-    bookings: SEED_BOOKINGS.filter((b) => b.bookingDate.startsWith(m.key)).length,
+    bookings: bookings.filter((b) => b.bookingDate.startsWith(m.key)).length,
     providers: Math.round(2 + i * 0.65),
   }))
 }

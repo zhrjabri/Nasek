@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react'
 import { EyeOff, MessageSquare, Star, Undo2 } from 'lucide-react'
 import type { Campaign } from '@/types'
 import { useI18n } from '@/i18n'
-import { REVIEWS } from '@/data/reviews'
+
+import { setReviewHidden } from '@/services/data/catalogue'
 import { useStore } from '@/store/AppStore'
 import { Badge, Button, Card, EmptyState, Rating, cx } from '@/components/ui'
 import { Kpi, Toolbar, useCountLabel } from './shared'
@@ -23,7 +24,13 @@ type Filter = 'all' | 'low' | 'hidden'
  */
 export function ReviewsTab({ campaigns }: { campaigns: Campaign[] }) {
   const { t, bl, n, date } = useI18n()
-  const { dispatch, toast, hiddenReviewIds } = useStore()
+  /*
+   * Every review on the platform. `reviews_read` returns hidden ones only to
+   * their author and to administrators, which is exactly the list this table
+   * needs — the screen holding the "show again" button has to be able to see
+   * what it would restore.
+   */
+  const { dispatch, toast, hiddenReviewIds, reviews } = useStore()
   const countLabel = useCountLabel()
 
   const [query, setQuery] = useState('')
@@ -38,7 +45,7 @@ export function ReviewsTab({ campaigns }: { campaigns: Campaign[] }) {
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase()
-    return REVIEWS.filter((r) => {
+    return reviews.filter((r) => {
       const isHidden = hidden.has(r.id)
       if (filter === 'hidden') {
         if (!isHidden) return false
@@ -57,7 +64,7 @@ export function ReviewsTab({ campaigns }: { campaigns: Campaign[] }) {
   }, [filter, query, hidden, bl])
 
   const stats = useMemo(() => {
-    const live = REVIEWS.filter((r) => !hidden.has(r.id))
+    const live = reviews.filter((r) => !hidden.has(r.id))
     const average = live.length
       ? live.reduce((s, r) => s + r.rating, 0) / live.length
       : 0
@@ -95,7 +102,7 @@ export function ReviewsTab({ campaigns }: { campaigns: Campaign[] }) {
         filter={filter}
         onFilter={setFilter}
         filterLabel={t('admin.reviewFilter')}
-        count={countLabel(visible.length, REVIEWS.length)}
+        count={countLabel(visible.length, reviews.length)}
         options={[
           { value: 'all', label: t('admin.userAll') },
           { value: 'low', label: t('admin.reviewsLow') },
@@ -106,8 +113,8 @@ export function ReviewsTab({ campaigns }: { campaigns: Campaign[] }) {
       {visible.length === 0 ? (
         <EmptyState
           icon={<MessageSquare className="size-5" />}
-          title={REVIEWS.length === 0 ? t('campaign.noReviews') : t('admin.noReviewMatch')}
-          body={REVIEWS.length === 0 ? t('admin.noReviewsBody') : t('admin.noUsersBody')}
+          title={reviews.length === 0 ? t('campaign.noReviews') : t('admin.noReviewMatch')}
+          body={reviews.length === 0 ? t('admin.noReviewsBody') : t('admin.noUsersBody')}
         />
       ) : (
         <ul className="grid gap-4 sm:grid-cols-2">
@@ -139,6 +146,7 @@ export function ReviewsTab({ campaigns }: { campaigns: Campaign[] }) {
                         size="sm"
                         variant="secondary"
                         onClick={() => {
+                          void setReviewHidden(review.id, !isHidden)
                           dispatch({ type: 'setReviewHidden', reviewId: review.id, hidden: !isHidden })
                           toast(
                             isHidden ? t('admin.reviewShownToast') : t('admin.reviewHiddenToast'),

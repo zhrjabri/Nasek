@@ -4,6 +4,7 @@ import { useI18n } from '@/i18n'
 import { useStore } from '@/store/AppStore'
 import { useSessionSync } from '@/hooks/useSessionSync'
 import { useAuthRedirect } from '@/hooks/useAuthRedirect'
+import { useRemoteData } from '@/hooks/useRemoteData'
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
 import { ToastHost } from '@/components/layout/ToastHost'
@@ -162,6 +163,10 @@ export function App() {
   // Finishes a sign-in that began in an email. Does nothing on an ordinary
   // page load, which is almost all of them.
   const redirect = useAuthRedirect(navigate)
+  // Fills the store from Postgres, and refills it whenever the session
+  // changes — the policies return a different catalogue to a signed-out
+  // visitor than to an owner.
+  useRemoteData()
 
   if (redirect.phase === 'working') return <AuthRedirectScreen />
   if (redirect.phase === 'error') {

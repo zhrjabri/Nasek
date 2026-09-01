@@ -3,8 +3,9 @@ import { BadgeCheck, Ban, Building2, RotateCcw, Trash2, UserCog, Users } from 'l
 import type { Provider, Role, User } from '@/types'
 import { useI18n } from '@/i18n'
 import { wilayahName } from '@/data/geo'
-import { SEED_BOOKINGS } from '@/data/seed'
+
 import { buildDirectory, type DirectoryUser } from '@/data/users'
+import { setProfileModeration } from '@/services/data/catalogue'
 import { useStore } from '@/store/AppStore'
 import { Badge, Button, EmptyState, Modal } from '@/components/ui'
 import { BodyRow, DetailRow, HeadRow, IconAction, Kpi, TableShell, Th, Toolbar, useCountLabel } from './shared'
@@ -27,7 +28,7 @@ export function UsersTab({
   sessionUsers: User[]
 }) {
   const { t, lang, money, n, date } = useI18n()
-  const { dispatch, toast, suspendedUserIds, removedUserIds } = useStore()
+  const { dispatch, toast, suspendedUserIds, removedUserIds, bookings } = useStore()
   const countLabel = useCountLabel()
 
   const [query, setQuery] = useState('')
@@ -38,7 +39,7 @@ export function UsersTab({
   const removed = useMemo(() => new Set(removedUserIds), [removedUserIds])
 
   const directory = useMemo(
-    () => buildDirectory(providers, SEED_BOOKINGS, sessionUsers),
+    () => buildDirectory(providers, bookings, sessionUsers),
     [providers, sessionUsers],
   )
 
@@ -186,6 +187,7 @@ export function UsersTab({
                             size="sm"
                             variant="secondary"
                             onClick={() => {
+                              void setProfileModeration(u.id, { removed: false })
                               dispatch({ type: 'restoreUser', userId: u.id })
                               toast(t('admin.userRestoredToast', { name: u.name }))
                             }}
@@ -199,6 +201,7 @@ export function UsersTab({
                               size="sm"
                               variant="secondary"
                               onClick={() => {
+                                void setProfileModeration(u.id, { suspended: !isSuspended })
                                 dispatch({
                                   type: 'setUserSuspended',
                                   userId: u.id,
@@ -224,6 +227,10 @@ export function UsersTab({
                               label={t('admin.userRemove')}
                               danger
                               onClick={() => {
+                                /* Recorded as a flag, never a DELETE: the
+                                   bookings and revenue history are
+                                   reconstructed from these rows. */
+                                void setProfileModeration(u.id, { removed: true })
                                 dispatch({ type: 'removeUser', userId: u.id })
                                 toast(t('admin.userRemovedToast', { name: u.name }), 'warning')
                               }}

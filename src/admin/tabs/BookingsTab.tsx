@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Coins, Ticket, Users } from 'lucide-react'
 import type { Booking, BookingStatus, Campaign } from '@/types'
 import { useI18n } from '@/i18n'
-import { SEED_BOOKINGS } from '@/data/seed'
+import { useStore } from '@/store/AppStore'
 import { EmptyState, Badge } from '@/components/ui'
 import { BodyRow, HeadRow, Kpi, TableShell, Th, Toolbar, useCountLabel } from './shared'
 
@@ -27,6 +27,13 @@ const TONE: Record<BookingStatus, 'green' | 'gold' | 'red' | 'neutral'> = {
 export function BookingsTab({ campaigns }: { campaigns: Campaign[] }) {
   const { t, bl, money, n, date } = useI18n()
   const countLabel = useCountLabel()
+  /*
+   * Every booking on the platform — because `bookings_read` returns exactly
+   * that to an administrator, and nothing at all to anyone else. This tab used
+   * to read a generated demo history built from a campaign list that is empty,
+   * so the ledger was blank no matter how many bookings existed.
+   */
+  const { bookings } = useStore()
 
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
@@ -38,7 +45,7 @@ export function BookingsTab({ campaigns }: { campaigns: Campaign[] }) {
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase()
-    return SEED_BOOKINGS.filter((b: Booking) => {
+    return bookings.filter((b: Booking) => {
       if (filter !== 'all' && b.status !== filter) return false
       if (!needle) return true
       return (
@@ -51,9 +58,9 @@ export function BookingsTab({ campaigns }: { campaigns: Campaign[] }) {
   }, [filter, query])
 
   const stats = useMemo(() => {
-    const live = SEED_BOOKINGS.filter((b) => b.status !== 'cancelled')
+    const live = bookings.filter((b) => b.status !== 'cancelled')
     return {
-      total: SEED_BOOKINGS.length,
+      total: bookings.length,
       travellers: live.reduce((s, b) => s + b.travellersCount, 0),
       value: live.reduce((s, b) => s + b.totalPrice, 0),
     }
@@ -74,7 +81,7 @@ export function BookingsTab({ campaigns }: { campaigns: Campaign[] }) {
         filter={filter}
         onFilter={setFilter}
         filterLabel={t('admin.bookingFilter')}
-        count={countLabel(Math.min(visible.length, 100), SEED_BOOKINGS.length)}
+        count={countLabel(Math.min(visible.length, 100), bookings.length)}
         options={[
           { value: 'all', label: t('admin.userAll') },
           { value: 'confirmed', label: t('admin.statusConfirmed') },
@@ -87,8 +94,8 @@ export function BookingsTab({ campaigns }: { campaigns: Campaign[] }) {
       {visible.length === 0 ? (
         <EmptyState
           icon={<Ticket className="size-5" />}
-          title={SEED_BOOKINGS.length === 0 ? t('admin.noBookings') : t('admin.noBookingMatch')}
-          body={SEED_BOOKINGS.length === 0 ? t('admin.noBookingsBody') : t('admin.noUsersBody')}
+          title={bookings.length === 0 ? t('admin.noBookings') : t('admin.noBookingMatch')}
+          body={bookings.length === 0 ? t('admin.noBookingsBody') : t('admin.noUsersBody')}
         />
       ) : (
         <TableShell>

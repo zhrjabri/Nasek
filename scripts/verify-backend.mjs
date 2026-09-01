@@ -155,6 +155,30 @@ async function main() {
     `HTTP ${isAdmin.status} ${isAdminBody.slice(0, 40)}`,
   )
 
+  /*
+   * The booking transaction and its inverse.
+   *
+   * Both are SECURITY DEFINER — they lock and decrement `campaigns`, which no
+   * ordinary caller may update — so an anonymous caller reaching either would
+   * be a way to alter seat counts without an account. 404 here means the
+   * migration has not been applied; anything but 200 means it is closed.
+   */
+  for (const [fn, body] of [
+    ['book_campaign', { p_campaign_id: '00000000-0000-0000-0000-000000000000', p_travellers: [] }],
+    ['cancel_booking', { p_booking_id: '00000000-0000-0000-0000-000000000000' }],
+  ]) {
+    const res = await fetch(`${url}/rest/v1/rpc/${fn}`, {
+      method: 'POST',
+      headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (res.status === 404) {
+      check(`${fn}() exists`, false, 'not found — apply 20260901000700_booking_transaction.sql')
+    } else {
+      check(`${fn}() is unreachable with the public key`, res.status !== 200, `HTTP ${res.status}`)
+    }
+  }
+
   // The one that would matter most if it were wrong.
   const promote = await fetch(`${url}/rest/v1/rpc/promote_to_admin`, {
     method: 'POST',

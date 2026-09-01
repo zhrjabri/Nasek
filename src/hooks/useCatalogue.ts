@@ -32,10 +32,26 @@ export function useCatalogue() {
     verificationOverrides,
     campaignSuspensions,
     featureOverrides,
+    remoteReady,
+    remoteProviders,
+    remoteCampaigns,
   } = useStore()
 
-  /** Everything that exists, with the admin's featured decisions applied. */
+  /**
+   * Everything that exists, with the admin's featured decisions applied.
+   *
+   * With a database configured, the server's answer is used whole: `featured`
+   * and `suspended` are real columns there, decided by an administrator and
+   * visible to everyone, so the local override maps are not consulted at all.
+   * Laying them on top would let one browser's stale opinion outrank the
+   * platform's — the exact bug this move was meant to end.
+   *
+   * Without a database, the original behaviour is unchanged: seed data plus
+   * whatever this session published, with local overrides applied.
+   */
   const adminCampaigns = useMemo<Campaign[]>(() => {
+    if (remoteReady) return remoteCampaigns
+
     const hidden = new Set(hiddenCampaignIds)
     const sessionIds = new Set(providerCampaigns.map((c) => c.id))
     return [
@@ -46,24 +62,30 @@ export function useCatalogue() {
       // campaign keeps whatever it was published with.
       c.id in featureOverrides ? { ...c, featured: featureOverrides[c.id] } : c,
     )
-  }, [providerCampaigns, hiddenCampaignIds, featureOverrides])
+  }, [remoteReady, remoteCampaigns, providerCampaigns, hiddenCampaignIds, featureOverrides])
 
   const suspended = useMemo(() => new Set(campaignSuspensions), [campaignSuspensions])
 
+  /*
+   * The public list.
+   *
+   * Against a database, a suspended trip never reaches the client at all — the
+   * `campaigns_read` policy withholds it from everyone but its owner and an
+   * administrator. So the only filtering left to do here is for the owner's own
+   * view, and `adminCampaigns` is already the right list for the screens that
+   * need to see a takedown in order to undo it.
+   */
   const campaigns = useMemo<Campaign[]>(
-    () => adminCampaigns.filter((c) => !suspended.has(c.id)),
-    [adminCampaigns, suspended],
+    () => (remoteReady ? adminCampaigns : adminCampaigns.filter((c) => !suspended.has(c.id))),
+    [remoteReady, adminCampaigns, suspended],
   )
 
-  const providers = useMemo<Provider[]>(
-    () =>
-      [...sessionProviders, ...PROVIDERS].map((p) =>
-        verificationOverrides[p.id]
-          ? { ...p, verification: verificationOverrides[p.id] }
-          : p,
-      ),
-    [sessionProviders, verificationOverrides],
-  )
+  const providers = useMemo<Provider[]>(() => {
+    if (remoteReady) return remoteProviders
+    return [...sessionProviders, ...PROVIDERS].map((p) =>
+      verificationOverrides[p.id] ? { ...p, verification: verificationOverrides[p.id] } : p,
+    )
+  }, [remoteReady, remoteProviders, sessionProviders, verificationOverrides])
 
   const getCampaign = useCallback(
     (id: string) => campaigns.find((c) => c.id === id),

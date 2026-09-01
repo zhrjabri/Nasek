@@ -4,6 +4,7 @@ import { Ban, ExternalLink, Star, Ticket, Trash2, Undo2 } from 'lucide-react'
 import type { Campaign, Provider } from '@/types'
 import { useI18n } from '@/i18n'
 import { wilayahName } from '@/data/geo'
+import { setCampaignModeration } from '@/services/data/catalogue'
 import { useStore } from '@/store/AppStore'
 import { Badge, Button, EmptyState, Modal, Rating, cx } from '@/components/ui'
 import { BodyRow, DetailRow, HeadRow, IconAction, Kpi, TableShell, Th, Toolbar, useCountLabel } from './shared'
@@ -80,6 +81,7 @@ export function CampaignsTab({
   )
 
   const toggleFeatured = (c: Campaign) => {
+    void setCampaignModeration(c.id, { featured: !c.featured })
     dispatch({ type: 'setCampaignFeatured', campaignId: c.id, featured: !c.featured })
     toast(
       c.featured
@@ -91,6 +93,7 @@ export function CampaignsTab({
 
   const toggleSuspended = (c: Campaign) => {
     const down = isSuspended(c.id)
+    void setCampaignModeration(c.id, { suspended: !down })
     dispatch({ type: 'setCampaignSuspended', campaignId: c.id, suspended: !down })
     toast(
       down

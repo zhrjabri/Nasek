@@ -23,8 +23,9 @@ import type { Campaign } from '@/types'
 import { useI18n } from '@/i18n'
 import { wilayahName } from '@/data/geo'
 import { serviceLabel } from '@/data/services'
-import { reviewsForCampaign } from '@/data/reviews'
+
 import { campaignsApi } from '@/services/api/campaigns'
+import { setSaved } from '@/services/data/catalogue'
 import { useStore } from '@/store/AppStore'
 import { useCatalogue } from '@/hooks/useCatalogue'
 import { CampaignCard } from '@/components/campaign/CampaignCard'
@@ -45,7 +46,7 @@ export function CampaignDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { t, lang, bl, money, n, date, dateRange } = useI18n()
   const { campaigns, getProvider } = useCatalogue()
-  const { isSaved, dispatch, toast, hiddenReviewIds } = useStore()
+  const { isSaved, dispatch, toast, hiddenReviewIds, reviews: allReviews } = useStore()
 
   const [campaign, setCampaign] = useState<Campaign | null | undefined>(undefined)
   const [similar, setSimilar] = useState<Campaign[]>([])
@@ -85,7 +86,17 @@ export function CampaignDetailPage() {
   const provider = getProvider(campaign.providerId)
   // A review the admin has taken down must disappear from the trip it was
   // written about, not only from the moderation screen.
-  const reviews = reviewsForCampaign(campaign.id).filter((r) => !hiddenReviewIds.includes(r.id))
+  /*
+   * Reviews of this trip.
+   *
+   * `reviews_read` already withholds hidden ones from everybody but their
+   * author and an administrator, so the local filter below only still matters
+   * with no backend configured — where the moderation flag lives in this
+   * browser and nothing else would apply it.
+   */
+  const reviews = allReviews.filter(
+    (r) => r.campaignId === campaign.id && !hiddenReviewIds.includes(r.id),
+  )
   const saved = isSaved(campaign.id)
   const days = tripDays(campaign)
   const booked = campaign.seatsTotal - campaign.seatsAvailable
@@ -364,6 +375,7 @@ export function CampaignDetailPage() {
                   <Button
                     variant="secondary"
                     onClick={() => {
+                      void setSaved(campaign.id, !isSaved(campaign.id))
                       dispatch({ type: 'toggleSaved', id: campaign.id })
                       toast(saved ? t('campaign.unsavedToast') : t('campaign.savedToast'), saved ? 'info' : 'success')
                     }}

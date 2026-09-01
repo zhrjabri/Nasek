@@ -3,6 +3,7 @@ import { BadgeCheck, Building2, FileImage, ShieldCheck, ShieldX } from 'lucide-r
 import type { Provider } from '@/types'
 import { useI18n } from '@/i18n'
 import { wilayahName } from '@/data/geo'
+import { setProviderVerification } from '@/services/data/catalogue'
 import { useStore } from '@/store/AppStore'
 import { Badge, Button, EmptyState, Modal, Rating } from '@/components/ui'
 import { BodyRow, HeadRow, Kpi, TableShell, Th, Toolbar, useCountLabel } from './shared'
@@ -43,6 +44,13 @@ export function OwnersTab({ providers }: { providers: Provider[] }) {
   const pending = providers.filter((p) => p.verification !== 'verified').length
 
   const setVerification = (p: Provider, verified: boolean) => {
+    /*
+     * Written to the database, where the badge becomes a fact about the
+     * platform rather than about this browser. A trigger stamps who decided and
+     * when into `admin_audit` — docs/DATA-MODEL.md asked for that trail and the
+     * prototype only ever stored the resulting flag.
+     */
+    void setProviderVerification(p.id, verified ? 'verified' : 'pending')
     dispatch({
       type: 'setVerification',
       providerId: p.id,

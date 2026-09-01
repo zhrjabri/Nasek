@@ -13,6 +13,7 @@ import type { Campaign } from '@/types'
 import { useI18n } from '@/i18n'
 import { wilayahName } from '@/data/geo'
 import { serviceLabel } from '@/data/services'
+import { setSaved } from '@/services/data/catalogue'
 import { useStore } from '@/store/AppStore'
 import { useCatalogue } from '@/hooks/useCatalogue'
 import { tripDays } from '@/lib/trip'
@@ -38,6 +39,9 @@ export function CampaignCard({
   const soldOut = campaign.seatsAvailable === 0
 
   const toggleSave = () => {
+    // Written through so a saved trip follows the account rather than the
+    // browser. `setSaved` is a no-op with no backend configured.
+    void setSaved(campaign.id, !isSaved(campaign.id))
     dispatch({ type: 'toggleSaved', id: campaign.id })
     toast(saved ? t('campaign.unsavedToast') : t('campaign.savedToast'), saved ? 'info' : 'success')
   }
