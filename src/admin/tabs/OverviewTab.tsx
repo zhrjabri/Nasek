@@ -27,7 +27,7 @@ import {
   Ticket,
   Users,
 } from 'lucide-react'
-import type { Booking, Campaign, Provider } from '@/types'
+import { isPendingProvider, type Booking, type Campaign, type Provider } from '@/types'
 import { useI18n } from '@/i18n'
 
 import { NASEK_FEE_RATE } from '@/services/api/bookings'
@@ -84,7 +84,7 @@ export function OverviewTab({
       promotions,
       revenue: commission + subscriptions + promotions,
       bookings: paid.length,
-      pending: providers.filter((p) => p.verification !== 'verified').length,
+      pending: providers.filter((p) => isPendingProvider(p.verification)).length,
     }
   }, [providers])
 
@@ -106,7 +106,7 @@ export function OverviewTab({
 
   const growth = useMemo(() => buildGrowth(lang, bookings), [lang, bookings])
 
-  const pendingQueue = providers.filter((p) => p.verification !== 'verified')
+  const pendingQueue = providers.filter((p) => isPendingProvider(p.verification))
   const nothingWaiting =
     pendingQueue.length === 0 && suspendedCampaigns === 0 && suspendedUsers === 0
 
@@ -161,8 +161,17 @@ export function OverviewTab({
                 </Button>
                 <Button
                   size="sm"
-                  onClick={() => {
-                    void setProviderVerification(p.id, 'verified')
+                  onClick={async () => {
+                    // The store follows the database rather than racing it. The
+                    // old order — draw the badge, fire the request, ignore the
+                    // answer — left this screen showing a company as verified
+                    // that Postgres had refused to verify, with no way back but
+                    // a reload nobody knew to do.
+                    const result = await setProviderVerification(p.id, 'verified')
+                    if (!result.ok) {
+                      toast(result.error, 'warning')
+                      return
+                    }
                     dispatch({ type: 'setVerification', providerId: p.id, status: 'verified' })
                     toast(t('admin.verifiedToast', { name: bl(p.name) }))
                   }}

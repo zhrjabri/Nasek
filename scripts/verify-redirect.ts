@@ -161,6 +161,24 @@ async function main() {
     parseSignInLink(`${base}?token=notype`)?.type === 'magiclink',
   )
 
+  /*
+   * A link copied out of a rendered email carries HTML entities. The token
+   * survived them; the type did not, and silently became `magiclink`. Since
+   * GoTrue looks a token up by hash *and* type, a perfectly good signup link
+   * was rejected as "invalid or has expired".
+   */
+  const escaped = `${base}?token=abc123hash&amp;type=signup&amp;redirect_to=x`
+  const fromHtml = parseSignInLink(escaped)
+  check(
+    'an HTML-escaped link keeps its type instead of defaulting to magiclink',
+    fromHtml?.type === 'signup' && fromHtml?.tokenHash === 'abc123hash',
+    JSON.stringify(fromHtml),
+  )
+  check(
+    'numeric entities are decoded too',
+    parseSignInLink(`${base}?token=t1&#38;type=recovery`)?.type === 'recovery',
+  )
+
   check('empty input yields nothing', parseSignInLink('') === null)
   check('unrelated text yields nothing', parseSignInLink('hello there') === null)
   check('a URL with no token yields nothing', parseSignInLink('https://nasek.om/#/signin') === null)

@@ -19,9 +19,18 @@ export interface ProviderSignUpInput {
   companyName: string
   tagline: string
   experienceYears: number
-  /** Downscaled permit image, produced by `lib/imageFile.ts`. */
+  /**
+   * Downscaled permit image, produced by `lib/imageFile.ts`.
+   *
+   * The fallback for a browser with no backend, and for anything registered
+   * before the private bucket existed. When `licencePath` is set this is empty
+   * and stays empty: storing the same document twice would mean storing it once
+   * in the place it is not protected.
+   */
   licenceImage: string
   licenceFileName: string
+  /** Object path in the private `provider-licences` bucket, when there is one. */
+  licencePath?: string
 }
 
 /** Registration hands back both records: the login and the company it owns. */

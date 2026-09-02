@@ -1,0 +1,228 @@
+import { supabase } from '@/services/supabase/client'
+
+/**
+ * Passwords, for the two roles that have a reason to hold one.
+ *
+ * NASEK's pilgrims still sign in with a one-time code and nothing else, and
+ * that is not a compromise — for someone who will use this site around one trip
+ * in their life, a password is pure cost, and the "forgot password" flow every
+ * password system needs is *already* the code flow. Nothing below is offered to
+ * a customer.
+ *
+ * Campaign owners and administrators are different, and the difference is how
+ * often and how urgently they sign in. An owner manages a live inventory of
+ * seats; an administrator is the person who gets called when something is
+ * wrong. Making either of them wait on an inbox — with an email provider's
+ * rate limits and delivery delays between them and their own dashboard — is a
+ * bad trade at exactly the wrong moment. A password is a second, independent
+ * route in, and for administrators it is the factor that a TOTP code is a
+ * *second* factor to.
+ *
+ * The one-time code still works for both. It is the recovery path, it is how
+ * accounts created before this existed get in, and removing it would mean an
+ * owner who forgets a password has no way back.
+ */
+
+export type PasswordError =
+  | 'offline'
+  | 'invalid_credentials'
+  | 'email_not_confirmed'
+  | 'weak_password'
+  | 'rate_limited'
+  | 'failed'
+
+/** Minimum length. Supabase enforces its own floor; this is NASEK's, and higher. */
+export const MIN_PASSWORD_LENGTH = 8
+
+/**
+ * Is this a password worth accepting?
+ *
+ * Length only, deliberately. Composition rules ("one capital, one symbol")
+ * measurably push people towards `Password1!` and away from length, which is
+ * the only property that actually costs an attacker anything. Supabase can
+ * additionally check candidates against HaveIBeenPwned — enable
+ * "Leaked password protection" in the dashboard; this returns whatever it says.
+ */
+export function passwordProblem(password: string, confirm?: string): 'short' | 'mismatch' | null {
+  if (password.length < MIN_PASSWORD_LENGTH) return 'short'
+  if (confirm !== undefined && password !== confirm) return 'mismatch'
+  return null
+}
+
+/** Supabase's error text, reduced to something the interface can act on. */
+function classify(message: string): PasswordError {
+  const text = message.toLowerCase()
+  if (/invalid login|invalid credentials|bad credential/.test(text)) return 'invalid_credentials'
+  if (/email not confirmed|not confirmed/.test(text)) return 'email_not_confirmed'
+  if (/password.*(weak|short|least|characters)|pwned|leaked/.test(text)) return 'weak_password'
+  if (/rate|too many|seconds/.test(text)) return 'rate_limited'
+  return 'failed'
+}
+
+// -------------------------------------------------------------- setting one
+
+/**
+ * Set (or replace) the password on the session that is already open.
+ *
+ * Used at the end of a registration that had to fall back to a one-time code —
+ * an owner whose address already had a pilgrim account, for instance. Proving
+ * control of an address is exactly the authority a password reset rests on, so
+ * this grants nothing that the code flow did not already grant.
+ */
+export async function setPassword(password: string): Promise<{ ok: boolean; error?: PasswordError }> {
+  if (!supabase) return { ok: false, error: 'offline' }
+  const { error } = await supabase.auth.updateUser({ password })
+  return error ? { ok: false, error: classify(error.message) } : { ok: true }
+}
+
+// ----------------------------------------------------------------- signing in
+
+export interface PasswordSignInResult {
+  ok: boolean
+  /**
+   * The account has a second factor enrolled and the session is not yet at
+   * `aal2`. The password was correct; it is simply not sufficient on its own.
+   */
+  mfaRequired?: boolean
+  factorId?: string
+  error?: PasswordError
+}
+
+/**
+ * Email and password, then the second factor if the account has one.
+ *
+ * Supabase issues a session at assurance level `aal1` even when a factor is
+ * enrolled, which is easy to misread as "signed in" — the call succeeded, a
+ * token exists, `getSession()` returns it. What it does not do is satisfy any
+ * policy written against `aal2`, and more importantly it is not what the person
+ * asked for when they turned two-factor on.
+ *
+ * `getAuthenticatorAssuranceLevel()` is the honest question: it compares the
+ * level this session *has* against the level this account *should* reach, and
+ * `nextLevel === 'aal2'` while `currentLevel === 'aal1'` is exactly the "one
+ * factor down, one to go" state.
+ */
+export async function signInWithPassword(
+  email: string,
+  password: string,
+): Promise<PasswordSignInResult> {
+  if (!supabase) return { ok: false, error: 'offline' }
+
+  const { error } = await supabase.auth.signInWithPassword({
+    email: email.trim().toLowerCase(),
+    password,
+  })
+  if (error) return { ok: false, error: classify(error.message) }
+
+  const pending = await pendingMfaFactor()
+  return pending ? { ok: false, mfaRequired: true, factorId: pending } : { ok: true }
+}
+
+/**
+ * The factor this session still owes, if any.
+ *
+ * Returns null both when there is no factor and when the session already
+ * satisfies it, because the caller wants the same thing in both cases: let them
+ * through.
+ */
+export async function pendingMfaFactor(): Promise<string | null> {
+  if (!supabase) return null
+
+  const { data: level } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+  if (!level || level.nextLevel !== 'aal2' || level.currentLevel === 'aal2') return null
+
+  const { data: factors } = await supabase.auth.mfa.listFactors()
+  const verified = factors?.totp?.find((f) => f.status === 'verified')
+  return verified?.id ?? null
+}
+
+/** Finish a two-factor sign-in with the code from the authenticator app. */
+export async function verifyMfaCode(
+  factorId: string,
+  code: string,
+): Promise<{ ok: boolean; error?: 'wrong_code' | 'failed' }> {
+  if (!supabase) return { ok: false, error: 'failed' }
+  const { error } = await supabase.auth.mfa.challengeAndVerify({
+    factorId,
+    code: code.replace(/\D/g, ''),
+  })
+  if (!error) return { ok: true }
+  return { ok: false, error: /invalid|incorrect|expired/i.test(error.message) ? 'wrong_code' : 'failed' }
+}
+
+// ------------------------------------------------------------------ enrolling
+
+export interface MfaEnrolment {
+  factorId: string
+  /** `otpauth://` URI — what the QR code encodes. */
+  uri: string
+  /** The same secret in the form somebody can type in by hand. */
+  secret: string
+  /** SVG markup for the QR code, as Supabase returns it. */
+  qrSvg: string
+}
+
+/**
+ * Begin enrolling an authenticator app.
+ *
+ * The factor exists in `unverified` state from this moment and does nothing
+ * until a code from it is confirmed — so an abandoned enrolment cannot lock
+ * anyone out of their own account, which is the failure everyone fears about
+ * two-factor and the reason people put off turning it on.
+ */
+export async function enrolMfa(): Promise<
+  { ok: true; enrolment: MfaEnrolment } | { ok: false; error: string }
+> {
+  if (!supabase) return { ok: false, error: 'offline' }
+
+  // Unverified leftovers from an abandoned attempt would otherwise accumulate,
+  // and Supabase caps how many factors an account may hold.
+  const { data: existing } = await supabase.auth.mfa.listFactors()
+  for (const stale of existing?.all?.filter((f) => f.status === 'unverified') ?? []) {
+    await supabase.auth.mfa.unenroll({ factorId: stale.id })
+  }
+
+  const { data, error } = await supabase.auth.mfa.enroll({
+    factorType: 'totp',
+    friendlyName: `NASEK ${new Date().toISOString().slice(0, 10)}`,
+  })
+  if (error || !data) return { ok: false, error: error?.message ?? 'Enrolment failed' }
+
+  return {
+    ok: true,
+    enrolment: {
+      factorId: data.id,
+      uri: data.totp.uri,
+      secret: data.totp.secret,
+      qrSvg: data.totp.qr_code,
+    },
+  }
+}
+
+/** Confirm an enrolment with the first code the app produces. */
+export async function confirmMfa(
+  factorId: string,
+  code: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!supabase) return { ok: false, error: 'offline' }
+  const { error } = await supabase.auth.mfa.challengeAndVerify({
+    factorId,
+    code: code.replace(/\D/g, ''),
+  })
+  return error ? { ok: false, error: error.message } : { ok: true }
+}
+
+/** Turn two-factor off. Requires a session that already satisfies it. */
+export async function unenrolMfa(factorId: string): Promise<boolean> {
+  if (!supabase) return false
+  const { error } = await supabase.auth.mfa.unenroll({ factorId })
+  return !error
+}
+
+/** Whether this account has a confirmed authenticator, for the settings panel. */
+export async function mfaStatus(): Promise<{ enrolled: boolean; factorId: string | null }> {
+  if (!supabase) return { enrolled: false, factorId: null }
+  const { data } = await supabase.auth.mfa.listFactors()
+  const verified = data?.totp?.find((f) => f.status === 'verified')
+  return { enrolled: !!verified, factorId: verified?.id ?? null }
+}

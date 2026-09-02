@@ -167,6 +167,7 @@ export const en = {
   'campaign.reported': 'Thank you — our team will review this listing.',
   'campaign.similar': 'Similar campaigns',
   'campaign.seatsBar': '{booked} of {total} seats booked',
+  'campaign.saveNeedsAccount': 'Sign in to keep this trip — saved campaigns follow your account, not this browser.',
   'campaign.savedToast': 'Saved to your list',
   'campaign.unsavedToast': 'Removed from your list',
 
@@ -401,7 +402,8 @@ export const en = {
   'auth.registerCompany': 'Register the campaign',
   'auth.providerRegistered': 'Registered — your campaign is awaiting verification',
   'auth.emailInvalid': 'Enter a valid email address',
-  'auth.passwordShort': 'Password must be at least 8 characters',
+  'auth.passwordShort': 'Password must be at least {n} characters',
+  'auth.passwordRejected': 'That password was not accepted.',
   'auth.passwordMismatch': 'Passwords do not match',
   'auth.phoneInvalid': 'Enter a valid Omani phone number',
   'auth.nameRequired': 'Enter your full name',
@@ -411,8 +413,8 @@ export const en = {
   'auth.providerPending':
     'Campaign owner accounts are reviewed by the NASEK team before trips go live.',
   // -------------------------------------------- passwordless sign-in (OTP)
-  'auth.otpTitle': 'Sign in to NASEK',
-  'auth.otpSubtitle': 'Enter your email or phone number. We’ll send you a one-time code.',
+  'auth.otpTitle': 'Welcome to NASEK',
+  'auth.otpSubtitle': 'Your journey starts with the right campaign.',
   'auth.otpJoinNote': 'New to NASEK? The same code creates your account — there is nothing else to fill in.',
   'auth.chooseChannel': 'How would you like to receive your code?',
   'auth.continueEmail': 'Email',
@@ -651,6 +653,47 @@ export const en = {
   'state.notFoundCta': 'Back to home',
   'state.wrongRole': 'This dashboard is for a different account type',
   'state.wrongRoleBody': 'Switch accounts from the sign-in page to continue.',
+  'state.wrongRoleCta': 'Go to your own dashboard',
+
+  // ------------------------------------------------- social and password
+  'auth.or': 'or',
+  'auth.continueGoogle': 'Continue with Google',
+  'auth.googleFailed': 'We could not open Google sign-in. Try the email code instead.',
+  'auth.passwordHint': 'At least {n} characters. Length matters far more than symbols.',
+  'auth.passwordSignInTitle': 'Have a password? Sign in with it',
+  'auth.passwordSignInBody':
+    'Campaign owners and NASEK staff set a password when they register. Pilgrims do not need one — the code above is the way in.',
+  'auth.errEmailUnconfirmed': 'Confirm your email address first. Use the one-time code above.',
+  'auth.mfaPrompt': 'Enter the current code from your authenticator app.',
+  'auth.mfaLabel': 'Authenticator code',
+  'auth.passwordNotSet':
+    'Your account is ready, but the password could not be saved. Sign in with a one-time code and set it from your dashboard.',
+  'auth.licenceUploadFailed': 'Your permit could not be uploaded. Check your connection and try again.',
+  'auth.providerPasswordNote':
+    'Campaign owners get a password because you will sign in often. A one-time code still works, so there is nothing to lose if you forget it.',
+
+  // ------------------------------------------------- campaign owner status
+  'prov.pendingTitle': 'Your campaign is being verified',
+  'prov.pendingSubtitle': 'We are checking your permit',
+  'prov.pendingBody':
+    'Your account has been submitted for verification. Our team will review your information before activating your campaign provider account.',
+  'prov.pendingMeanwhile':
+    'You will be able to publish trips as soon as your permit is approved. Until then your campaign is not visible to pilgrims.',
+  'prov.submittedOn': 'Submitted',
+  'prov.checkAgain': 'Check again',
+  'prov.suspendedTitle': 'This campaign is suspended',
+  'prov.suspendedSubtitle': 'Your trips are not visible on NASEK',
+  'prov.suspendedBody':
+    'A NASEK administrator has suspended this campaign. Your trips have been withdrawn from the site while it is in place.',
+  'prov.rejectedTitle': 'Your application was not approved',
+  'prov.rejectedSubtitle': 'Correct the details below and send it back',
+  'prov.reasonGiven': 'Why it was refused',
+  'prov.reasonMissing': 'No reason was recorded. Contact NASEK and we will explain.',
+  'prov.replaceLicence': 'Replace the permit (optional)',
+  'prov.replaceLicenceHint': 'Leave this empty to resubmit with the permit already on file.',
+  'prov.resubmit': 'Send it back for review',
+  'prov.resubmitted': 'Sent back — your campaign is in the queue again',
+  'prov.contactSupport': 'Contact NASEK',
 } as const
 
 /**

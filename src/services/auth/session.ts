@@ -56,9 +56,19 @@ export interface SessionState {
   user: User | null
   /** Set when the account exists but an administrator has barred it. */
   blocked: 'suspended' | 'removed' | null
+  /**
+   * Whether Supabase holds a session at all, regardless of the profile.
+   *
+   * The distinction matters more than it looks. "No session" and "a session
+   * whose profile could not be read" are the same empty result but opposite
+   * situations: the first means sign the person out, the second means wait.
+   * Collapsing them is what let a freshly created session be thrown away by
+   * the listener that fired to announce it.
+   */
+  hasSession: boolean
 }
 
-const EMPTY: SessionState = { user: null, blocked: null }
+const EMPTY: SessionState = { user: null, blocked: null, hasSession: false }
 
 /**
  * Read the current session and the profile behind it.
@@ -83,13 +93,14 @@ export async function loadSession(): Promise<SessionState> {
 
   // No row is not an error worth surfacing: the sign-up trigger runs a moment
   // after the auth user is created, so the very first load of a brand-new
-  // account can legitimately arrive early.
-  if (error || !data) return EMPTY
+  // account can legitimately arrive early. `hasSession` stays true so callers
+  // know to wait rather than to sign the person out.
+  if (error || !data) return { user: null, blocked: null, hasSession: true }
 
   const row = data as ProfileRow
-  if (row.removed) return { user: null, blocked: 'removed' }
-  if (row.suspended) return { user: null, blocked: 'suspended' }
-  return { user: profileToUser(row), blocked: null }
+  if (row.removed) return { user: null, blocked: 'removed', hasSession: true }
+  if (row.suspended) return { user: null, blocked: 'suspended', hasSession: true }
+  return { user: profileToUser(row), blocked: null, hasSession: true }
 }
 
 /**
@@ -108,11 +119,12 @@ export async function loadSessionSettled(attempts = 6, gapMs = 250): Promise<Ses
     const state = await loadSession()
     if (state.user || state.blocked) return state
     // No point waiting for a profile if there is no session behind it.
-    const { data } = await supabase!.auth.getSession()
-    if (!data.session) return EMPTY
+    if (!state.hasSession) return EMPTY
     await new Promise((r) => setTimeout(r, gapMs))
   }
-  return EMPTY
+  // A session exists but its profile never appeared. Reported as such rather
+  // than as "signed out", so the caller can say something true about it.
+  return { user: null, blocked: null, hasSession: true }
 }
 
 /**

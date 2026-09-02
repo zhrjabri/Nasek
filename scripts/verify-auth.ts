@@ -13,6 +13,7 @@
  * where the mistakes that silently let someone in would live.
  */
 import {
+  EMAIL_OTP_TYPES,
   MAX_OTP_ATTEMPTS,
   cancelOtp,
   isDemoOtp,
@@ -21,6 +22,9 @@ import {
   verifyOtp,
 } from '@/services/auth/otp'
 import { formatPhone, isValidPhone, maskEmail, maskPhone, toE164 } from '@/services/auth/phone'
+import { MIN_PASSWORD_LENGTH, passwordProblem } from '@/services/auth/password'
+import { landingFor, providerLanding } from '@/hooks/useSignIn'
+import type { User, VerificationStatus } from '@/types'
 
 /*
  * `sessionStorage` is a browser API and the fallback keeps its pending code
@@ -114,6 +118,23 @@ async function main() {
 
   console.log('\n--- the one-time code --------------------------------------\n')
 
+  /*
+   * Which template sent the code decides what kind of token it is: a returning
+   * address gets Magic Link (`email`), an unseen one gets Confirm signup
+   * (`signup`), and they are separate records. Checking only `email` failed for
+   * everyone signing in for the first time — and failed with "invalid or
+   * expired", which reads exactly like a mistyped code.
+   */
+  check(
+    'an emailed code is looked up under both token kinds',
+    EMAIL_OTP_TYPES.includes('email') && EMAIL_OTP_TYPES.includes('signup'),
+    EMAIL_OTP_TYPES.join(', '),
+  )
+  check(
+    'the common case is tried first, so a returning visitor costs one round trip',
+    EMAIL_OTP_TYPES[0] === 'email',
+  )
+
   check('this harness is exercising the local fallback', isDemoOtp)
 
   const target = { channel: 'email' as const, value: 'zahra@nasek.om' }
@@ -166,6 +187,78 @@ async function main() {
     'a code abandoned by going back no longer works',
     !(await verifyOtp(target, third.demoCode!)).ok,
   )
+
+  console.log('\n--- passwords, for the two roles that hold one ---------------\n')
+
+  /*
+   * Length only, and no composition rules. Asserted because it is exactly the
+   * sort of policy somebody later "improves" into requiring a symbol — which
+   * measurably pushes people towards `Password1!` and away from length, the one
+   * property that actually costs an attacker anything.
+   */
+  check(
+    'a password shorter than the minimum is refused',
+    passwordProblem('a'.repeat(MIN_PASSWORD_LENGTH - 1)) === 'short',
+  )
+  check(
+    'a password of exactly the minimum is accepted',
+    passwordProblem('a'.repeat(MIN_PASSWORD_LENGTH)) === null,
+  )
+  check(
+    'a long passphrase with no symbols in it is accepted',
+    passwordProblem('correct horse battery staple') === null,
+  )
+  check(
+    'a mismatched confirmation is caught',
+    passwordProblem('a-long-enough-one', 'a-different-one') === 'mismatch',
+  )
+  check(
+    'and a matching one is not',
+    passwordProblem('a-long-enough-one', 'a-long-enough-one') === null,
+  )
+
+  console.log('\n--- where each account lands after signing in ----------------\n')
+
+  const as = (role: User['role']): User => ({
+    id: 'u1',
+    name: 'Test',
+    email: 't@nasek.om',
+    phone: '',
+    role,
+    wilayahId: 'muscat',
+    avatarColor: '#000000',
+    createdAt: '2026-01-01',
+  })
+
+  check('a pilgrim lands on their dashboard', landingFor(as('customer')) === '/dashboard')
+  check('a campaign owner lands on theirs', landingFor(as('provider')) === '/provider')
+  /*
+   * An administrator signing in on the *public* site is signing in as a person.
+   * Administration is a separate application on a separate host; this one has no
+   * dashboard for them and no code to build one from. Sending them to
+   * `/dashboard` and then refusing them there — which the route guard used to do
+   * — is the one genuinely absurd outcome available here, and it happened.
+   */
+  check('an administrator lands where any pilgrim would', landingFor(as('admin')) === '/dashboard')
+
+  const landings: [VerificationStatus, string | null][] = [
+    ['verified', '/provider'],
+    ['pending', '/provider/pending'],
+    // Legacy, and still on rows. Nothing writes it any more; everything has to
+    // keep reading it as "not looked at yet".
+    ['unverified', '/provider/pending'],
+    ['rejected', '/provider/review'],
+    // No route at all: there is nowhere for a suspended owner to go, and
+    // inventing one would send them round a redirect loop.
+    ['suspended', null],
+  ]
+  for (const [status, expected] of landings) {
+    check(
+      `a ${status} company goes to ${expected ?? 'no route, just a message'}`,
+      providerLanding(status) === expected,
+      String(providerLanding(status)),
+    )
+  }
 
   console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} CHECK(S) FAILED`)
   if (failures > 0) process.exitCode = 1

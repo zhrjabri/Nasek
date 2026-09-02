@@ -68,6 +68,14 @@ export interface PersistedState {
    * next load and, worse, showing rows to whoever opens the browser next rather
    * than to whoever the policies said could see them.
    */
+  /**
+   * True once the server has been asked who is signed in.
+   *
+   * Held in the store rather than returned from the hook because several route
+   * guards need it and only one listener should exist. When each guard ran its
+   * own copy, they raced each other over the same session.
+   */
+  authSettled: boolean
   /** True once a snapshot has been loaded, so the catalogue knows to prefer it. */
   remoteReady: boolean
   remoteProviders: Provider[]
@@ -101,6 +109,7 @@ export type Action =
   | { type: 'signInSucceeded'; key: string }
   | { type: 'hydrate'; state: PersistedState }
   | { type: 'hydrateRemote'; snapshot: RemoteSnapshot }
+  | { type: 'setAuthSettled'; settled: boolean }
 
 export const emptyState: PersistedState = {
   user: null,
@@ -119,6 +128,7 @@ export const emptyState: PersistedState = {
   hiddenReviewIds: [],
   credentials: [],
   lockouts: {},
+  authSettled: false,
   remoteReady: false,
   remoteProviders: [],
   remoteCampaigns: [],
@@ -136,6 +146,11 @@ export function reducer(state: PersistedState, action: Action): PersistedState {
        * from the empty shape and lay the stored values on top.
        */
       return { ...emptyState, ...action.state }
+
+    case 'setAuthSettled':
+      return state.authSettled === action.settled
+        ? state
+        : { ...state, authSettled: action.settled }
 
     case 'hydrateRemote':
       /*
@@ -201,6 +216,7 @@ export function reducer(state: PersistedState, action: Action): PersistedState {
         lockouts: state.lockouts,
         // Everything below was fetched under the departing session's policies
         // and is not this browser's to keep.
+        authSettled: true,
         remoteReady: false,
         remoteProviders: [],
         remoteCampaigns: [],
@@ -432,8 +448,14 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
      * leave rows on disk that were fetched under one account's policies and
      * would be read back under whoever opens the browser next.
      */
-    const { remoteReady: _r, remoteProviders: _p, remoteCampaigns: _c, reviews: _v, ...persistable } =
-      state
+    const {
+      authSettled: _a,
+      remoteReady: _r,
+      remoteProviders: _p,
+      remoteCampaigns: _c,
+      reviews: _v,
+      ...persistable
+    } = state
     storage.write(KEY, persistable)
   }, [state, hydrated])
 

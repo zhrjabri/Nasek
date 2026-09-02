@@ -12,7 +12,7 @@
  * A pass here means: the schema is applied, the reference data is seeded, and
  * an unauthenticated holder of the public key can read the catalogue and
  * nothing else. It does not test a signed-in user's view — for that, see
- * docs/SUPABASE.md §7.
+ * docs/SUPABASE.md §8.
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -119,27 +119,62 @@ async function main() {
   await hidden('notifications', 'notifications are closed')
   await hidden('admin_audit', 'the administration audit trail is closed')
 
-  // The permit scan and private contact details live on `providers`, which is
-  // readable — so the check that matters is that the *columns* are not.
+  /*
+   * The permit scans. This is the check that used to lie.
+   *
+   * `providers` holds the uploaded trade permit, the owner's private phone
+   * number and the account id behind the company. The old assertion here read
+   *
+   *     permit.status === 200 || permit.status === 404 || permit.status === 401
+   *
+   * which is every status this request can plausibly return — so it passed
+   * while the table was genuinely world-readable, and went on passing for as
+   * long as it existed. A test that cannot fail is worse than no test: it
+   * occupies the place where the real one would have gone.
+   *
+   * The table must now refuse an anonymous caller outright. `providers_read` is
+   * scoped to the owner and administrators, and SELECT is revoked from `anon`,
+   * so the expected answer is 401 — not an empty array, and certainly not rows.
+   */
   const permit = await rest('providers?select=licence_image&limit=1')
+  const permitBody = await permit.text()
   check(
-    'permit images are not exposed through the public view',
-    permit.status === 200 || permit.status === 404 || permit.status === 401,
-    `HTTP ${permit.status}`,
+    'the providers table itself is closed to the public key',
+    permit.status === 401 || permit.status === 403,
+    `HTTP ${permit.status} ${permitBody.slice(0, 90)}`,
   )
-  const publicCols = await rest('providers_public?select=*&limit=1')
-  if (publicCols.status === 200) {
-    const rows = await publicCols.json()
-    const cols = rows[0] ? Object.keys(rows[0]) : []
-    const leaked = ['licence_image', 'licence_file_name', 'phone', 'email', 'owner_id'].filter((c) =>
-      cols.includes(c),
-    )
+
+  // ...and the view that replaces it must not carry the columns either. Asked
+  // for by name, so this reports the truth even on a project with no owners
+  // registered yet — the old column check silently skipped itself in exactly
+  // that case, which is every fresh project.
+  for (const column of ['licence_image', 'licence_path', 'phone', 'email', 'owner_id']) {
+    const res = await rest(`providers_public?select=${column}&limit=1`)
     check(
-      'the public owner view omits permit, phone, email and owner id',
-      leaked.length === 0,
-      rows.length === 0 ? 'no owners registered yet — column check skipped' : leaked.join(', '),
+      `providers_public has no ${column} column`,
+      res.status !== 200,
+      `HTTP ${res.status}`,
     )
   }
+
+  /*
+   * The bucket the permits moved to.
+   *
+   * A *public* Storage bucket serves every object it holds to anyone who knows
+   * or can guess the path, and no policy undoes that — so the property worth
+   * asserting is the bucket's own flag, not a policy on top of it. The public
+   * object route answers 400 for a private bucket and 404 for a missing object
+   * in a public one, which is the distinction this looks for.
+   */
+  const bucketProbe = await fetch(
+    `${url}/storage/v1/object/public/provider-licences/probe.jpg`,
+    { headers: { apikey: key } },
+  )
+  check(
+    'the provider-licences bucket is not public',
+    bucketProbe.status !== 200 && bucketProbe.status !== 404,
+    `HTTP ${bucketProbe.status}`,
+  )
 
   console.log('\n--- can the public key grant itself anything? ----------------\n')
 
@@ -198,16 +233,61 @@ async function main() {
     }
   }
 
-  // The one that would matter most if it were wrong.
-  const promote = await fetch(`${url}/rest/v1/rpc/promote_to_admin`, {
+  /*
+   * The functions that decide what an account *is*.
+   *
+   * Every one of these changes a role, a verification badge or a company's
+   * standing, and every one is granted to `authenticated` or `service_role`
+   * only. Reachable with the anon key, any of them would be a way to promote
+   * yourself; `set_provider_status` in particular would hand out the "Verified
+   * by NASEK" badge that the entire platform's trust rests on.
+   */
+  for (const [fn, body] of [
+    ['promote_to_admin', { target_email: 'attacker@example.com' }],
+    ['demote_admin', { target_email: 'someone@example.com' }],
+    [
+      'set_provider_status',
+      {
+        p_provider_id: '00000000-0000-0000-0000-000000000000',
+        p_status: 'verified',
+        p_reason: null,
+      },
+    ],
+    ['register_provider', { p_name_ar: 'probe', p_name_en: 'probe' }],
+    ['resubmit_provider', { p_name_ar: 'probe', p_name_en: 'probe' }],
+  ]) {
+    const res = await fetch(`${url}/rest/v1/rpc/${fn}`, {
+      method: 'POST',
+      headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (res.status === 404) {
+      check(`${fn}() exists`, false, 'not found — a migration has not been applied')
+    } else {
+      check(`${fn}() is unreachable with the public key`, res.status !== 200, `HTTP ${res.status}`)
+    }
+  }
+
+  /*
+   * ...and the one that has to answer, because a policy calls it.
+   *
+   * `campaigns_read` asks `provider_approved()` before showing a trip to a
+   * signed-out visitor. Postgres evaluates a policy's whole expression without
+   * promising to short-circuit, so an anonymous caller who cannot execute this
+   * gets a 401 on the entire public catalogue — the exact failure that
+   * 20260901000600 exists to document. It is safe to expose: it reports the
+   * badge already printed on every campaign card.
+   */
+  const approved = await fetch(`${url}/rest/v1/rpc/provider_approved`, {
     method: 'POST',
     headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ target_email: 'attacker@example.com' }),
+    body: JSON.stringify({ target: '00000000-0000-0000-0000-000000000000' }),
   })
+  const approvedBody = await approved.text()
   check(
-    'promote_to_admin() is unreachable with the public key',
-    promote.status !== 200,
-    `HTTP ${promote.status}`,
+    'provider_approved() is callable anonymously, so the catalogue can be read',
+    approved.status === 200 && approvedBody.trim() === 'false',
+    `HTTP ${approved.status} ${approvedBody.slice(0, 40)}`,
   )
 
   console.log('\n--- is sign-in configured? ----------------------------------\n')
@@ -225,7 +305,7 @@ async function main() {
     settings.mailer_autoconfirm ? 'mailer_autoconfirm is ON — anyone can claim any address' : '',
   )
   if (settings.external?.phone !== true) {
-    console.log('SKIP  phone sign-in is not configured (expected — see docs/SUPABASE.md §5)')
+    console.log('SKIP  phone sign-in is not configured (expected — see docs/SUPABASE.md §6)')
   } else {
     check('phone sign-in is enabled', true)
   }

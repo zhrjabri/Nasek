@@ -5,6 +5,8 @@ import { useStore } from '@/store/AppStore'
 import { useSessionSync } from '@/hooks/useSessionSync'
 import { useAuthRedirect } from '@/hooks/useAuthRedirect'
 import { useRemoteData } from '@/hooks/useRemoteData'
+import { useCatalogue } from '@/hooks/useCatalogue'
+import { landingFor, providerLanding } from '@/hooks/useSignIn'
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
 import { ToastHost } from '@/components/layout/ToastHost'
@@ -25,6 +27,11 @@ import {
   SignUpPage,
 } from '@/pages/AuthPages'
 import { ProviderSignUpPage } from '@/pages/ProviderSignUpPage'
+import {
+  ProviderPendingPage,
+  ProviderReviewPage,
+  ProviderSuspendedPage,
+} from '@/pages/ProviderStatusPages'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { GivingPage } from '@/pages/GivingPage'
 import { AboutPage } from '@/pages/AboutPage'
@@ -68,7 +75,17 @@ function ScrollToTop() {
  * Worth being precise about what this does and does not do. It decides what to
  * render. It does not decide what data anyone may read — that is settled by
  * row-level security in Postgres, before a row is returned, and would still be
- * settled there if every line of this function were deleted.
+ * settled there if every line of this function were deleted. Typing
+ * `/provider` as a pilgrim gets you a message; it never got you anyone's
+ * bookings, because the bookings were never sent.
+ *
+ * An administrator is admitted to `/dashboard` alongside customers, and that is
+ * a fix rather than a loophole. Administration lives on another host entirely;
+ * on *this* site an administrator is a person with an account like anyone
+ * else's, and `landingFor` has always sent them here. Refusing them produced
+ * the one genuinely absurd outcome the old guard could manage — signed in
+ * successfully, redirected to `/dashboard`, and told the dashboard was for a
+ * different kind of account.
  */
 function Protected({
   role,
@@ -77,10 +94,9 @@ function Protected({
   role?: 'customer' | 'provider'
   children: React.ReactNode
 }) {
-  const { user } = useStore()
+  const { user, authSettled } = useStore()
   const { t } = useI18n()
   const location = useLocation()
-  const settled = useSessionSync()
 
   /*
    * Wait for the server's answer before acting on the stored one.
@@ -91,25 +107,86 @@ function Protected({
    * that looked like theirs. Holding a blank frame for one round trip is a
    * better lie than a page that has to be taken back.
    */
-  if (!settled) return <div className="min-h-[60dvh]" />
+  if (!authSettled) return <div className="min-h-[60dvh]" />
 
   if (!user) {
     return (
       <Navigate to={`/signin?next=${encodeURIComponent(location.pathname + location.search)}`} replace />
     )
   }
-  if (role && user.role !== role) {
+
+  const allowed = !role || user.role === role || (role === 'customer' && user.role === 'admin')
+  if (!allowed) {
     return (
       <main className="mx-auto max-w-3xl px-4 py-20 sm:px-6">
         <EmptyState
           title={t('state.wrongRole')}
           body={t('state.wrongRoleBody')}
-          action={<LinkButton to="/signin">{t('nav.signIn')}</LinkButton>}
+          action={<LinkButton to={landingFor(user)}>{t('state.wrongRoleCta')}</LinkButton>}
         />
       </main>
     )
   }
   return <>{children}</>
+}
+
+/**
+ * The three doors behind `/provider`, and which one is open.
+ *
+ * A campaign owner's account exists from the moment they register, but their
+ * *company* moves through review — pending, approved, refused, suspended — and
+ * each of those is a genuinely different screen rather than a different message
+ * on the same one. Splitting them into addresses (`/provider`,
+ * `/provider/pending`, `/provider/review`) is what lets the owner's own
+ * navigation, a bookmark and a link in an email all land somewhere that makes
+ * sense.
+ *
+ * This decides only which of those to *show*. What an unapproved company can
+ * actually do is decided in Postgres: `campaigns_read` withholds their trips
+ * from the public catalogue, so an owner who bypasses this component entirely
+ * still cannot publish. The screen and the policy agree, and the policy is the
+ * one that holds.
+ */
+function ProviderGate({
+  expect,
+  children,
+}: {
+  /** Which state this route is *for*. Any other state redirects to its own. */
+  expect: 'approved' | 'pending' | 'rejected'
+  children: React.ReactNode
+}) {
+  const { user } = useStore()
+  const { getProvider } = useCatalogue()
+
+  const provider = user?.providerId ? getProvider(user.providerId) : undefined
+
+  /*
+   * An owner whose company row has not arrived yet is treated as approved and
+   * shown the dashboard.
+   *
+   * The alternative — assume the worst and show "awaiting verification" — is
+   * wrong far more often: the snapshot lands a beat after the session on every
+   * single page load, so every approved owner would see a queue-shaped screen
+   * flash before their own dashboard. There is nothing to protect by guessing,
+   * because the dashboard an unapproved owner would briefly see is empty by
+   * policy — `campaigns_read` withholds their trips from the public catalogue
+   * whatever this component draws.
+   */
+  const destination = provider ? providerLanding(provider.verification) : '/provider'
+
+  // No destination means suspended: the one state with no route, because there
+  // is nowhere for a suspended owner to go and pretending otherwise would send
+  // them round a redirect loop.
+  if (!destination) return <ProviderSuspendedPage provider={provider} />
+  if (destination === EXPECTED_ROUTE[expect]) return <>{children}</>
+  return <Navigate to={destination} replace />
+}
+
+/** Which address each of this component's three modes owns. */
+const EXPECTED_ROUTE: Record<'approved' | 'pending' | 'rejected', string> = {
+  approved: '/provider',
+  pending: '/provider/pending',
+  rejected: '/provider/review',
 }
 
 /**
@@ -213,9 +290,36 @@ export function App() {
             path="/provider"
             element={
               <Protected role="provider">
-                <Suspense fallback={<RouteFallback />}>
-                  <ProviderDashboardPage />
-                </Suspense>
+                <ProviderGate expect="approved">
+                  <Suspense fallback={<RouteFallback />}>
+                    <ProviderDashboardPage />
+                  </Suspense>
+                </ProviderGate>
+              </Protected>
+            }
+          />
+          {/* Registered, in the queue, nothing to do but wait — and a screen
+              that says exactly that beats a dashboard with every control
+              disabled and no explanation of why. */}
+          <Route
+            path="/provider/pending"
+            element={
+              <Protected role="provider">
+                <ProviderGate expect="pending">
+                  <ProviderPendingPage />
+                </ProviderGate>
+              </Protected>
+            }
+          />
+          {/* Refused. Shows the reason and the form to correct it, because a
+              refusal an owner cannot act on is just a dead end with wording. */}
+          <Route
+            path="/provider/review"
+            element={
+              <Protected role="provider">
+                <ProviderGate expect="rejected">
+                  <ProviderReviewPage />
+                </ProviderGate>
               </Protected>
             }
           />

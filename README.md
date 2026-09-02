@@ -34,7 +34,7 @@ and it says so in a banner rather than pretending otherwise. See
 | `npm run preview` / `preview:admin` | Serve a production build |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run verify` | All 163 checks below |
-| `npm run verify:auth` | Phone normalisation and the one-time-code lifecycle |
+| `npm run verify:auth` | Phone normalisation, the one-time-code lifecycle, password rules, and where each role lands |
 | `npm run verify:isolation` | That no administration code reached the public bundle |
 | `npm run verify:journeys` | Owner → pilgrim → admin, end to end |
 | `npm run verify:ai` | The intelligence layer against fixed inputs |
@@ -42,9 +42,20 @@ and it says so in a banner rather than pretending otherwise. See
 
 ### Signing in
 
-There are no demo accounts and no passwords. Type an email address or an Omani
-phone number and prove you received the message — that is the whole of it, for
-a first-time pilgrim and a returning one alike.
+There are no demo accounts. A pilgrim needs no password at all: type an email
+address or an Omani phone number and prove you received the message — that is
+the whole of it, for a first-time pilgrim and a returning one alike. Where the
+project has Google configured, **Continue with Google** appears above it and
+skips even that; the button stays hidden when it is not, because an OAuth
+provider that is not enabled fails by throwing the person out of the site.
+
+Campaign owners and administrators *do* set a password, and the reason is how
+often they sign in. An owner runs a live inventory of seats and an administrator
+is who gets called when something is wrong — putting an email provider's
+delivery time between either of them and their own dashboard is a bad trade at
+exactly the wrong moment. The one-time code still works for both, and is the
+recovery path. Administrators can additionally enrol an authenticator app from
+**Security** in the dashboard sidebar, and should.
 
 What arrives depends on the project's email templates, and NASEK accepts either:
 a **six-digit code** to type, or a **sign-in link** to click. Supabase's default
@@ -71,9 +82,11 @@ compare up to 3 → 4-step booking → confirmation with reference → dashboard
 **Campaign owner** — Register as owner → dashboard → add a trip → it appears
 immediately in the public listing, map and search → manage bookings → analytics.
 
-**Admin** — On its own host: sign in with a one-time code → Postgres confirms
-the account holds the role → verification queue → verify a provider → the
-"Verified by NASEK" badge appears across every listing.
+**Admin** — On its own host: email and password, plus an authenticator code
+where the account has one enrolled → Postgres confirms the account holds the
+role → verification queue → read the permit → approve, or refuse with a reason
+the owner reads word for word and can correct → the "Verified by NASEK" badge
+appears across every listing, and the owner's trips become visible at all.
 
 **Smart Match** — up to 7 questions, every one skippable → weighted scoring →
 ranked matches with the reasons *and* the trade-offs behind each score.
@@ -217,7 +230,7 @@ would return. The API key must live on that server route — never in this bundl
 | Campaigns, bookings, reviews, notifications, saved trips | **Still `localStorage`, per browser.** The tables exist, are indexed and are policy-protected — the app does not read or write them yet | Move `useCatalogue` and the booking path onto Postgres |
 | Admin moderation (verify, suspend, feature) | **Still `localStorage`.** A decision is invisible to any other browser | Same |
 | Transport | `services/api/client.ts` adds 180–520 ms latency and can fail on demand | `fetch` against the real API |
-| Auth | **Real.** Supabase Auth, one-time codes, no passwords anywhere | Configure your own SMTP; add an SMS provider for phone codes |
+| Auth | **Real.** Supabase Auth: one-time codes for pilgrims, passwords plus optional TOTP for owners and administrators, Google when the project has it | Configure your own SMTP; add an SMS provider for phone codes; enable Google |
 | Authorisation | **Real.** Postgres row-level security, evaluated before any row is returned | — |
 | Payments | "Simulate payment" button; no card fields collect anything | Thawani or another licensed Omani gateway, server-side |
 | Persistence | `localStorage`, per browser | Server-side, per account |
@@ -236,9 +249,11 @@ would return. The API key must live on that server route — never in this bundl
    the columns exist, the transaction does not.
 2. **Encrypt traveller documents.** `travellers.civil_id` and `passport_no` are
    protected by policy but stored in plain text. `pgsodium` is the next step.
-3. **Move permit images to Storage.** `providers.licence_image` holds a data URL
-   because the prototype had nowhere else to put it; a bucket with short-lived
-   signed URLs is where it belongs.
+3. **Retire the last data-URL permits.** New registrations upload to the
+   private `provider-licences` bucket and an administrator opens one through a
+   signed URL that expires; rows created before 2026-09-02 still carry a base64
+   data URL in `providers.licence_image`, now readable only by their owner and
+   by administrators.
 4. **Hosted AI** behind `RemoteAIProvider`, keeping the deterministic local
    provider as the offline fallback and as the test oracle.
 6. **The wearables** from the original plan — the NASEK watch (prayer times,

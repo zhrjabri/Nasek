@@ -24,7 +24,12 @@
 export type UserRole = 'customer' | 'provider' | 'admin'
 export type CampaignTypeRow = 'hajj' | 'umrah'
 export type TravelMethodRow = 'air' | 'land'
-export type VerificationStatusRow = 'verified' | 'pending' | 'unverified'
+export type VerificationStatusRow =
+  | 'verified'
+  | 'pending'
+  | 'rejected'
+  | 'suspended'
+  | 'unverified'
 export type BookingStatusRow = 'pending' | 'confirmed' | 'completed' | 'cancelled'
 export type ProviderPlanRow = 'basic' | 'plus' | 'premium'
 export type NotificationKindRow = 'booking' | 'trip' | 'availability' | 'system'
@@ -75,6 +80,9 @@ export type ProviderRow = {
   joined_at: string
   licence_image: string | null
   licence_file_name: string | null
+  licence_path: string | null
+  rejection_reason: string | null
+  submitted_at: string | null
   verified_by: string | null
   verified_at: string | null
   created_at: string
@@ -94,6 +102,9 @@ export type ProviderPublicRow = Omit<
   | 'email'
   | 'licence_image'
   | 'licence_file_name'
+  | 'licence_path'
+  | 'rejection_reason'
+  | 'submitted_at'
   | 'verified_by'
   | 'verified_at'
   | 'created_at'
@@ -229,6 +240,7 @@ export type Database = {
       is_admin: { Args: Record<string, never>; Returns: boolean }
       owns_provider: { Args: { target: string }; Returns: boolean }
       owns_campaign: { Args: { target: string }; Returns: boolean }
+      provider_approved: { Args: { target: string }; Returns: boolean }
       register_provider: {
         Args: {
           p_name_ar: string
@@ -242,6 +254,32 @@ export type Database = {
           p_brand_color?: string
           p_licence_image?: string | null
           p_licence_file_name?: string | null
+          p_licence_path?: string | null
+        }
+        Returns: ProviderRow
+      }
+      /** A refused application, corrected and pushed back into the queue. */
+      resubmit_provider: {
+        Args: {
+          p_name_ar: string
+          p_name_en: string
+          p_tagline?: string
+          p_wilayah_id?: string | null
+          p_experience_years?: number
+          p_phone?: string | null
+          p_email?: string | null
+          p_licence_image?: string | null
+          p_licence_file_name?: string | null
+          p_licence_path?: string | null
+        }
+        Returns: ProviderRow
+      }
+      /** An administrator's decision, with the reason attached to the same row. */
+      set_provider_status: {
+        Args: {
+          p_provider_id: string
+          p_status: VerificationStatusRow
+          p_reason?: string | null
         }
         Returns: ProviderRow
       }

@@ -1,5 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useState } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { isPendingProvider } from '@/types'
 import { useI18n } from '@/i18n'
 import { useStore } from '@/store/AppStore'
 import { useCatalogue } from '@/hooks/useCatalogue'
@@ -16,6 +17,7 @@ import { OwnersTab } from './tabs/OwnersTab'
 import { CampaignsTab } from './tabs/CampaignsTab'
 import { BookingsTab } from './tabs/BookingsTab'
 import { ReviewsTab } from './tabs/ReviewsTab'
+import { SecurityTab } from './tabs/SecurityTab'
 
 /*
  * The sign-in screen is split out and lazily loaded for the same reason the
@@ -132,7 +134,7 @@ function AdminRoutes() {
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
   }, [pathname])
 
-  const pendingOwners = providers.filter((p) => p.verification !== 'verified').length
+  const pendingOwners = providers.filter((p) => isPendingProvider(p.verification)).length
   const suspendedUsers = suspendedUserIds.filter((id) => !removedUserIds.includes(id)).length
 
   // Keyed by path so the shell needs no knowledge of what a section contains.
@@ -176,6 +178,7 @@ function AdminRoutes() {
         />
         <Route path="/bookings" element={<BookingsTab campaigns={adminCampaigns} />} />
         <Route path="/reviews" element={<ReviewsTab campaigns={adminCampaigns} />} />
+        <Route path="/security" element={<SecurityTab />} />
         {/* An unknown address inside the dashboard is a mistyped bookmark, not
             an intrusion — there is nothing to conceal from someone already
             through the gate, so it lands on the overview. */}

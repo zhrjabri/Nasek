@@ -38,6 +38,15 @@ const header = `-- =============================================================
 -- once. Every statement is written to be safely re-runnable, so if it stops
 -- part way you can fix the cause and run the whole thing again.
 --
+-- ONE THING THAT CAN GO WRONG HERE AND NOWHERE ELSE
+--
+-- The SQL Editor runs everything below as a single implicit transaction, while
+-- \`supabase db push\` runs each file in its own. Postgres will not let a value
+-- added to an enum be *used* in the transaction that added it — so if it stops
+-- with "unsafe use of new value of enum type", run
+-- 20260902000100_provider_status_values.sql on its own first, then this file
+-- again. Nothing is lost by doing that: every statement is re-runnable.
+--
 -- Source files, in order:
 ${files.map((f, i) => `--   ${i + 1}. ${f}`).join('\n')}
 -- =============================================================================

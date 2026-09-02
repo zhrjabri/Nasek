@@ -30,6 +30,18 @@ const url = import.meta.env.VITE_SUPABASE_URL?.trim()
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim()
 
 /**
+ * The two values, re-exported for the one thing the client cannot answer.
+ *
+ * `GET /auth/v1/settings` reports which sign-in methods a project actually has
+ * configured, and supabase-js has no method for it — see
+ * `services/auth/oauth.ts`, which uses it to decide whether "Continue with
+ * Google" is a button that would work or a button that would fail. Both are
+ * public: the key is compiled into every visitor's bundle by design.
+ */
+export const supabaseUrl = url ?? ''
+export const supabaseAnonKey = anonKey ?? ''
+
+/**
  * Storage key for the auth session.
  *
  * The public site and the administration dashboard are separate deployments on

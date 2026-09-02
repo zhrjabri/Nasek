@@ -21,9 +21,11 @@ enough to start) and, for SMS, a Twilio account (which is not free).
 
 ## 2. Apply the migrations
 
-The four files in `supabase/migrations/` are the whole schema, its security
-policies, the reference data and the administrator tooling. They are ordered by
-filename and must be applied in that order.
+The files in `supabase/migrations/` are the whole schema, its security
+policies, the reference data, the administrator tooling, the booking
+transaction, the provider verification workflow and the private bucket the
+trade permits live in. They are ordered by filename and must be applied in that
+order.
 
 **With the CLI** (recommended — it records what has been applied):
 
@@ -34,9 +36,17 @@ supabase link --project-ref <your-project-ref>   # from the dashboard URL
 supabase db push
 ```
 
-**Without the CLI:** open the dashboard → **SQL Editor**, then paste and run
-each file in `supabase/migrations/` in filename order. Every statement is
-written to be safely re-runnable, so a partial application can be repeated.
+**Without the CLI:** run `npm run db:bundle`, then paste
+`supabase/all-migrations.sql` into the dashboard → **SQL Editor**. Every
+statement is written to be safely re-runnable, so a partial application can be
+repeated.
+
+One thing can go wrong on that path and nowhere else. The SQL Editor runs the
+whole paste as a single transaction, and Postgres will not let a value added to
+an enum be *used* in the transaction that added it. If it stops with **"unsafe
+use of new value of enum type"**, run
+`20260902000100_provider_status_values.sql` on its own first and then paste the
+bundle again — nothing is lost by repeating it.
 
 Check it worked:
 
@@ -48,6 +58,18 @@ where schemaname = 'public' order by tablename;
 Every row must show `rowsecurity = true`. If any table shows `false`, stop and
 re-run `20260901000200_rls_policies.sql` — a table without RLS is readable by
 anyone holding the anon key, which is everyone.
+
+Then check the one that was wrong until 2026-09-02:
+
+```sql
+select grantee, privilege_type from information_schema.role_table_grants
+where table_name = 'providers' and grantee in ('anon', 'authenticated');
+```
+
+`anon` must not appear. The trade permits, the owners' private phone numbers
+and the account ids behind every company live on that table; `providers_public`
+is what a signed-out visitor reads instead. `npm run verify:backend` asserts
+this from outside, with the same key a browser gets.
 
 ## 3. Point the applications at it
 
@@ -128,7 +150,50 @@ work, and doing so also unlocks template editing. Until then, sign-ins start
 failing silently under any real traffic, and the symptom is a message that
 simply never arrives.
 
-## 5. Phone codes (optional)
+## 5. Continue with Google (optional, recommended)
+
+The sign-in screen shows a **Continue with Google** button only when the
+project actually has Google configured. That is not a feature flag in this
+repository — `src/services/auth/oauth.ts` asks the project's own
+`/auth/v1/settings` on load — so enabling it in the dashboard makes the button
+appear with no rebuild and nothing here to fall out of step.
+
+It is conditional because an unconfigured provider does not fail politely: the
+browser leaves NASEK, Supabase answers "provider is not enabled", and the
+person comes back to an error page having done nothing wrong.
+
+1. **Google Cloud Console** → *APIs & Services* → *Credentials* → **Create
+   credentials → OAuth client ID** → *Web application*.
+2. Authorised redirect URI — exactly this, from your Supabase project:
+
+   ```
+   https://<project-ref>.supabase.co/auth/v1/callback
+   ```
+
+3. Copy the client ID and secret into Supabase → **Authentication → Providers →
+   Google** → enable, paste, save.
+4. Add both applications' URLs to **Authentication → URL Configuration →
+   Redirect URLs**, including the development ones:
+
+   ```
+   http://localhost:5173/
+   http://localhost:5174/
+   https://<your public site>/
+   https://<your admin site>/
+   ```
+
+   NASEK computes its own redirect target from the page it is running on
+   (`authRedirectTarget()` — origin plus pathname), so the public site returns
+   to the public site and the dashboard to the dashboard. An address that is not
+   on this list is silently replaced by the Site URL, which for a
+   two-application project is wrong half the time.
+
+A Google account arrives as an ordinary `auth.users` row. `handle_new_user`
+gives it a profile with the role hard-coded to `customer`, exactly like an
+emailed code — signing in with Google is a different way of proving an address,
+not a different kind of account.
+
+## 6. Phone codes (optional)
 
 NASEK's sign-in screen offers **Continue with Phone** and the whole code path
 behind it is written and working. What is not configured is delivery, because
@@ -149,7 +214,7 @@ Nothing needs to change in the code. `src/services/auth/otp.ts` already calls
 `signInWithOtp({ phone })` and verifies with `type: 'sms'`; it starts working
 the moment the provider is configured.
 
-## 6. Create the first administrator
+## 7. Create the first administrator
 
 There is deliberately no way to do this from either application. No "create
 admin" screen, no role selector on any form, and the sign-up trigger hard-codes
@@ -182,7 +247,21 @@ Editor and the CLI run as. Calling it with the anon key — from either app, or
 from a script someone writes — is a permission error, not a check that happens
 to fail.
 
-## 7. Check the security actually holds
+### Then set a password and turn on two-factor
+
+The administration dashboard signs in with **email and password**, with the
+one-time code kept as the recovery path. A newly promoted administrator has no
+password yet, so the first sign-in uses the code; after that, **Security** in
+the sidebar sets one.
+
+The same screen enrols an authenticator app (TOTP — Google Authenticator,
+1Password, Aegis, any of them). Do it. An administration account can suspend a
+company, hide a review and read every booking on the platform; it is the single
+most valuable credential NASEK has, and a password on its own is one phishing
+email away from all of it. Nothing needs buying — Supabase supports TOTP on
+every plan.
+
+## 8. Check the security actually holds
 
 Worth doing once, because "I wrote policies" and "the policies work" are
 different claims.
@@ -222,16 +301,20 @@ to that account anyway.
 - **Backups.** Supabase's free tier keeps daily backups for a limited window.
   Check the retention on your plan against what losing a week of bookings would
   cost.
-- **Seat concurrency.** `docs/DATA-MODEL.md` describes the race: two people
-  booking the last seat at once. The schema has the columns; the booking path
-  still needs to be a single transaction that locks the campaign row,
-  re-checks, decrements and inserts. Until then `seats_available` can go wrong
-  under load.
+- **Google sign-in.** Section 5 above. Optional, but it is the fastest way in
+  for most pilgrims and the button stays hidden until you configure it.
 - **Encrypt traveller documents.** `travellers.civil_id` and `passport_no` are
   personal data, protected by policy but stored in plain text. `pgsodium` or
   application-side encryption is the next step.
-- **Move permit images to Storage.** `providers.licence_image` holds a data URL
-  because the prototype had nowhere else to put it. A bucket with short-lived
-  signed URLs is where it belongs.
+- **Old permit images.** New registrations upload to the private
+  `provider-licences` bucket and store only an object path; an administrator
+  opens one through a signed URL that expires in ten minutes. Rows created
+  before 2026-09-02 still carry a base64 data URL in
+  `providers.licence_image`, readable now only by their owner and by
+  administrators. Nothing breaks if you leave them, but moving them into the
+  bucket and clearing the column is the tidier end state.
+- **Leaked-password protection.** **Authentication → Policies** can check every
+  new password against HaveIBeenPwned. It costs nothing and NASEK surfaces
+  whatever it says; it is off by default.
 - **Rate limits.** Check **Authentication → Rate Limits** against your expected
   sign-in volume; the defaults are conservative.

@@ -91,6 +91,14 @@ export function OtpFlow({
   const [link, setLink] = useState('')
   const [linkOpen, setLinkOpen] = useState(false)
   const [linkError, setLinkError] = useState<MessageKey | null>(null)
+  /*
+   * What the server actually said, shown under the friendly message.
+   *
+   * A category alone ("that link has expired") is a guess about why. When the
+   * guess is wrong there is nothing left to work with, which is exactly how a
+   * failing sign-in becomes unreportable.
+   */
+  const [linkDetail, setLinkDetail] = useState<string | null>(null)
   const liveRef = useRef(true)
 
   useEffect(() => {
@@ -173,6 +181,7 @@ export function OtpFlow({
    */
   const submitLink = async () => {
     setLinkError(null)
+    setLinkDetail(null)
     if (!link.trim()) {
       setLinkError('auth.pasteLinkEmpty')
       return
@@ -188,6 +197,7 @@ export function OtpFlow({
 
     if (outcome.kind !== 'signed-in') {
       setBusy(false)
+      setLinkDetail(outcome.kind === 'error' ? (outcome.detail ?? null) : null)
       setLinkError(
         outcome.kind === 'error' && outcome.reason === 'expired'
           ? 'auth.linkExpired'
@@ -406,6 +416,11 @@ export function OtpFlow({
                   />
                 )}
               </Field>
+              {linkDetail && (
+                <p className="nums break-words rounded-[3px] bg-ivory-200 p-2 text-2xs text-ink-500" dir="ltr">
+                  {linkDetail}
+                </p>
+              )}
               <Button
                 type="button"
                 variant="secondary"

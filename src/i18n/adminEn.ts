@@ -176,6 +176,56 @@ export const adminEn = {
   'admin.localModeBody':
     'This dashboard is running against data held in this browser only. The passphrase below is the prototype gate; it is not a security control. Configure Supabase for real, server-enforced administration.',
   'admin.sectionCount': '{n} in this section',
+
+  // -------------------------------------------------- verification queue
+  'admin.approve': 'Approve',
+  'admin.reject': 'Refuse',
+  'admin.suspend': 'Suspend',
+  'admin.restore': 'Restore',
+  'admin.rejected': 'Refused',
+  'admin.suspendedFilter': 'Suspended',
+  'admin.rejectBody':
+    'The owner sees this reason word for word, and can correct their application and send it back. Say what is wrong with the permit or the details.',
+  'admin.suspendBody':
+    'Suspending withdraws every trip this campaign has published. The owner sees this reason and cannot undo the suspension themselves.',
+  'admin.reasonLabel': 'Reason',
+  'admin.reasonHint': 'Written to the campaign owner. Be specific enough to act on.',
+  'admin.reasonRequired': 'A reason is required — the owner cannot fix what they were not told.',
+  'admin.rejectedToast': '{name} was refused, and has been told why',
+  'admin.suspendedToast': '{name} has been suspended',
+
+  // --------------------------------------------------- the admin account
+  'admin.security': 'Security',
+  'admin.groupAccount': 'Your account',
+  'admin.securityTitle': 'Your administrator account',
+  'admin.securityBody':
+    'An administration account can suspend a campaign, hide a review and read every booking. It is the most valuable credential on NASEK — treat it as one.',
+  'admin.securityLocalMode':
+    'Passwords and two-factor need a Supabase project. This dashboard is running against data held in this browser only.',
+  'admin.useCodeInstead': 'Sign in with a one-time code instead',
+  'admin.mfaOnTitle': 'Two-factor is on',
+  'admin.mfaOnBody':
+    'Signing in needs your password and a code from your authenticator app. A stolen password on its own gets nobody in.',
+  'admin.mfaTurnOff': 'Turn two-factor off',
+  'admin.mfaRemoved': 'Two-factor is off',
+  'admin.mfaRemoveFailed': 'That could not be removed. Sign in again and retry.',
+  'admin.mfaOffTitle': 'Two-factor is off',
+  'admin.mfaOffBody':
+    'Add an authenticator app so a password alone is not enough to open this dashboard. Takes about a minute.',
+  'admin.mfaTurnOn': 'Turn two-factor on',
+  'admin.mfaSetupTitle': 'Scan this with your authenticator',
+  'admin.mfaSetupBody':
+    'Google Authenticator, 1Password, Aegis — any of them. Then type the six digits it shows to confirm. Nothing changes until you do.',
+  'admin.mfaSecret': 'Or type this key in by hand',
+  'admin.mfaConfirmLabel': 'Code from the app',
+  'admin.mfaConfirm': 'Confirm and turn on',
+  'admin.mfaWrongCode': 'That code was not accepted. Codes change every 30 seconds — try the current one.',
+  'admin.mfaEnabled': 'Two-factor is on',
+  'admin.passwordTitle': 'Password',
+  'admin.passwordBody': 'Changes the password this dashboard is opened with. Takes effect immediately.',
+  'admin.passwordSave': 'Save password',
+  'admin.passwordSaved': 'Password saved',
+  'admin.passwordFailed': 'That password was not accepted. Try a longer one.',
 }
 
 export type AdminMessageKey = keyof typeof adminEn

@@ -3,6 +3,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   Building2,
   Globe,
+  KeyRound,
   LayoutGrid,
   LogOut,
   MessageSquare,
@@ -35,7 +36,7 @@ export interface AdminSection {
   key: MessageKey
   icon: typeof LayoutGrid
   /** Which group of the sidebar this belongs under. */
-  group: 'platform' | 'people' | 'catalogue'
+  group: 'platform' | 'people' | 'catalogue' | 'account'
 }
 
 export const ADMIN_SECTIONS: AdminSection[] = [
@@ -45,15 +46,21 @@ export const ADMIN_SECTIONS: AdminSection[] = [
   { to: '/campaigns', key: 'admin.campaigns', icon: Ticket, group: 'catalogue' },
   { to: '/bookings', key: 'admin.bookings', icon: Users, group: 'catalogue' },
   { to: '/reviews', key: 'admin.reviews', icon: MessageSquare, group: 'catalogue' },
+  // Its own group at the bottom, because it is the only section that is about
+  // the administrator rather than about the platform — and because two-factor
+  // is the sort of thing people turn on when they notice it, not when they go
+  // looking for it.
+  { to: '/security', key: 'admin.security', icon: KeyRound, group: 'account' },
 ]
 
 const GROUP_LABEL: Record<AdminSection['group'], MessageKey> = {
   platform: 'admin.groupPlatform',
   people: 'admin.groupPeople',
   catalogue: 'admin.groupCatalogue',
+  account: 'admin.groupAccount',
 }
 
-const GROUP_ORDER: AdminSection['group'][] = ['platform', 'people', 'catalogue']
+const GROUP_ORDER: AdminSection['group'][] = ['platform', 'people', 'catalogue', 'account']
 
 export function AdminShell({
   badges,

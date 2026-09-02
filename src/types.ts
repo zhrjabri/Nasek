@@ -22,7 +22,33 @@ export type CampaignType = 'hajj' | 'umrah'
 /** Travel route — mirrors the original plan's "مسار جوي أو بري". */
 export type TravelMethod = 'air' | 'land'
 
-export type VerificationStatus = 'verified' | 'pending' | 'unverified'
+/**
+ * Where a campaign owner stands with NASEK.
+ *
+ * `verified` is the approved state and keeps its original name because it is
+ * the word on the badge a pilgrim sees. `rejected` and `suspended` were added
+ * once refusal needed to be distinguishable from "not looked at yet" —
+ * `pending` was doing both jobs, and an owner could not tell which one they
+ * were in. `unverified` is legacy: nothing writes it, and everything treats it
+ * exactly as `pending`.
+ */
+export type VerificationStatus =
+  | 'verified'
+  | 'pending'
+  | 'rejected'
+  | 'suspended'
+  | 'unverified'
+
+/**
+ * Waiting on a decision from NASEK — the verification queue, exactly.
+ *
+ * Not the same as "not approved", which is what every count in the admin
+ * dashboard used to mean by it. A refused application and a suspended company
+ * are also not approved, and neither is waiting for anything: counting them as
+ * pending meant the queue badge never reached zero and stopped being read.
+ */
+export const isPendingProvider = (status: VerificationStatus) =>
+  status === 'pending' || status === 'unverified'
 
 export type BookingStatus =
   | 'pending'
@@ -89,6 +115,18 @@ export interface Provider {
   licenceImage?: string
   /** Original file name, shown to the admin next to the image. */
   licenceFileName?: string
+  /**
+   * Object path in the private `provider-licences` bucket.
+   *
+   * Not a URL, and deliberately: the bucket is private, so the only way to see
+   * the file is a signed URL minted per view and valid for minutes. Storing a
+   * URL would mean storing one that stops working.
+   */
+  licencePath?: string
+  /** An administrator's reason for refusing or suspending. Shown to the owner. */
+  rejectionReason?: string
+  /** When the current application entered the queue. Resets on resubmission. */
+  submittedAt?: string
 }
 
 export interface Campaign {

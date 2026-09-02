@@ -25,9 +25,9 @@ import { wilayahName } from '@/data/geo'
 import { serviceLabel } from '@/data/services'
 
 import { campaignsApi } from '@/services/api/campaigns'
-import { setSaved } from '@/services/data/catalogue'
 import { useStore } from '@/store/AppStore'
 import { useCatalogue } from '@/hooks/useCatalogue'
+import { useToggleSaved } from '@/hooks/useToggleSaved'
 import { CampaignCard } from '@/components/campaign/CampaignCard'
 import { tripDays } from '@/lib/trip'
 import {
@@ -46,7 +46,8 @@ export function CampaignDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { t, lang, bl, money, n, date, dateRange } = useI18n()
   const { campaigns, getProvider } = useCatalogue()
-  const { isSaved, dispatch, toast, hiddenReviewIds, reviews: allReviews } = useStore()
+  const { isSaved, hiddenReviewIds, reviews: allReviews } = useStore()
+  const toggleSave = useToggleSaved()
 
   const [campaign, setCampaign] = useState<Campaign | null | undefined>(undefined)
   const [similar, setSimilar] = useState<Campaign[]>([])
@@ -374,11 +375,7 @@ export function CampaignDetailPage() {
                 <div className="grid grid-cols-2 gap-2.5">
                   <Button
                     variant="secondary"
-                    onClick={() => {
-                      void setSaved(campaign.id, !isSaved(campaign.id))
-                      dispatch({ type: 'toggleSaved', id: campaign.id })
-                      toast(saved ? t('campaign.unsavedToast') : t('campaign.savedToast'), saved ? 'info' : 'success')
-                    }}
+                    onClick={() => toggleSave(campaign.id)}
                     aria-pressed={saved}
                   >
                     {saved ? <BookmarkCheck className="size-4" /> : <Bookmark className="size-4" />}

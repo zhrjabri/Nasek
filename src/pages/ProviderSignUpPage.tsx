@@ -1,22 +1,19 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { FileImage, Info, Trash2, Upload } from 'lucide-react'
+import { Eye, EyeOff, FileImage, Info, KeyRound } from 'lucide-react'
 import { useI18n } from '@/i18n'
 import { WILAYAT } from '@/data/geo'
+import { isSupabaseConfigured } from '@/services/supabase/client'
 import { isValidPhone } from '@/services/auth/phone'
+import { MIN_PASSWORD_LENGTH, passwordProblem, setPassword } from '@/services/auth/password'
 import { registerProviderAccount } from '@/services/auth/registerProvider'
+import { uploadLicence } from '@/services/storage/licence'
 import { useCompleteSignIn } from '@/hooks/useSignIn'
 import { useStore } from '@/store/AppStore'
-import { readImageFile, type ImageReadError } from '@/lib/imageFile'
 import { AuthShell } from '@/pages/AuthPages'
 import { OtpFlow } from '@/components/auth/OtpFlow'
+import { LicencePicker, type LicenceSelection } from '@/components/auth/LicencePicker'
 import { Button, Checkbox, Field, Input, Notice, Select, Textarea } from '@/components/ui'
-
-interface Licence {
-  dataUrl: string
-  fileName: string
-  storedBytes: number
-}
 
 /**
  * Campaign-owner registration.
@@ -24,19 +21,37 @@ interface Licence {
  * Separate from the customer sign-up because it asks for a company, its
  * trading history and — the part that matters for trust — the operating
  * permit. Registering creates the company in `pending` state, which puts it
- * straight into the admin's verification queue.
+ * straight into the admin's verification queue and keeps its trips out of the
+ * public catalogue until somebody has looked at the permit. That last part is
+ * enforced by `campaigns_read` in Postgres, not by this screen.
  *
- * Two stages now: the company, then a code sent to the contact address. The
- * password fields are gone along with the rest of them. The order matters —
- * the permit and the company details are gathered first, so that verifying the
- * code is the last action and produces a complete, queued registration rather
- * than an empty owner account somebody abandoned halfway.
+ * Two stages: the company, then a code sent to the contact address. The order
+ * matters — the permit and the company details are gathered first, so that
+ * verifying the code is the last action and produces a complete, queued
+ * registration rather than an empty owner account somebody abandoned halfway.
+ *
+ * ---------------------------------------------------------------------------
+ * WHY AN OWNER GETS A PASSWORD AND A PILGRIM DOES NOT
+ *
+ * A pilgrim uses NASEK around one trip in their life; a password is pure cost
+ * to them, and the code flow is already the recovery path every password system
+ * needs. An owner runs a live inventory of seats and signs in constantly — and
+ * putting an email provider's delivery time between them and a seat count that
+ * is wrong right now is a bad trade at exactly the wrong moment.
+ *
+ * The password is set *after* the code is verified rather than sent with the
+ * registration, and that ordering is the whole design. It means one email
+ * instead of two, it means the same screen works whether or not the address
+ * already had a pilgrim account on it, and it means a password is only ever
+ * attached to an address somebody has just proved they can receive mail at.
+ * The one-time code keeps working afterwards; it is how an owner who forgets
+ * the password gets back in.
+ * ---------------------------------------------------------------------------
  */
 export function ProviderSignUpPage() {
   const { t, lang } = useI18n()
   const navigate = useNavigate()
   const { dispatch, toast } = useStore()
-  const fileInput = useRef<HTMLInputElement>(null)
 
   const [form, setForm] = useState({
     companyName: '',
@@ -45,9 +60,12 @@ export function ProviderSignUpPage() {
     name: '',
     email: '',
     phone: '',
+    password: '',
+    confirm: '',
     wilayahId: 'muscat',
   })
-  const [licence, setLicence] = useState<Licence | null>(null)
+  const [licence, setLicence] = useState<LicenceSelection | null>(null)
+  const [reveal, setReveal] = useState(false)
   const [agreed, setAgreed] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
@@ -58,35 +76,18 @@ export function ProviderSignUpPage() {
   const set = (key: keyof typeof form, value: string) =>
     setForm((f) => ({ ...f, [key]: value }))
 
-  const pickLicence = async (file: File | undefined) => {
-    if (!file) return
-    setErrors((e) => ({ ...e, licence: '' }))
-    try {
-      const result = await readImageFile(file)
-      setLicence(result)
-    } catch (reason) {
-      const key: Record<ImageReadError, string> = {
-        type: t('auth.licenceTypeError'),
-        size: t('auth.licenceSizeError'),
-        decode: t('auth.licenceDecodeError'),
-      }
-      setLicence(null)
-      setErrors((e) => ({ ...e, licence: key[reason as ImageReadError] ?? t('auth.licenceDecodeError') }))
-    }
-  }
-
-  const clearLicence = () => {
-    setLicence(null)
-    if (fileInput.current) fileInput.current.value = ''
-  }
-
-  const submit = async (e: React.FormEvent) => {
+  const submit = (e: React.FormEvent) => {
     e.preventDefault()
     const next: Record<string, string> = {}
     if (!form.companyName.trim()) next.companyName = t('common.required')
     if (!form.name.trim()) next.name = t('auth.nameRequired')
     if (!/^\S+@\S+\.\S+$/.test(form.email)) next.email = t('auth.emailInvalid')
     if (!isValidPhone(form.phone)) next.phone = t('auth.phoneInvalid')
+
+    const password = passwordProblem(form.password, form.confirm)
+    if (password === 'short') next.password = t('auth.passwordShort', { n: MIN_PASSWORD_LENGTH })
+    if (password === 'mismatch') next.confirm = t('auth.passwordMismatch')
+
     // The permit is the point of this form, so it is not optional.
     if (!licence) next.licence = t('auth.licenceRequired')
     if (!agreed) next.terms = t('auth.termsRequired')
@@ -98,9 +99,18 @@ export function ProviderSignUpPage() {
   /**
    * Everything that happens once the contact address is proved.
    *
-   * The order is deliberate: establish the session first, then register the
-   * company. `register_provider` runs as the signed-in caller and promotes
-   * *them*, so it has nobody to promote until the session exists.
+   * The order is not arbitrary and each step depends on the one before it:
+   *
+   *   1. Establish the session. `register_provider` runs as the signed-in
+   *      caller and promotes *them*, so it has nobody to promote until now.
+   *   2. Set the password, on the session that now exists.
+   *   3. Upload the permit. Its object path starts with the account id, so this
+   *      is the first moment there is a folder to write into.
+   *   4. Register the company, referencing the uploaded path.
+   *
+   * Each failure is reported for what it is. "Registration failed" after step 1
+   * would be actively misleading — the account exists and is signed in — and is
+   * how somebody ends up creating a second one.
    */
   const finish = async () => {
     setFailure('')
@@ -116,6 +126,27 @@ export function ProviderSignUpPage() {
       return
     }
 
+    if (isSupabaseConfigured) {
+      const saved = await setPassword(form.password)
+      if (!saved.ok) {
+        // Not fatal, and saying so matters: the account is live and the code
+        // still opens it. Stopping here would strand a registration over a
+        // convenience.
+        setFailure(t('auth.passwordNotSet'))
+      }
+    }
+
+    let licencePath: string | undefined
+    if (licence?.file && isSupabaseConfigured) {
+      const upload = await uploadLicence(licence.file)
+      if (!upload.ok) {
+        setBusy(false)
+        setFailure(t('auth.licenceUploadFailed'))
+        return
+      }
+      licencePath = upload.upload.path
+    }
+
     try {
       const { user, provider } = await registerProviderAccount({
         name: form.name,
@@ -125,15 +156,19 @@ export function ProviderSignUpPage() {
         companyName: form.companyName,
         tagline: form.tagline,
         experienceYears: form.experienceYears ? Number(form.experienceYears) : 0,
-        licenceImage: licence!.dataUrl,
-        licenceFileName: licence!.fileName,
+        licenceImage: licencePath ? '' : (licence?.dataUrl ?? ''),
+        licenceFileName: licence?.fileName ?? '',
+        licencePath,
       })
       dispatch({ type: 'addProvider', provider })
       dispatch({ type: 'registerUser', user })
       dispatch({ type: 'signIn', user })
       setBusy(false)
       toast(t('auth.providerRegistered'), 'success')
-      navigate('/provider', { replace: true })
+      // Straight to the waiting room, not to the dashboard. The company is
+      // `pending` and its trips would not be public anyway; a dashboard that
+      // silently publishes nothing is the worst of both.
+      navigate('/provider/pending', { replace: true })
     } catch (reason) {
       // The account exists and is signed in at this point; only the company
       // failed. Saying so, rather than "registration failed", is the difference
@@ -253,59 +288,12 @@ export function ProviderSignUpPage() {
           {t('auth.sectionLicence')}
         </p>
 
-        <Field
-          label={t('auth.licenceLabel')}
-          hint={t('auth.licenceHint')}
-          required
+        <LicencePicker
+          value={licence}
+          onChange={setLicence}
           error={errors.licence}
-        >
-          {(p) => (
-            <div>
-              <input
-                {...p}
-                ref={fileInput}
-                type="file"
-                accept="image/*"
-                className="sr-only"
-                onChange={(e) => void pickLicence(e.target.files?.[0])}
-              />
-              {licence ? (
-                <div className="flex items-center gap-3 rounded-[3px] border border-ivory-400 bg-ivory-50 p-3">
-                  <img
-                    src={licence.dataUrl}
-                    alt={t('auth.licencePreviewAlt')}
-                    className="size-16 shrink-0 rounded-[2px] border border-ivory-300 object-cover"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-ink-800">
-                      {licence.fileName}
-                    </p>
-                    <p className="nums mt-0.5 text-2xs text-ink-400">
-                      {Math.max(1, Math.round(licence.storedBytes / 1024))} KB
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={clearLicence}
-                    className="flex items-center gap-1.5 rounded-[3px] px-2.5 py-1.5 text-xs font-semibold text-ink-500 transition-colors hover:bg-ivory-200 hover:text-red-700"
-                  >
-                    <Trash2 className="size-3.5" />
-                    {t('auth.licenceRemove')}
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => fileInput.current?.click()}
-                  className="flex w-full items-center justify-center gap-2.5 rounded-[3px] border border-dashed border-ivory-400 bg-ivory-50 p-6 text-sm font-semibold text-ink-500 transition-colors hover:border-nasek-700 hover:text-nasek-800"
-                >
-                  <Upload className="size-4" />
-                  {t('auth.licenceUpload')}
-                </button>
-              )}
-            </div>
-          )}
-        </Field>
+          onError={(message) => setErrors((e) => ({ ...e, licence: message }))}
+        />
 
         <p className="flex items-start gap-2 rounded-[3px] bg-gold-50 p-3 text-xs leading-relaxed text-gold-800">
           <FileImage className="mt-px size-3.5 shrink-0" />
@@ -354,6 +342,60 @@ export function ProviderSignUpPage() {
             )}
           </Field>
         </div>
+
+        {/*
+          The password, and the one line of copy that stops it reading as a
+          contradiction. NASEK tells pilgrims, loudly, that it never asks for a
+          password — so an owner who has read the home page needs to be told why
+          this form does, before they wonder whether they are on the right site.
+        */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field
+            label={t('auth.password')}
+            hint={t('auth.passwordHint', { n: MIN_PASSWORD_LENGTH })}
+            required
+            error={errors.password}
+          >
+            {(p) => (
+              <div className="relative">
+                <Input
+                  {...p}
+                  type={reveal ? 'text' : 'password'}
+                  dir="ltr"
+                  autoComplete="new-password"
+                  value={form.password}
+                  onChange={(e) => set('password', e.target.value)}
+                  className="pe-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setReveal((v) => !v)}
+                  aria-label={t(reveal ? 'auth.hidePassword' : 'auth.showPassword')}
+                  className="absolute top-1/2 end-2 -translate-y-1/2 rounded-[3px] p-1.5 text-ink-400 transition-colors hover:text-ink-700"
+                >
+                  {reveal ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
+            )}
+          </Field>
+          <Field label={t('auth.confirmPassword')} required error={errors.confirm}>
+            {(p) => (
+              <Input
+                {...p}
+                type={reveal ? 'text' : 'password'}
+                dir="ltr"
+                autoComplete="new-password"
+                value={form.confirm}
+                onChange={(e) => set('confirm', e.target.value)}
+              />
+            )}
+          </Field>
+        </div>
+
+        <p className="flex items-start gap-2 rounded-[3px] border border-nasek-200 bg-nasek-50/50 p-3 text-xs leading-relaxed text-ink-600">
+          <KeyRound className="mt-px size-3.5 shrink-0 text-nasek-700" />
+          {t('auth.providerPasswordNote')}
+        </p>
 
         <p className="flex items-start gap-2 rounded-[3px] bg-gold-50 p-3 text-xs leading-relaxed text-gold-800">
           <Info className="mt-px size-3.5 shrink-0" />

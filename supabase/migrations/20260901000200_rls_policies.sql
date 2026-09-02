@@ -87,9 +87,37 @@ as $$
   );
 $$;
 
+/**
+ * Is this company approved to appear in the catalogue?
+ *
+ * Added by the 2026-09-02 hardening and back-ported into this file, so that
+ * re-running it — which the setup instructions tell you to do when a table
+ * shows `rowsecurity = false` — cannot quietly reopen the catalogue to
+ * unverified companies. Every statement here is replayable; that promise is
+ * worth nothing if replaying one undoes a later fix.
+ *
+ * SECURITY DEFINER because it reads `providers`, which is closed below to
+ * everyone but the owner and an administrator. An anonymous visitor has to be
+ * able to learn "this trip's company is approved" without being able to read
+ * the row that says so.
+ */
+create or replace function public.provider_approved(target uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select exists (
+    select 1 from public.providers pr
+    where pr.id = target and pr.verification = 'verified'
+  );
+$$;
+
 revoke all on function public.is_admin() from public;
 revoke all on function public.owns_provider(uuid) from public;
 revoke all on function public.owns_campaign(uuid) from public;
+revoke all on function public.provider_approved(uuid) from public;
 /*
  * All three are granted to `anon` as well as `authenticated`, and that is not
  * an oversight in the other direction.
@@ -106,6 +134,7 @@ revoke all on function public.owns_campaign(uuid) from public;
 grant execute on function public.is_admin() to authenticated, anon;
 grant execute on function public.owns_provider(uuid) to authenticated, anon;
 grant execute on function public.owns_campaign(uuid) to authenticated, anon;
+grant execute on function public.provider_approved(uuid) to authenticated, anon;
 
 -- --------------------------------------------------- profile on sign-up
 /**
@@ -189,16 +218,40 @@ create trigger profiles_guard_privileges
 
 /**
  * Verification is an administrator's decision, so an owner cannot grant it to
- * themselves by updating their own company row. Same revert-don't-raise shape
- * as above, and it records the audit trail docs/DATA-MODEL.md asked for.
+ * themselves. Same revert-don't-raise shape as above, and it records the audit
+ * trail docs/DATA-MODEL.md asked for.
+ *
+ * Fires on INSERT as well as UPDATE, and that is the correction of 2026-09-02.
+ * It was a BEFORE UPDATE trigger, which left the insert path completely
+ * unguarded: a single POST creating a `providers` row with
+ * `verification: 'verified'` bought the badge the whole platform's trust rests
+ * on, and `plan: 'premium'` came free with it. A guard that only watches one of
+ * the two ways a value can arrive is not a guard.
+ *
+ * Named to match 20260902000200_auth_hardening.sql, which replaces this body
+ * with a richer one once the rejection columns exist. Sharing the name is what
+ * makes replaying this file safe: it substitutes a *stricter* guard, never a
+ * second one running beside the first.
  */
-create or replace function public.guard_provider_verification()
+create or replace function public.guard_provider_privileges()
 returns trigger
 language plpgsql
 security definer
 set search_path = public, pg_temp
 as $$
 begin
+  if tg_op = 'INSERT' then
+    if public.is_admin() then
+      return new;
+    end if;
+    new.owner_id     := auth.uid();
+    new.verification := 'pending';
+    new.plan         := 'basic';
+    new.verified_by  := null;
+    new.verified_at  := null;
+    return new;
+  end if;
+
   if public.is_admin() then
     if new.verification is distinct from old.verification then
       new.verified_by := auth.uid();
@@ -216,14 +269,16 @@ begin
   new.verified_by  := old.verified_by;
   new.verified_at  := old.verified_at;
   new.owner_id     := old.owner_id;
+  new.plan         := old.plan;
   return new;
 end;
 $$;
 
 drop trigger if exists providers_guard_verification on public.providers;
-create trigger providers_guard_verification
-  before update on public.providers
-  for each row execute function public.guard_provider_verification();
+drop trigger if exists providers_guard_privileges on public.providers;
+create trigger providers_guard_privileges
+  before insert or update on public.providers
+  for each row execute function public.guard_provider_privileges();
 
 /**
  * Moderation flags on a campaign belong to administrators, for the same reason
@@ -239,14 +294,29 @@ begin
   if public.is_admin() then
     return new;
   end if;
-  new.suspended := old.suspended;
+
+  -- On INSERT as well, since 2026-09-02. `featured` decides the home page and
+  -- `rating` is what travellers said; both were the owner's to write on the way
+  -- in, because the guard only ever watched updates.
+  if tg_op = 'INSERT' then
+    new.suspended    := false;
+    new.featured     := false;
+    new.rating       := 0;
+    new.review_count := 0;
+    return new;
+  end if;
+
+  new.suspended    := old.suspended;
+  new.featured     := old.featured;
+  new.rating       := old.rating;
+  new.review_count := old.review_count;
   return new;
 end;
 $$;
 
 drop trigger if exists campaigns_guard_moderation on public.campaigns;
 create trigger campaigns_guard_moderation
-  before update on public.campaigns
+  before insert or update on public.campaigns
   for each row execute function public.guard_campaign_moderation();
 
 /**
@@ -330,18 +400,26 @@ create policy profiles_update_self on public.profiles
 -- because bookings and revenue history are reconstructed from these rows.
 
 -- ----------------------------------------------------------------- providers
--- Campaign owners are public: a pilgrim comparing trips has to be able to see
--- who runs them, signed in or not. What is not public is the permit image and
--- the contact details, which are stripped by the read view below.
+-- Campaign owners are public in the sense that matters — a pilgrim comparing
+-- trips has to see who runs them — but "public" is the *view* below, not the
+-- table. The table holds a scanned trade permit, a private phone number and the
+-- account id behind the company.
+--
+-- This policy read `using (true)` until 2026-09-02, with SELECT granted to
+-- `anon`, which published every permit NASEK held to anyone holding the key
+-- compiled into the bundle. See 20260902000200_auth_hardening.sql for the whole
+-- account of it; it is corrected here as well so that replaying this file
+-- cannot reopen it.
 
 drop policy if exists providers_read on public.providers;
 create policy providers_read on public.providers
-  for select using (true);
+  for select using (owner_id = auth.uid() or public.is_admin());
 
+-- No insert policy. Registration goes through `register_provider`, which is the
+-- only thing that can hold the rules a policy cannot express — one company per
+-- account, always `pending`, always `basic`. A direct INSERT alongside it was a
+-- way to grant yourself the "Verified by NASEK" badge in a single request.
 drop policy if exists providers_insert_own on public.providers;
-create policy providers_insert_own on public.providers
-  for insert to authenticated
-  with check (owner_id = auth.uid());
 
 drop policy if exists providers_update_own on public.providers;
 create policy providers_update_own on public.providers
@@ -362,11 +440,18 @@ create policy providers_delete_admin on public.providers
  * The view is what the public site reads; the table itself is read only by the
  * owner and the administration dashboard.
  *
- * security_invoker so the view does not become a way around the policies on
- * the table underneath it.
+ * A *definer* view: it reads the table as its owner and returns only the
+ * columns named here. That inversion is the mechanism rather than an oversight.
+ * As `security_invoker = true` it re-ran the caller's policies on the table
+ * underneath, so closing that table would empty the view and take the public
+ * catalogue with it. Supabase's database linter flags this as
+ * `security_definer_view`; do not "fix" it. A view's job here is not to decide
+ * which rows leave the database — the policy above does that — but which
+ * columns can leave it at all.
  */
-create or replace view public.providers_public
-with (security_invoker = true) as
+drop view if exists public.providers_public;
+create view public.providers_public
+with (security_invoker = false) as
   select id, name_ar, name_en, tagline_ar, tagline_en, description_ar, description_en,
          wilayah_id, verification, experience_years, rating, review_count,
          initials, brand_color, plan, joined_at
@@ -383,7 +468,11 @@ grant select on public.providers_public to anon, authenticated;
 drop policy if exists campaigns_read on public.campaigns;
 create policy campaigns_read on public.campaigns
   for select using (
-    (suspended = false and deleted = false)
+    -- `provider_approved` is what makes "your trips go live when we verify you"
+    -- true rather than a sentence on a registration form. Without it a company
+    -- could register and publish to the catalogue before anyone had looked at
+    -- its permit, which is what happened until 2026-09-02.
+    (suspended = false and deleted = false and public.provider_approved(provider_id))
     or public.owns_provider(provider_id)
     or public.is_admin()
   );
@@ -519,9 +608,10 @@ create policy admin_audit_insert on public.admin_audit
 -- sends you looking a long way from the actual cause.
 --
 -- Note what is deliberately absent: no DELETE on profiles (removal is a flag,
--- because bookings are reconstructed from those rows), and no write of any kind
--- for `anon`. An unauthenticated visitor may read the catalogue and nothing
--- else.
+-- because bookings are reconstructed from those rows), no INSERT on providers
+-- (registration goes through `register_provider`, which is the only thing that
+-- can enforce what a policy cannot say), and no write of any kind for `anon`.
+-- An unauthenticated visitor may read the catalogue and nothing else.
 -- =============================================================================
 
 grant usage on schema public to anon, authenticated;
@@ -529,8 +619,11 @@ grant usage on schema public to anon, authenticated;
 -- Public reading: the catalogue and the reference data behind it.
 grant select on public.wilayat         to anon, authenticated;
 grant select on public.campaigns       to anon, authenticated;
-grant select on public.providers       to anon, authenticated;
 grant select on public.reviews         to anon, authenticated;
+-- `providers` is deliberately absent: an anonymous visitor reads
+-- `providers_public`, which has no permit, no phone number and no owner id in
+-- it. Granting the table as well is what made the view decorative.
+grant select on public.providers       to authenticated;
 
 -- Signed-in reading. Every one of these is narrowed to the caller's own rows by
 -- the policies above; the grant only makes the query attemptable.
@@ -543,7 +636,7 @@ grant select on public.admin_audit     to authenticated;
 
 -- Writing, all of it policy-scoped.
 grant update on public.profiles                          to authenticated;
-grant insert, update, delete on public.providers         to authenticated;
+grant update, delete on public.providers                 to authenticated;
 grant insert, update, delete on public.campaigns         to authenticated;
 grant insert, update on public.bookings                  to authenticated;
 grant insert on public.travellers                        to authenticated;

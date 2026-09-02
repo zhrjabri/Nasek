@@ -1,0 +1,32 @@
+-- =============================================================================
+-- NASEK — the two provider states that were missing
+--
+-- `verification_status` has always been ('verified', 'pending', 'unverified'),
+-- which could express "we have not looked yet" but not "we looked and said no",
+-- and not "this company is barred". An administrator rejecting an application
+-- had to send it back to `pending`, which is indistinguishable from never
+-- having been reviewed — so the owner was told nothing, the queue never
+-- shrank, and the same application came round again for ever.
+--
+-- The four states NASEK actually needs, and the names they carry here:
+--
+--   pending    submitted, awaiting review        (unchanged)
+--   verified   approved; trips may go public     (unchanged — "approved")
+--   rejected   reviewed and refused, with a reason the owner can act on
+--   suspended  approved once, barred since
+--
+-- `unverified` is kept because rows already carry it and dropping an enum
+-- value is not something Postgres offers. Nothing writes it any more; it reads
+-- as "not approved" everywhere, exactly as `pending` does.
+--
+-- WHY THIS IS ITS OWN MIGRATION
+--
+-- Postgres will not let a value added to an enum be *used* in the same
+-- transaction that added it. `supabase db push` runs each file in its own
+-- transaction, so the addition has to land here and every policy, function and
+-- default that mentions the new names has to live in the next file. Merging
+-- the two produces "unsafe use of new value of enum type" at apply time.
+-- =============================================================================
+
+alter type public.verification_status add value if not exists 'rejected';
+alter type public.verification_status add value if not exists 'suspended';

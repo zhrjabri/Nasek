@@ -4,6 +4,7 @@ import { useI18n, type MessageKey } from '@/i18n'
 import { isSupabaseConfigured } from '@/services/supabase/client'
 import { Button, Field, Input, Notice } from '@/components/ui'
 import { OtpFlow } from '@/components/auth/OtpFlow'
+import { PasswordSignIn } from '@/components/auth/PasswordSignIn'
 import { AdminAuthShell } from '@/admin/layout/AdminAuthShell'
 import { verifyAdminPassphrase } from '@/admin/access'
 import { loadAdminSession, markLocalGatePassed, type AdminGateReason } from '@/admin/session'
@@ -53,13 +54,19 @@ const DENIAL: Record<Exclude<AdminGateReason, 'anonymous'>, MessageKey> = {
 }
 
 /**
- * Sign in with a one-time code, then be checked for the role.
+ * Prove who you are, then be checked for the role.
  *
- * The two are separate steps on purpose. Verifying the code establishes *who*
- * you are, which Supabase does; deciding whether that person administers NASEK
- * is a second question, answered by `is_admin()` inside Postgres. Collapsing
- * them would mean the login screen deciding its own outcome, which is the shape
- * of the guard this whole change exists to remove.
+ * The two are separate steps on purpose, and the separation is the whole
+ * design. Authentication — a password, a second factor, or a one-time code —
+ * establishes *who* you are, which Supabase does. Whether that person
+ * administers NASEK is a second question, answered by `is_admin()` inside
+ * Postgres against a JWT this browser cannot forge. Collapsing them would mean
+ * the login screen deciding its own outcome, which is the shape of the guard
+ * this whole change exists to remove.
+ *
+ * Three ways in, one gate behind all of them: email and password, that password
+ * plus an authenticator code where the account has one enrolled, and the
+ * one-time code as the recovery path. Not one of them decides anything.
  */
 function RemoteLogin({
   onAuthenticated,
@@ -72,6 +79,7 @@ function RemoteLogin({
   const [denied, setDenied] = useState<Exclude<AdminGateReason, 'anonymous'> | null>(
     initialDenial && initialDenial !== 'anonymous' ? initialDenial : null,
   )
+  const [useCode, setUseCode] = useState(false)
 
   if (denied) {
     return (
@@ -100,30 +108,74 @@ function RemoteLogin({
     )
   }
 
+  /**
+   * What happens after *any* successful authentication here.
+   *
+   * The identifier is not needed: who signed in is settled by the session
+   * Supabase just issued, and whether they administer NASEK is settled by
+   * `is_admin()` inside Postgres. Neither answer comes from this form, which is
+   * the entire difference between this gate and the one it replaced.
+   */
+  const check = async () => {
+    const session = await loadAdminSession()
+    if (session.reason && session.reason !== 'anonymous') {
+      setDenied(session.reason)
+      return
+    }
+    await onAuthenticated()
+  }
+
   return (
     <AdminAuthShell
       title={t('admin.loginTitle')}
       subtitle={t('admin.loginSubtitle')}
       footer={t('admin.loginNote')}
     >
-      <OtpFlow
-        // Email only. An administrator's address is a stable, recoverable
-        // thing an organisation controls; a personal handset is not, and
-        // NASEK should not be one lost phone away from having no
-        // administrator at all.
-        channels={['email']}
-        onSuccess={async () => {
-          // The identifier is not needed here: who signed in is settled by the
-          // session Supabase just issued, and whether they administer NASEK is
-          // settled by Postgres. Neither answer comes from this form.
-          const session = await loadAdminSession()
-          if (session.reason && session.reason !== 'anonymous') {
-            setDenied(session.reason)
-            return
-          }
-          await onAuthenticated()
-        }}
-      />
+      {/*
+        Password first, and second factor after it where the account has one.
+
+        An administrator is the person called when something is wrong, and
+        putting an email provider's delivery time between them and the dashboard
+        is a bad trade at exactly the wrong moment. `PasswordSignIn` handles the
+        authenticator step itself — a password on an account with a factor
+        enrolled produces a session at assurance level `aal1`, which reads like
+        success and is not one.
+      */}
+      <PasswordSignIn bare defaultOpen onSignedIn={check} />
+
+      <div className="my-5 flex items-center gap-3">
+        <span className="h-px flex-1 bg-ivory-300" />
+        <span className="text-2xs font-bold uppercase tracking-[0.14em] text-ink-400">
+          {t('auth.or')}
+        </span>
+        <span className="h-px flex-1 bg-ivory-300" />
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setUseCode((v) => !v)}
+        aria-expanded={useCode}
+        className="w-full text-center text-xs font-bold text-nasek-700 transition-colors hover:underline"
+      >
+        {t('admin.useCodeInstead')}
+      </button>
+
+      {useCode && (
+        <div className="mt-5 border-t border-ivory-300 pt-5">
+          {/*
+            Kept, and not as a curiosity. It is how an administrator who has
+            forgotten their password gets back in, and how accounts that predate
+            passwords sign in at all — remove it and the recovery path for the
+            highest-privilege role on the platform becomes "ask someone with
+            database access".
+
+            Email only. An administrator's address is a stable thing an
+            organisation controls; a personal handset is not, and NASEK should
+            not be one lost phone away from having no administrator.
+          */}
+          <OtpFlow channels={['email']} onSuccess={check} />
+        </div>
+      )}
     </AdminAuthShell>
   )
 }

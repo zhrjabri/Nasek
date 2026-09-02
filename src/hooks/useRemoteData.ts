@@ -20,7 +20,19 @@ import { useStore } from '@/store/AppStore'
  * re-ask, or an owner would sit looking at the anonymous catalogue and wonder
  * where their bookings went.
  */
-export function useRemoteData() {
+/**
+ * The loading half, without the mounting half.
+ *
+ * Split out because two screens need to *re-*read the snapshot on demand — an
+ * owner asking whether their application has been approved yet, and the same
+ * owner having just resubmitted one — and calling `useRemoteData` for that
+ * would mount a second loader: another fetch on mount, another auth listener,
+ * and two reconciliations racing over one store. Exactly the bug
+ * `useSessionSync` was fixed for.
+ *
+ * This hook subscribes to nothing and fires nothing until it is called.
+ */
+export function useSnapshotLoader() {
   const { dispatch } = useStore()
   const [state, setState] = useState<'idle' | 'loading' | 'ready' | 'error'>(
     isSupabaseConfigured ? 'loading' : 'idle',
@@ -49,11 +61,18 @@ export function useRemoteData() {
     }
   }, [dispatch])
 
-  useEffect(() => {
-    void load()
-  }, [load])
-
-  useEffect(() => onAuthChange(() => void load()), [load])
-
   return { state, reload: load }
+}
+
+/** The loader, plus the two triggers. Mounted **once** per application. */
+export function useRemoteData() {
+  const { state, reload } = useSnapshotLoader()
+
+  useEffect(() => {
+    void reload()
+  }, [reload])
+
+  useEffect(() => onAuthChange(() => void reload()), [reload])
+
+  return { state, reload }
 }

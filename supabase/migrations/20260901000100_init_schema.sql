@@ -125,11 +125,23 @@ create table if not exists public.providers (
   brand_color       text not null default '#1c5e4c',
   plan              public.provider_plan not null default 'basic',
   joined_at         date not null default current_date,
-  -- The permit image the owner uploaded, downscaled client-side. Stored as a
-  -- data URL for now; production moves this to Storage with signed URLs, which
-  -- is a change of column type and nothing else.
+  -- The permit the owner uploaded.
+  --
+  -- Two columns because there are two eras. `licence_image` is the prototype's
+  -- answer: a data URL, downscaled client-side to fit, kept for rows that
+  -- already carry one and for a browser running with no backend at all.
+  -- `licence_path` is where new registrations go — an object in the private
+  -- `provider-licences` bucket, opened through a signed URL that expires. See
+  -- 20260902000300_licence_storage.sql.
   licence_image     text,
   licence_file_name text,
+  licence_path      text,
+  -- Why an administrator refused or suspended this company. Shown to the owner
+  -- word for word, so it is written to be read by them.
+  rejection_reason  text,
+  -- When the current application entered the queue. Reset by a resubmission,
+  -- which is what makes "waiting since" mean anything after a refusal.
+  submitted_at      timestamptz,
   -- Who verified, when. docs/DATA-MODEL.md called for an audit trail and the
   -- prototype only ever stored the resulting flag.
   verified_by       uuid references public.profiles (id) on delete set null,

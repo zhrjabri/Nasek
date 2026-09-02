@@ -166,4 +166,54 @@ export const adminAr: Record<AdminMessageKey, string> = {
   'admin.localModeBody':
     'تعمل هذه اللوحة على بيانات محفوظة في هذا المتصفح فقط. عبارة المرور أدناه بوابة النموذج الأولي، وليست وسيلة حماية. هيّئ Supabase لإدارة حقيقية محميّة من الخادم.',
   'admin.sectionCount': '{n} في هذا القسم',
+
+  // -------------------------------------------------- verification queue
+  'admin.approve': 'اعتماد',
+  'admin.reject': 'رفض',
+  'admin.suspend': 'إيقاف',
+  'admin.restore': 'استعادة',
+  'admin.rejected': 'مرفوضة',
+  'admin.suspendedFilter': 'موقوفة',
+  'admin.rejectBody':
+    'يرى صاحب الحملة هذا السبب حرفياً، ويمكنه تصحيح طلبه وإعادة إرساله. وضّح ما الخطأ في الترخيص أو البيانات.',
+  'admin.suspendBody':
+    'الإيقاف يسحب كل رحلة نشرتها هذه الحملة. يرى صاحبها هذا السبب ولا يستطيع رفع الإيقاف بنفسه.',
+  'admin.reasonLabel': 'السبب',
+  'admin.reasonHint': 'يُكتب لصاحب الحملة. كن محدداً بما يكفي ليتصرّف.',
+  'admin.reasonRequired': 'السبب مطلوب — لا يستطيع تصحيح ما لم يُخبَر به.',
+  'admin.rejectedToast': 'رُفضت {name}، وأُبلغ صاحبها بالسبب',
+  'admin.suspendedToast': 'أُوقفت {name}',
+
+  // --------------------------------------------------- the admin account
+  'admin.security': 'الأمان',
+  'admin.groupAccount': 'حسابك',
+  'admin.securityTitle': 'حساب المشرف الخاص بك',
+  'admin.securityBody':
+    'حساب الإشراف يستطيع إيقاف حملة وإخفاء تقييم وقراءة كل حجز. هو أثمن بيانات دخول في ناسِك — تعامل معه على هذا الأساس.',
+  'admin.securityLocalMode':
+    'كلمات المرور والتحقق بخطوتين تحتاج مشروع Supabase. هذه اللوحة تعمل الآن على بيانات هذا المتصفح فقط.',
+  'admin.useCodeInstead': 'سجّل الدخول برمز لمرة واحدة بدلاً من ذلك',
+  'admin.mfaOnTitle': 'التحقق بخطوتين مفعّل',
+  'admin.mfaOnBody':
+    'تسجيل الدخول يحتاج كلمة المرور ورمزاً من تطبيق المصادقة. كلمة مرور مسروقة وحدها لا تُدخِل أحداً.',
+  'admin.mfaTurnOff': 'إيقاف التحقق بخطوتين',
+  'admin.mfaRemoved': 'أُوقف التحقق بخطوتين',
+  'admin.mfaRemoveFailed': 'تعذّر الإيقاف. سجّل الدخول مجدداً وحاول.',
+  'admin.mfaOffTitle': 'التحقق بخطوتين متوقف',
+  'admin.mfaOffBody':
+    'أضف تطبيق مصادقة حتى لا تكفي كلمة المرور وحدها لفتح هذه اللوحة. يستغرق دقيقة تقريباً.',
+  'admin.mfaTurnOn': 'تفعيل التحقق بخطوتين',
+  'admin.mfaSetupTitle': 'امسح هذا الرمز بتطبيق المصادقة',
+  'admin.mfaSetupBody':
+    'Google Authenticator أو 1Password أو Aegis — أيّها كان. ثم أدخل الأرقام الستة التي يعرضها للتأكيد. لا يتغير شيء قبل ذلك.',
+  'admin.mfaSecret': 'أو أدخل هذا المفتاح يدوياً',
+  'admin.mfaConfirmLabel': 'الرمز من التطبيق',
+  'admin.mfaConfirm': 'تأكيد وتفعيل',
+  'admin.mfaWrongCode': 'لم يُقبل هذا الرمز. الرموز تتغير كل ٣٠ ثانية — جرّب الرمز الحالي.',
+  'admin.mfaEnabled': 'فُعّل التحقق بخطوتين',
+  'admin.passwordTitle': 'كلمة المرور',
+  'admin.passwordBody': 'تغيّر كلمة المرور التي تُفتح بها هذه اللوحة. تسري فوراً.',
+  'admin.passwordSave': 'حفظ كلمة المرور',
+  'admin.passwordSaved': 'حُفظت كلمة المرور',
+  'admin.passwordFailed': 'لم تُقبل كلمة المرور. جرّب واحدة أطول.',
 }

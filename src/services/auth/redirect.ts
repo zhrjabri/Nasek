@@ -182,7 +182,22 @@ export interface ParsedSignInLink {
  * search of the raw string second.
  */
 export function parseSignInLink(input: string): ParsedSignInLink | null {
-  const text = input.trim()
+  /*
+   * HTML entities are decoded first, and this is not a nicety.
+   *
+   * A link copied out of a rendered email arrives as
+   * `…?token=abc&amp;type=signup`. The `token` still parses, but `type` does
+   * not — `&amp;type=` is not `&type=` — so it silently fell back to
+   * `magiclink`. GoTrue looks a token up by hash *and* type, so a signup token
+   * asked about under the wrong type comes back "invalid or has expired": a
+   * perfectly good link, rejected, with an error message pointing at the wrong
+   * cause entirely.
+   */
+  const text = input
+    .replace(/&amp;/gi, '&')
+    .replace(/&#38;/g, '&')
+    .replace(/&quot;/gi, '"')
+    .trim()
   if (!text) return null
 
   const read = (token: string | null | undefined, type: string | null | undefined) => {

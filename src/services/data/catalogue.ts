@@ -17,6 +17,7 @@ import type {
   ReviewRow,
   TravellerRow,
 } from '@/services/supabase/schema'
+import { LICENCE_BUCKET } from '@/services/storage/licence'
 import {
   fromCampaign,
   toBooking,
@@ -83,9 +84,29 @@ export const EMPTY_SNAPSHOT: RemoteSnapshot = {
 export async function fetchSnapshot(): Promise<RemoteSnapshot | null> {
   if (!supabase) return null
 
-  const [providers, campaigns, bookings, reviews, notifications, saved] = await Promise.all([
-    // `providers` where readable (an owner or admin sees their private columns),
-    // falling back to the public view for everyone else.
+  const [publicProviders, ownProviders, campaigns, bookings, reviews, notifications, saved] =
+    await Promise.all([
+    /*
+     * The catalogue's view of a campaign owner: name, badge, rating, plan.
+     *
+     * Read from the view *always*, not as a fallback. It used to read the table
+     * and drop to the view only when the table errored, which had two problems
+     * and one of them was serious. The serious one: the table was readable by
+     * everyone, permit scans included, so the fallback never fired and never
+     * needed to. Now that the table is closed to all but the owner and an
+     * administrator, an ordinary signed-in pilgrim would get neither an error
+     * nor any rows — a silent empty catalogue, which is worse than the 401 a
+     * signed-out visitor would have got.
+     */
+    supabase.from('providers_public').select('*'),
+    /*
+     * ...and the private columns, for the one or two rows the caller may see.
+     *
+     * An owner needs their own permit and contact details; an administrator
+     * needs everyone's, to run the verification queue. Row-level security
+     * decides which of those this returns — nothing here filters, and nothing
+     * here needs to know which kind of caller it is.
+     */
     supabase.from('providers').select('*'),
     supabase.from('campaigns').select('*').order('departure_date', { ascending: true }),
     /*
@@ -115,14 +136,27 @@ export async function fetchSnapshot(): Promise<RemoteSnapshot | null> {
     else travellersByBooking.set(row.booking_id, [row])
   }
 
-  let providerRows = (providers.data ?? []) as ProviderRow[]
-  if (providers.error) {
-    const publicView = await supabase.from('providers_public').select('*')
-    providerRows = (publicView.data ?? []) as unknown as ProviderRow[]
+  /*
+   * The public row is the base; a private row, where the caller is entitled to
+   * one, is laid over it.
+   *
+   * Merged by id rather than concatenated, or an owner would appear twice in
+   * every listing — once from each query. The private row wins because it is a
+   * superset: same columns, plus the permit and the contact details.
+   *
+   * A caller with no private rows (a signed-out visitor gets 401, a pilgrim
+   * gets an empty set) simply keeps the base, which is the whole catalogue.
+   */
+  const providerRows = new Map<string, ProviderRow | ProviderPublicRow>()
+  for (const row of (publicProviders.data ?? []) as ProviderPublicRow[]) {
+    providerRows.set(row.id, row)
+  }
+  for (const row of (ownProviders.data ?? []) as ProviderRow[]) {
+    providerRows.set(row.id, row)
   }
 
   return {
-    providers: providerRows.map((r) => toProvider(r as ProviderRow | ProviderPublicRow)),
+    providers: [...providerRows.values()].map(toProvider),
     campaigns: ((campaigns.data ?? []) as CampaignRow[]).map(toCampaign),
     bookings: bookingRows.map((r) => toBooking(r, travellersByBooking.get(r.id) ?? [])),
     reviews: ((reviews.data ?? []) as ReviewRow[]).map(toReview),
@@ -176,14 +210,65 @@ export async function setCampaignModeration(
   return !error
 }
 
-/** Verification. The trigger records who and when in `admin_audit`. */
+/**
+ * An administrator's decision on a campaign owner.
+ *
+ * One RPC rather than an update, because a refusal now carries a reason and the
+ * two have to land together. Writing the status in one request and the reason
+ * in another leaves a window — however short — in which an owner is told they
+ * were refused and shown no explanation, and a failure between the two makes
+ * that state permanent.
+ *
+ * The reason is passed through to the caller on failure rather than replaced
+ * with something generic: "A refusal needs a reason the owner can act on" is
+ * the database refusing a specific mistake, and it is the sentence the
+ * administrator needs to see.
+ */
 export async function setProviderVerification(
   id: string,
   verification: VerificationStatus,
-): Promise<boolean> {
-  if (!supabase) return false
-  const { error } = await supabase.from('providers').update({ verification }).eq('id', id)
-  return !error
+  reason?: string,
+): Promise<{ ok: true; provider?: Provider } | { ok: false; error: string }> {
+  /*
+   * No backend: succeed, and let the store be the whole truth.
+   *
+   * Reporting failure here would be wrong rather than cautious. With no
+   * database there is nothing that could have disagreed, and the local
+   * dashboard — the one a fresh clone opens with no setup — would show
+   * "offline" on every decision and record none of them. `provider` is absent
+   * because there is no row to return, which is exactly what the caller should
+   * see.
+   */
+  if (!supabase) return { ok: true }
+
+  const { data, error } = await supabase.rpc('set_provider_status', {
+    p_provider_id: id,
+    p_status: verification,
+    p_reason: reason ?? null,
+  })
+
+  if (error || !data) return { ok: false, error: error?.message ?? 'Update failed' }
+  return { ok: true, provider: toProvider(data as ProviderRow) }
+}
+
+/**
+ * A link to a permit that works for a few minutes and then does not.
+ *
+ * The bucket is private, so there is no permanent URL to store or to leak; each
+ * view mints its own. Ten minutes is longer than reading a scanned licence
+ * takes and short enough that a URL copied out of a browser's network panel is
+ * worthless by the time anyone tries it.
+ *
+ * Returns null rather than throwing when the object is gone or the caller is
+ * not entitled to it — the dialog then shows "no permit on file", which is the
+ * honest thing to show for both.
+ */
+export async function licenceUrl(path: string): Promise<string | null> {
+  if (!supabase || !path) return null
+  const { data, error } = await supabase.storage
+    .from(LICENCE_BUCKET)
+    .createSignedUrl(path, 600)
+  return error || !data ? null : data.signedUrl
 }
 
 /** Suspend, restore or remove an account. Admin-only, enforced by policy. */

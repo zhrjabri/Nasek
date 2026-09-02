@@ -52,6 +52,9 @@ export function toProvider(row: ProviderRow | ProviderPublicRow): Provider {
     joinedAt: row.joined_at,
     licenceImage: full.licence_image ?? undefined,
     licenceFileName: full.licence_file_name ?? undefined,
+    licencePath: full.licence_path ?? undefined,
+    rejectionReason: full.rejection_reason ?? undefined,
+    submittedAt: full.submitted_at ?? undefined,
   }
 }
 

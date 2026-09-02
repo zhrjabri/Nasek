@@ -13,9 +13,9 @@ import type { Campaign } from '@/types'
 import { useI18n } from '@/i18n'
 import { wilayahName } from '@/data/geo'
 import { serviceLabel } from '@/data/services'
-import { setSaved } from '@/services/data/catalogue'
 import { useStore } from '@/store/AppStore'
 import { useCatalogue } from '@/hooks/useCatalogue'
+import { useToggleSaved } from '@/hooks/useToggleSaved'
 import { tripDays } from '@/lib/trip'
 import { Badge, Rating, cx } from '@/components/ui'
 
@@ -27,7 +27,8 @@ export function CampaignCard({
   compact?: boolean
 }) {
   const { t, lang, bl, money, n, dateRange } = useI18n()
-  const { isSaved, dispatch, toast } = useStore()
+  const { isSaved } = useStore()
+  const toggleSave = useToggleSaved()
   const { getProvider } = useCatalogue()
 
   const provider = getProvider(campaign.providerId)
@@ -37,14 +38,6 @@ export function CampaignCard({
   const seatRatio = campaign.seatsAvailable / campaign.seatsTotal
   const urgent = campaign.seatsAvailable > 0 && campaign.seatsAvailable <= 6
   const soldOut = campaign.seatsAvailable === 0
-
-  const toggleSave = () => {
-    // Written through so a saved trip follows the account rather than the
-    // browser. `setSaved` is a no-op with no backend configured.
-    void setSaved(campaign.id, !isSaved(campaign.id))
-    dispatch({ type: 'toggleSaved', id: campaign.id })
-    toast(saved ? t('campaign.unsavedToast') : t('campaign.savedToast'), saved ? 'info' : 'success')
-  }
 
   return (
     <article
@@ -190,7 +183,7 @@ export function CampaignCard({
         <div className="flex items-center gap-1.5">
           <IconButton
             active={saved}
-            onClick={toggleSave}
+            onClick={() => toggleSave(campaign.id)}
             label={saved ? t('common.saved') : t('common.save')}
           >
             {saved ? <BookmarkCheck className="size-4" /> : <Bookmark className="size-4" />}

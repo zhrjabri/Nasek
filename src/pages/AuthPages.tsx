@@ -4,11 +4,13 @@ import { Building2, ChevronRight, ShieldCheck, User as UserIcon } from 'lucide-r
 import { useI18n, type MessageKey } from '@/i18n'
 import { WILAYAT } from '@/data/geo'
 import { isValidPhone } from '@/services/auth/phone'
-import type { OtpChannel } from '@/services/auth/otp'
+import type { OtpChannel, OtpTarget } from '@/services/auth/otp'
 import { useCompleteSignIn, landingFor } from '@/hooks/useSignIn'
 import { useStore } from '@/store/AppStore'
 import { Logo } from '@/components/brand/Logo'
 import { OtpFlow } from '@/components/auth/OtpFlow'
+import { GoogleButton } from '@/components/auth/GoogleButton'
+import { PasswordSignIn } from '@/components/auth/PasswordSignIn'
 import { Button, Card, Checkbox, Field, Input, Notice, Select } from '@/components/ui'
 
 export function AuthShell({
@@ -117,6 +119,26 @@ export function SignInPage() {
 
   const next = params.get('next')
 
+  /**
+   * The last step of every route in: work out who the proved identifier belongs
+   * to, then send them to their own half of the product.
+   *
+   * Shared by the code, the password and — through the redirect hook — Google,
+   * because the destination is a fact about the *account*, not about how
+   * somebody got into it. `landingFor` reads the role that came back from
+   * Postgres; a campaign owner whose company is still in the queue lands on
+   * `/provider` and the route guard forwards them from there, so there is one
+   * place that knows about company states and it is not this one.
+   */
+  const finish = async (target: OtpTarget) => {
+    const outcome = await complete(target)
+    if (outcome.error || !outcome.user) {
+      setError(outcome.error ?? 'auth.sessionFailed')
+      return
+    }
+    navigate(next ?? landingFor(outcome.user), { replace: true })
+  }
+
   return (
     <AuthShell
       title={t('auth.otpTitle')}
@@ -136,16 +158,25 @@ export function SignInPage() {
         </Notice>
       )}
 
-      <OtpFlow
-        onSuccess={async (target) => {
-          const outcome = await complete(target)
-          if (outcome.error || !outcome.user) {
-            setError(outcome.error ?? 'auth.sessionFailed')
-            return
-          }
-          navigate(next ?? landingFor(outcome.user), { replace: true })
-        }}
-      />
+      {/* Renders nothing unless the project actually has Google configured —
+          see the component, and the reason a conditional button beats a broken
+          one. */}
+      <div className="mb-5">
+        <GoogleButton />
+      </div>
+
+      <OtpFlow onSuccess={finish} />
+
+      {/*
+        Folded away, and that placement is the decision rather than an
+        afterthought. Almost everyone signing in here is a pilgrim who has no
+        password and never will; campaign owners and administrators have one and
+        know they do. Giving both equal billing would ask the majority to choose
+        between two things when only one of them applies to them.
+      */}
+      <div className="mt-5">
+        <PasswordSignIn onSignedIn={(email) => finish({ channel: 'email', value: email })} />
+      </div>
     </AuthShell>
   )
 }

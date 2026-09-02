@@ -89,6 +89,12 @@ const PUBLIC_ROUTES: [string, string][] = [
   // The retired per-role sign-in addresses still have to resolve.
   ['retired /signin/customer', '/signin/customer'],
   ['retired /signin/owner', '/signin/owner'],
+  // The three states a campaign owner's company can be in. Signed out they all
+  // resolve to the sign-in redirect, which is the point: the guard has to draw
+  // *something* rather than throw on `user.providerId` being undefined, which
+  // is exactly what a status route added without a null check would do.
+  ['owner awaiting verification, signed out', '/provider/pending'],
+  ['owner application refused, signed out', '/provider/review'],
 ]
 
 for (const [label, path] of PUBLIC_ROUTES) render(label, path, publicTree)
@@ -98,7 +104,7 @@ console.log('\n--- the administration dashboard ----------------------------\n')
 // Every one of these lands on the access check rather than the section, because
 // nothing has signed in. That is the point: the dashboard must not draw a
 // single one of its screens before the answer comes back.
-for (const path of ['/', '/overview', '/users', '/owners', '/campaigns', '/bookings', '/reviews']) {
+for (const path of ['/', '/overview', '/users', '/owners', '/campaigns', '/bookings', '/reviews', '/security']) {
   render(`admin ${path} resolves to the access check`, path, adminTree)
 }
 

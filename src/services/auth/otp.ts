@@ -58,6 +58,16 @@ export const RESEND_COOLDOWN_SECONDS = 45
 /** Wrong codes allowed before the attempt has to be restarted. */
 export const MAX_OTP_ATTEMPTS = 5
 
+/**
+ * The token kinds an emailed six-digit code can be, in the order tried.
+ *
+ * `email` first because returning visitors outnumber first-timers, so the
+ * common case costs one round trip. `signup` second, for an address Supabase
+ * has never confirmed — the Confirm signup template's code is a separate token
+ * record and is invisible to an `email` lookup.
+ */
+export const EMAIL_OTP_TYPES = ['email', 'signup'] as const
+
 /** True when codes are being generated in this browser rather than sent by a server. */
 export const isDemoOtp = supabase === null
 
@@ -221,18 +231,47 @@ export async function verifyOtp(target: OtpTarget, code: string): Promise<OtpVer
   if (token.length !== 6) return { ok: false, error: 'code_format' }
 
   if (supabase) {
-    const { error } =
-      target.channel === 'email'
-        ? await supabase.auth.verifyOtp({ email: normalised, token, type: 'email' })
-        : await supabase.auth.verifyOtp({ phone: normalised, token, type: 'sms' })
-
-    if (error) {
-      return {
-        ok: false,
-        error: /expired/i.test(error.message) ? 'expired' : 'wrong_code',
-      }
+    if (target.channel === 'phone') {
+      const { error } = await supabase.auth.verifyOtp({ phone: normalised, token, type: 'sms' })
+      return error
+        ? { ok: false, error: /expired/i.test(error.message) ? 'expired' : 'wrong_code' }
+        : { ok: true }
     }
-    return { ok: true }
+
+    /*
+     * An emailed code is looked up under more than one type, and it has to be.
+     *
+     * Which template sent the code decides what kind of token it is. An address
+     * NASEK has seen before gets a Magic Link, whose code verifies as `email`.
+     * An address it has never seen gets Confirm signup, whose code is a
+     * *different record* and verifies as `signup`. Asking for the wrong one
+     * returns "invalid or expired" — indistinguishable from a mistyped code.
+     *
+     * Checking only `email`, as this did, therefore failed for exactly the
+     * people least able to interpret it: everyone signing in for the first
+     * time. Their second attempt, days later, would have worked, which is the
+     * kind of bug that gets reported as "it works now" and never fixed.
+     *
+     * The loop stops early on anything that is not a lookup miss. A rate limit
+     * or a dropped connection will not improve by being asked a second time,
+     * and retrying would spend the allowance faster.
+     */
+    let last: { message: string } | null = null
+    for (const type of EMAIL_OTP_TYPES) {
+      const { error } = await supabase.auth.verifyOtp({ email: normalised, token, type })
+      if (!error) return { ok: true }
+      last = error
+      if (!/invalid|expired|not found/i.test(error.message)) break
+    }
+
+    return {
+      ok: false,
+      // Only trust "expired" when the server said so about the last type tried;
+      // a miss on every type is far more likely to be a wrong code.
+      error: last && /expired/i.test(last.message) && !/invalid/i.test(last.message)
+        ? 'expired'
+        : 'wrong_code',
+    }
   }
 
   // ------------------------------------------------------- no backend

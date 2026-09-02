@@ -167,6 +167,7 @@ export const ar: Record<PublicMessageKey, string> = {
   'campaign.reported': 'شكرًا لك — سيراجع فريق ناسِك هذه الحملة.',
   'campaign.similar': 'حملات مشابهة',
   'campaign.seatsBar': 'حُجز {booked} من {total} مقعدًا',
+  'campaign.saveNeedsAccount': 'سجّل الدخول لحفظ هذه الرحلة — الحملات المحفوظة تتبع حسابك لا هذا المتصفّح.',
   'campaign.savedToast': 'حُفظت في قائمتك',
   'campaign.unsavedToast': 'أُزيلت من قائمتك',
 
@@ -401,7 +402,8 @@ export const ar: Record<PublicMessageKey, string> = {
   'auth.registerCompany': 'تسجيل الحملة',
   'auth.providerRegistered': 'تمّ التسجيل — حملتك بانتظار التوثيق',
   'auth.emailInvalid': 'أدخل بريدًا إلكترونيًا صحيحًا',
-  'auth.passwordShort': 'كلمة المرور يجب ألا تقل عن ٨ أحرف',
+  'auth.passwordShort': 'كلمة المرور يجب ألا تقل عن {n} أحرف',
+  'auth.passwordRejected': 'لم تُقبل كلمة المرور.',
   'auth.passwordMismatch': 'كلمتا المرور غير متطابقتين',
   'auth.phoneInvalid': 'أدخل رقم هاتف عُماني صحيح',
   'auth.nameRequired': 'أدخل اسمك الكامل',
@@ -411,8 +413,8 @@ export const ar: Record<PublicMessageKey, string> = {
   'auth.providerPending':
     'تُراجَع حسابات أصحاب الحملات من فريق ناسِك قبل نشر الرحلات.',
   // -------------------------------------------- تسجيل الدخول برمز لمرة واحدة
-  'auth.otpTitle': 'تسجيل الدخول إلى ناسِك',
-  'auth.otpSubtitle': 'أدخل بريدك الإلكتروني أو رقم هاتفك، وسنرسل لك رمزًا لمرة واحدة.',
+  'auth.otpTitle': 'أهلاً بك في ناسِك',
+  'auth.otpSubtitle': 'رحلتك تبدأ باختيار الحملة المناسبة.',
   'auth.otpJoinNote': 'أول مرة في ناسِك؟ الرمز نفسه يُنشئ حسابك — لا يوجد شيء آخر لتعبئته.',
   'auth.chooseChannel': 'كيف تُفضّل استلام الرمز؟',
   'auth.continueEmail': 'البريد الإلكتروني',
@@ -651,4 +653,45 @@ export const ar: Record<PublicMessageKey, string> = {
   'state.notFoundCta': 'العودة للرئيسية',
   'state.wrongRole': 'هذه اللوحة مخصصة لنوع حساب آخر',
   'state.wrongRoleBody': 'بدّل الحساب من صفحة تسجيل الدخول للمتابعة.',
+  'state.wrongRoleCta': 'اذهب إلى لوحتك',
+
+  // ------------------------------------------------- social and password
+  'auth.or': 'أو',
+  'auth.continueGoogle': 'المتابعة عبر Google',
+  'auth.googleFailed': 'تعذّر فتح تسجيل الدخول عبر Google. جرّب رمز البريد بدلاً منه.',
+  'auth.passwordHint': '{n} أحرف على الأقل. الطول أهم بكثير من الرموز.',
+  'auth.passwordSignInTitle': 'لديك كلمة مرور؟ سجّل الدخول بها',
+  'auth.passwordSignInBody':
+    'أصحاب الحملات وفريق ناسِك يضعون كلمة مرور عند التسجيل. المعتمرون والحجّاج لا يحتاجونها — الرمز أعلاه هو طريق الدخول.',
+  'auth.errEmailUnconfirmed': 'أكّد بريدك الإلكتروني أولاً باستخدام الرمز أعلاه.',
+  'auth.mfaPrompt': 'أدخل الرمز الحالي من تطبيق المصادقة لديك.',
+  'auth.mfaLabel': 'رمز تطبيق المصادقة',
+  'auth.passwordNotSet':
+    'حسابك جاهز، لكن تعذّر حفظ كلمة المرور. سجّل الدخول برمز لمرة واحدة واضبطها من لوحتك.',
+  'auth.licenceUploadFailed': 'تعذّر رفع الترخيص. تحقّق من اتصالك وحاول مرة أخرى.',
+  'auth.providerPasswordNote':
+    'أصحاب الحملات يحصلون على كلمة مرور لأنهم يسجّلون الدخول كثيراً. الرمز لمرة واحدة يظل يعمل، فلا شيء يُفقد إن نسيتها.',
+
+  // ------------------------------------------------- campaign owner status
+  'prov.pendingTitle': 'جارٍ توثيق حملتك',
+  'prov.pendingSubtitle': 'نراجع ترخيصك الآن',
+  'prov.pendingBody':
+    'تم إرسال حسابك للتوثيق. سيراجع فريقنا بياناتك قبل تفعيل حساب صاحب الحملة.',
+  'prov.pendingMeanwhile':
+    'ستتمكن من نشر الرحلات فور اعتماد ترخيصك. حتى ذلك الحين لا تظهر حملتك للحجّاج والمعتمرين.',
+  'prov.submittedOn': 'تاريخ الإرسال',
+  'prov.checkAgain': 'تحقّق مرة أخرى',
+  'prov.suspendedTitle': 'هذه الحملة موقوفة',
+  'prov.suspendedSubtitle': 'رحلاتك غير ظاهرة على ناسِك',
+  'prov.suspendedBody':
+    'أوقف أحد مشرفي ناسِك هذه الحملة. سُحبت رحلاتك من الموقع طوال مدة الإيقاف.',
+  'prov.rejectedTitle': 'لم يُعتمد طلبك',
+  'prov.rejectedSubtitle': 'صحّح البيانات أدناه ثم أعد إرساله',
+  'prov.reasonGiven': 'سبب الرفض',
+  'prov.reasonMissing': 'لم يُسجّل سبب. تواصل مع ناسِك وسنوضّح لك.',
+  'prov.replaceLicence': 'استبدال الترخيص (اختياري)',
+  'prov.replaceLicenceHint': 'اتركه فارغاً لإعادة الإرسال بالترخيص المحفوظ.',
+  'prov.resubmit': 'أعد الإرسال للمراجعة',
+  'prov.resubmitted': 'أُعيد الإرسال — حملتك في قائمة المراجعة من جديد',
+  'prov.contactSupport': 'تواصل مع ناسِك',
 }
