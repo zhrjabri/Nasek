@@ -42,6 +42,10 @@ import { CODE_LENGTH, CodeInput } from './CodeInput'
 const ERROR_KEY: Record<string, MessageKey> = {
   invalid: 'auth.errInvalidTarget',
   send_failed: 'auth.errSendFailed',
+  // Only reachable in a deployed build that was compiled without a Supabase
+  // connection. There is nothing the person can do about it, so the message
+  // says so plainly instead of inviting them to try again for ever.
+  not_configured: 'auth.errNotConfigured',
   rate_limited: 'auth.errRateLimited',
   wrong_code: 'auth.errWrongCode',
   expired: 'auth.errExpired',

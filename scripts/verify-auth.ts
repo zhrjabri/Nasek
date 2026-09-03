@@ -16,6 +16,7 @@ import {
   EMAIL_OTP_TYPES,
   MAX_OTP_ATTEMPTS,
   cancelOtp,
+  ALLOW_LOCAL_OTP_FALLBACK,
   isDemoOtp,
   normaliseTarget,
   startOtp,
@@ -139,6 +140,26 @@ async function main() {
     EMAIL_OTP_TYPES[0] === 'email',
   )
 
+  /*
+   * The fallback is a development and test affordance, and the gate that keeps
+   * it that way is checked here rather than trusted.
+   *
+   * It used to be gated on nothing but "is there a Supabase client", which is
+   * also true of a production build whose `VITE_SUPABASE_*` variables never
+   * reached the build environment — and that is exactly what shipped to
+   * `nasek.vercel.app`. The deployed sign-in screen generated its own code and
+   * printed it on the page.
+   *
+   * `MODE` rather than `DEV` because Vite sets `DEV` false for every build,
+   * including this harness's — which would take the fallback away from the
+   * checks below that exist to cover it. This harness runs as `harness`, the
+   * dev server as `development`, and only a real `vite build` as `production`.
+   */
+  check(
+    'the local fallback is confined to development and test builds',
+    ALLOW_LOCAL_OTP_FALLBACK && import.meta.env.MODE !== 'production',
+    `MODE = ${import.meta.env.MODE}`,
+  )
   check('this harness is exercising the local fallback', isDemoOtp)
 
   const target = { channel: 'email' as const, value: 'zahra@nasek.om' }

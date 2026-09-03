@@ -445,6 +445,8 @@ export const en = {
   'auth.demoTitle': 'Demo mode — no backend configured',
   'auth.demoBody':
     'Nothing was sent. This code was generated in your browser so the flow can be tried offline. Configure Supabase for real delivery.',
+  'auth.errNotConfigured':
+    'Sign-in is unavailable right now — this site is not connected to its authentication service. Please try again later or contact NASEK.',
   'auth.errInvalidTarget': 'That doesn’t look like a valid email address or phone number.',
   'auth.errSendFailed': 'We couldn’t send your code. Check the address and try again.',
   'auth.errRateLimited': 'Too many requests. Wait a moment before asking for another code.',

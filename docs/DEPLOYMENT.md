@@ -101,7 +101,33 @@ directories:
 | Output directory | `dist` | `dist-admin` |
 | Domain | `nasek.om` | `admin.nasek.om` |
 
-Set the two Supabase variables on **both** projects.
+Set the two Supabase variables on **both** projects, for the **Production**
+environment (and Preview, if you use preview deployments). Vercel exposes
+environment variables to the build, and Vite inlines them there — so a variable
+added *after* a deployment changes nothing until you redeploy. Use
+**Redeploy** with *"Use existing Build Cache"* switched **off**.
+
+This is not a detail. `nasek.vercel.app` was deployed for a while with none of
+them set, and the result was not a broken site — it was a working-looking one.
+No Supabase client was built, so the sign-in screen fell back to generating a
+six-digit code in the visitor's own browser and displaying it on the page.
+Anyone could sign in as anyone, no email was ever requested, and nothing in the
+build, the typecheck, the harnesses or the deployment reported a problem.
+
+Two things now make that unrepeatable:
+
+* `npm run build` **fails** when `VITE_SUPABASE_URL` or `VITE_SUPABASE_ANON_KEY`
+  is missing from a production build (`assertBackendConfigured()` in
+  `vite.shared.ts`). A misconfigured deployment stops at the build rather than
+  succeeding into something worse.
+* The on-device fallback is compiled out of production regardless
+  (`ALLOW_LOCAL_OTP_FALLBACK` in `src/services/auth/otp.ts`). If a build ever
+  does ship without a backend, sign-in reports that it is unavailable; it does
+  not invent a code. `npm run verify:isolation` checks this against the built
+  bundles rather than against this paragraph.
+
+Neither affects `npm run dev` or `npm run verify`, which legitimately run
+without a backend.
 
 ### Netlify
 

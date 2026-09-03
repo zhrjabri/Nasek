@@ -185,5 +185,65 @@ if (publicBundle === null) {
   }
 }
 
+/*
+ * ------------------------------------------------- 3. no demo sign-in shipped
+ *
+ * The public site once shipped with no Supabase variables in its build
+ * environment. Vite inlines those, so the deployed bundle built no client, and
+ * `services/auth/otp.ts` did what it was written to do without one: it
+ * generated a six-digit code in the visitor's own browser, stored a derivation
+ * of it, and printed it on the sign-in page. Everything upstream passed. The
+ * build succeeded, the typecheck succeeded, the harnesses succeeded, and the
+ * deployed site authenticated anybody who could read their own screen.
+ *
+ * `ALLOW_LOCAL_OTP_FALLBACK` is now `import.meta.env.MODE !== 'production'`,
+ * which Vite folds to a constant in a production build, so both entry points
+ * return `not_configured` before they reach any of it. This reads the built
+ * files and checks that they did — because "the gate is written correctly" and
+ * "the gate actually removed the code" are different claims, and a bundler
+ * setting changed later can quietly separate them.
+ *
+ * The markers are the fallback's *machinery*, not its wording. The two demo
+ * strings in `i18n/` are ordinary entries in a dictionary object and ship
+ * whether or not anything can render them, so their presence would prove
+ * nothing and their absence could not be relied on.
+ */
+const FALLBACK_MACHINERY = [
+  // deriveCode(): the only thing in the public application that derives a key.
+  'PBKDF2',
+  'deriveBits',
+  // writeDemo(): the only thing that ever put a live code into storage.
+  'sessionStorage.setItem',
+]
+
+if (publicBundle !== null) {
+  const shipped = FALLBACK_MACHINERY.filter((needle) => publicBundle.includes(needle))
+  check(
+    'the built public site cannot generate a sign-in code of its own',
+    shipped.length === 0,
+    shipped.length ? `shipped: ${shipped.join(', ')}` : `${FALLBACK_MACHINERY.length} markers checked`,
+  )
+
+  // The other half of the same claim: what the gate leaves behind. Without
+  // this, a build that dropped the sign-in code entirely would also pass.
+  check(
+    'and refuses to sign anyone in when it has no backend',
+    publicBundle.includes('not_configured'),
+  )
+}
+
+/*
+ * The dashboard is checked for the gate only. It has a second, unrelated
+ * no-backend path — `admin/session.ts`'s local passphrase — which legitimately
+ * derives a key, so the machinery markers above cannot mean the same thing
+ * there.
+ */
+if (adminBundle !== null) {
+  check(
+    'the built dashboard refuses to sign anyone in when it has no backend',
+    adminBundle.includes('not_configured'),
+  )
+}
+
 console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} CHECK(S) FAILED`)
 if (failures > 0) process.exitCode = 1
