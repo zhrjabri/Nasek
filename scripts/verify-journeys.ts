@@ -12,6 +12,7 @@
 import type { Booking, Campaign, Provider, User } from '@/types'
 import { authApi } from '@/services/api/auth'
 import { createCredential, findCredential, verifyPassword } from '@/services/api/credentials'
+import { contactDetailsToKeep } from '@/services/auth/profileGaps'
 import { verifyAdminPassphrase } from '@/admin/access'
 import { applyFilters, applySort, campaignsApi, defaultFilters } from '@/services/api/campaigns'
 import { bookingsApi, priceBreakdown } from '@/services/api/bookings'
@@ -107,23 +108,38 @@ const main = async () => {
   check('smart match scores it', matched.length === 1, `${matched[0]?.score ?? 0}%`)
 
   // ============================================ 3. a customer registers
-  head('a customer registers and signs in')
-  const customer = await authApi.signUp({
-    name: 'Aisha Al-Harthy', email: 'aisha@example.com',
-    phone: '+968 9123 4567', wilayahId: 'muscat', role: 'customer',
-  })
-  const cred = await createCredential({
-    userId: customer.id, role: 'customer',
-    email: 'aisha@example.com', phone: '+968 9123 4567', password: 'pilgrim-pass-1',
-  })
-  state = reducer(state, { type: 'addCredential', credential: cred })
+  /*
+   * One field, and one screen.
+   *
+   * A pilgrim types an address, receives a code, and is signed in — there is no
+   * name to give, no phone number, no password and no second step. What the
+   * account holds at this point is what the whole change is about, so it is
+   * asserted rather than assumed: an address, a greeting derived from it, and
+   * nothing else.
+   */
+  head('a customer registers with an email address and nothing else')
+  const customer = await authApi.signUp({ email: 'aisha@example.com' })
   state = reducer(state, { type: 'registerUser', user: customer })
 
-  const found = findCredential(state.credentials, '91234567', 'customer')
-  check('signing in by phone finds the account', !!found)
-  check('the right password is accepted', await verifyPassword(found!, 'pilgrim-pass-1'))
-  check('a wrong password is refused', !(await verifyPassword(found!, 'pilgrim-pass-2')))
+  check('the account exists on an address alone', customer.email === 'aisha@example.com')
+  check('with a greeting taken from that address', customer.name === 'aisha', customer.name)
+  check('which is flagged as not a name they gave', customer.nameIsPlaceholder === true)
+  check('no phone number was asked for', customer.phone === '')
+  check('and the account is a customer, not something the form chose', customer.role === 'customer')
+  check(
+    'nothing resembling a password was stored for them',
+    !findCredential(state.credentials, 'aisha@example.com', 'customer'),
+  )
+
+  /*
+   * Signing in again is the same three steps as registering, because they are
+   * the same operation: `startOtp` is called with `shouldCreateUser`, so a code
+   * verified against a known address opens the existing account and a code
+   * verified against an unknown one creates it. There is no "no account found"
+   * dead end to recover from — which is why nothing here has to look one up.
+   */
   state = reducer(state, { type: 'signIn', user: customer })
+  check('the pilgrim is signed in straight from the code', state.user?.id === customer.id)
 
   // ================================================== 4. booking the trip
   head('the pilgrim books')
@@ -142,6 +158,35 @@ const main = async () => {
   state = reducer(state, { type: 'addBooking', booking })
 
   check('a booking reference is issued', !!booking.reference, booking.reference)
+  check('the booking carries the details the form collected',
+    booking.contactName === 'Aisha Al-Harthy' && booking.contactPhone === '+968 9123 4567')
+
+  /*
+   * And those details go back to the profile.
+   *
+   * This is the other half of registering on an address alone: a pilgrim is
+   * asked for their name once, at the point it goes on a manifest, and never
+   * again. `contactDetailsToKeep` decides what may be kept; the booking page
+   * writes it and dispatches the same patch.
+   */
+  const keep = contactDetailsToKeep(customer, {
+    name: 'Aisha Al-Harthy',
+    phone: '+968 9123 4567',
+    email: 'aisha@example.com',
+  })
+  check('booking fills in the name registration never asked for', keep?.name === 'Aisha Al-Harthy')
+  check('and the phone number', keep?.phone === '+968 9123 4567')
+  state = reducer(state, { type: 'updateProfile', patch: keep! })
+  check('the profile is no longer minimal', state.user?.name === 'Aisha Al-Harthy')
+  check('and no longer flagged as a placeholder', state.user?.nameIsPlaceholder === false)
+  check(
+    'a second booking has nothing left to teach it',
+    contactDetailsToKeep(state.user!, {
+      name: 'Someone Else',
+      phone: '+968 9999 9999',
+      email: 'aisha@example.com',
+    }) === null,
+  )
   const { subtotal, fee, total } = priceBreakdown(trip, 2)
   check('the total is the trip twice over, plus the platform fee',
     booking.totalPrice === total && total === subtotal + fee,
@@ -187,14 +232,28 @@ const main = async () => {
   const restored = reducer(emptyState, { type: 'hydrate', state: saved })
   check('the trip survives a reload', catalogue(restored).campaigns.length === 1)
   check('the accounts survive', restored.sessionUsers.length === 2)
-  check('credentials survive', restored.credentials.length === 2)
+  /*
+   * One credential, not two — and the missing one is the point.
+   *
+   * The campaign owner holds a password because they sign in constantly and
+   * cannot afford to wait on an inbox. The pilgrim holds none, because a
+   * password for someone who signs in around one trip in their life is pure
+   * cost, and the code flow is already the recovery path a password system
+   * would need. A second row appearing here would mean customer registration
+   * had started minting credentials again.
+   */
+  check('the one credential survives', restored.credentials.length === 1)
+  check(
+    'and it belongs to the campaign owner, not the pilgrim',
+    restored.credentials.every((c) => c.role === 'provider'),
+  )
   check('no password is anywhere in what is stored',
     !JSON.stringify(saved).includes('pilgrim-pass-1') &&
       !JSON.stringify(saved).includes('owner-pass-2026'))
 
   const out = reducer(restored, { type: 'signOut' })
   check('signing out clears the person', out.user === null)
-  check('but not the platform', catalogue(out).campaigns.length === 1 && out.credentials.length === 2)
+  check('but not the platform', catalogue(out).campaigns.length === 1 && out.credentials.length === 1)
 
   console.log(failures === 0
     ? '\nEVERY JOURNEY COMPLETED'

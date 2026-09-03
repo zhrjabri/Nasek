@@ -172,6 +172,8 @@ export const adminEn = {
   'admin.deniedUnavailable':
     'We could not reach the database to confirm your access. Check your connection and try again.',
   'admin.signOutAndRetry': 'Sign out and use another account',
+  'admin.identityMisconfigured':
+    'VITE_ADMIN_EMAIL is set but is not a valid email address, so the password form below cannot know which account to sign in as. Fix it in the deployment environment and rebuild.',
   'admin.localModeTitle': 'Local mode — no database configured',
   'admin.localModeBody':
     'This dashboard is running against data held in this browser only. The passphrase below is the prototype gate; it is not a security control. Configure Supabase for real, server-enforced administration.',

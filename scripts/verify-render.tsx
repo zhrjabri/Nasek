@@ -130,5 +130,37 @@ check(
   !signInHtml.toLowerCase().includes('administrat'),
 )
 
+/*
+ * What customer registration must NOT ask for.
+ *
+ * The screen collects an address and nothing else, and that is a promise about
+ * the product rather than a detail of one form: a pilgrim should reach a
+ * campaign without filling anything in first. It is the kind of promise that
+ * erodes one well-meant field at a time — a name here, a wilayah there, each
+ * defensible on its own — so it is asserted rather than trusted.
+ *
+ * Read off the rendered markup, which is where a reinstated field would
+ * actually appear. `type="tel"`, `autocomplete="name"` and a password input are
+ * the three shapes the removed fields had.
+ */
+const customerHtml = renderToStaticMarkup(publicTree('/signup/customer'))
+for (const [label, needle] of [
+  ['customer registration asks for no phone number', 'type="tel"'],
+  ['customer registration asks for no name', 'autocomplete="name"'],
+  ['customer registration asks for no password', 'type="password"'],
+] as const) {
+  const found = customerHtml.includes(needle)
+  check(label, !found, found ? `found ${needle}` : '')
+}
+check(
+  'customer registration asks for exactly one thing',
+  (customerHtml.match(/<input/g) ?? []).length === 1,
+  `${(customerHtml.match(/<input/g) ?? []).length} input(s)`,
+)
+check(
+  'and that one thing is an email address',
+  customerHtml.includes('type="email"'),
+)
+
 console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} CHECK(S) FAILED`)
 if (failures > 0) process.exitCode = 1

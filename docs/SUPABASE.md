@@ -101,19 +101,58 @@ whichever application the person started from, and `services/auth/redirect.ts`
 completes the session when they land. The sign-in screen says so, so nobody
 sits looking at six empty boxes with only a link in their inbox.
 
-**One thing you must configure for this to work.** Dashboard →
-**Authentication → URL Configuration**:
+**Two things you must configure for this to work.**
+
+### a. Tell the build where the site lives
+
+`VITE_SITE_URL` in `.env` (and `VITE_ADMIN_URL` for the dashboard) is the
+address a sign-in email points at:
+
+```
+VITE_SITE_URL=https://your-site.example.com/
+```
+
+Leave it blank and NASEK falls back to the origin the page is running on. That
+is correct in development and wrong everywhere else — a build made on a laptop
+puts `http://localhost:5173/` into a real email, which is an address nobody can
+follow from an inbox and which does not exist on a phone at all. It is read at
+**build** time, so it belongs in your host's build environment, not in a
+runtime setting.
+
+### b. Tell the project to accept that address
+
+Dashboard → **Authentication → URL Configuration**:
 
 | Field | Value |
 | --- | --- |
-| Site URL | `http://localhost:5173` (your public domain in production) |
-| Redirect URLs | `http://localhost:5173/**` and `http://localhost:5174/**` |
+| Site URL | your public site (`http://localhost:5173` while developing) |
+| Redirect URLs | `http://localhost:5173/**`, `http://localhost:5174/**`, and every deployed address |
 
-Add your real domains alongside them before deploying — `https://nasek.om/**`
-and `https://admin.nasek.om/**`. If a redirect target is not on this list,
-Supabase silently falls back to the Site URL, and an administrator clicking a
-link ends up on the public site instead of the dashboard. That failure looks
-like a bug in the app and is not one.
+If a redirect target is not on this list, Supabase does not refuse it and does
+not report an error — it silently substitutes the Site URL. The person clicks a
+link and lands somewhere else, which looks exactly like a bug in the app and is
+not one. A fresh project ships with the Site URL set to `http://localhost:3000`,
+which matches nothing this repository serves, so it is a particularly quiet way
+to get a wrong destination.
+
+Both halves are checkable from outside the dashboard:
+
+```bash
+npm run auth:urls              # report: what would this project honour?
+npm run auth:urls -- --apply   # set Site URL and add the missing entries
+```
+
+The report needs nothing but the anon key already in `.env`; `--apply` needs a
+personal access token from
+<https://supabase.com/dashboard/account/tokens>:
+
+```bash
+SUPABASE_ACCESS_TOKEN=sbp_... npm run auth:urls -- --apply
+```
+
+It merges into the existing allow-list rather than replacing it, and it keeps
+the localhost entries alongside the deployed ones — one project backs both, so
+removing them breaks every developer's sign-in.
 
 This is URL configuration, not template editing, and is available on the free
 plan.
@@ -228,7 +267,25 @@ every new profile to `customer`.
    select * from public.promote_to_admin('you@example.com');
    ```
 
-3. Open the administration site and sign in with the same address.
+3. Tell the administration build which account it signs in as. In your
+   deployment environment (and in `.env` for local work):
+
+   ```
+   VITE_ADMIN_EMAIL=you@example.com
+   ```
+
+   The dashboard's login screen asks for a password and nothing else, so it has
+   to be told whose password to ask for. This is not a secret and is not treated
+   as one — it is compiled into the admin bundle like every other `VITE_`
+   variable, and knowing an administrator's address grants nothing. Setting it
+   promotes nobody; only step 2 does that. **Read at build time**, so a change
+   needs a rebuild.
+
+   Left unset, the login screen falls back to asking for the address alongside
+   the password. Nothing breaks; it is simply one more thing to type at the
+   worst moment.
+
+4. Open the administration site and sign in with that account.
 
 To see who currently holds it:
 
@@ -249,10 +306,14 @@ to fail.
 
 ### Then set a password and turn on two-factor
 
-The administration dashboard signs in with **email and password**, with the
-one-time code kept as the recovery path. A newly promoted administrator has no
-password yet, so the first sign-in uses the code; after that, **Security** in
-the sidebar sets one.
+The administration dashboard signs in with **a password alone** — the address
+comes from `VITE_ADMIN_EMAIL` — with the one-time code kept as the recovery
+path, sent to that same address without asking for it.
+
+A newly promoted administrator has no password yet, so the first sign-in uses
+the code: open the dashboard, choose **Sign in with a one-time code instead**,
+and send it. After that, **Security** in the sidebar sets a password, and the
+password field on the login screen becomes the everyday route in.
 
 The same screen enrols an authenticator app (TOTP — Google Authenticator,
 1Password, Aegis, any of them). Do it. An administration account can suspend a

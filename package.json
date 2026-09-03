@@ -26,6 +26,7 @@
     "verify:render": "vite build --ssr scripts/verify-render.tsx --outDir .verify --mode harness --logLevel warn && node .verify/verify-render.js",
     "db:bundle": "node scripts/bundle-migrations.mjs",
     "verify:backend": "node scripts/verify-backend.mjs",
+    "auth:urls": "node scripts/supabase-auth-urls.mjs",
     "verify:redirect": "vite build --ssr scripts/verify-redirect.ts --outDir .verify --mode harness --logLevel warn && node .verify/verify-redirect.js",
     "debug:signin": "vite build --ssr scripts/debug-signin.ts --outDir .verify --logLevel warn && node .verify/debug-signin.js"
   },

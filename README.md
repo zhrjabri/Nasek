@@ -33,29 +33,54 @@ and it says so in a banner rather than pretending otherwise. See
 | `npm run build:web` / `build:admin` | Build one |
 | `npm run preview` / `preview:admin` | Serve a production build |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm run verify` | All 163 checks below |
+| `npm run verify` | All 246 checks below |
 | `npm run verify:auth` | Phone normalisation, the one-time-code lifecycle, password rules, and where each role lands |
 | `npm run verify:isolation` | That no administration code reached the public bundle |
 | `npm run verify:journeys` | Owner → pilgrim → admin, end to end |
 | `npm run verify:ai` | The intelligence layer against fixed inputs |
 | `npm run verify:map` | Every wilayah marker projects inside Oman's borders |
+| `npm run auth:urls` | Whether Supabase would honour the addresses sign-in emails point at |
 
 ### Signing in
 
-There are no demo accounts. A pilgrim needs no password at all: type an email
-address or an Omani phone number and prove you received the message — that is
-the whole of it, for a first-time pilgrim and a returning one alike. Where the
-project has Google configured, **Continue with Google** appears above it and
-skips even that; the button stays hidden when it is not, because an OAuth
-provider that is not enabled fails by throwing the person out of the site.
+There are no demo accounts, and three doors that deliberately look nothing alike.
 
-Campaign owners and administrators *do* set a password, and the reason is how
-often they sign in. An owner runs a live inventory of seats and an administrator
-is who gets called when something is wrong — putting an email provider's
-delivery time between either of them and their own dashboard is a bad trade at
-exactly the wrong moment. The one-time code still works for both, and is the
-recovery path. Administrators can additionally enrol an authenticator app from
-**Security** in the dashboard sidebar, and should.
+**A pilgrim registers on an email address and nothing else.** Type it, prove you
+received the code, and you have an account — no name, no phone number, no
+wilayah, no password, no terms checkbox. Registering and signing in are the same
+three steps, because they are the same operation: the code is sent with
+`shouldCreateUser`, so a first-time pilgrim and a returning one take an
+identical path and there is no "no account found" dead end.
+
+The profile stays that minimal on purpose. Everything a campaign actually needs
+— the contact name, a phone number, traveller passports and civil IDs — is
+collected on the **booking form**, at the point it becomes load-bearing, and the
+name and phone are written back to the profile there so they are asked once and
+never again. A pilgrim who browses and does not book is never asked for
+anything. Where the project has Google configured, **Continue with Google**
+appears above the code and skips even the code; the button stays hidden when it
+is not, because an OAuth provider that is not enabled fails by throwing the
+person out of the site.
+
+**A campaign owner registers a company**, and that flow is unchanged and
+deliberately heavier: company details, years of trading, the operating permit,
+and a password set at the end of the registration. Registering leaves the
+company `pending` in the administrator's verification queue, and
+`campaigns_read` in Postgres — not the interface — keeps its trips out of the
+public catalogue until someone has read the permit.
+
+**An administrator types a password and nothing else.** There is one
+administration account, named at build time by `VITE_ADMIN_EMAIL`, so the login
+screen carries the address and asks only for the secret. Typing an address never
+protected anything: `is_admin()` runs inside Postgres against a signed token,
+and that is what actually decides whether the dashboard opens. Administrators
+can enrol an authenticator app from **Security** in the dashboard sidebar, and
+should. The one-time code remains as the recovery path — sent to the same
+configured address, still without asking for it.
+
+An owner or an administrator who has a password can also use it on the public
+sign-in screen, folded away under the code, because the many people arriving
+there have no password and never will.
 
 What arrives depends on the project's email templates, and NASEK accepts either:
 a **six-digit code** to type, or a **sign-in link** to click. Supabase's default
@@ -77,13 +102,16 @@ select * from public.promote_to_admin('you@example.com');
 ## The journeys that work end to end
 
 **Pilgrim** — Home → smart or field search → filtered listing → campaign detail →
-compare up to 3 → 4-step booking → confirmation with reference → dashboard.
+compare up to 3 → sign up with an email address alone → 4-step booking, which is
+where the traveller and contact details are collected → confirmation with
+reference → dashboard, with the profile now filled in from what the booking
+asked for.
 
 **Campaign owner** — Register as owner → dashboard → add a trip → it appears
 immediately in the public listing, map and search → manage bookings → analytics.
 
-**Admin** — On its own host: email and password, plus an authenticator code
-where the account has one enrolled → Postgres confirms the account holds the
+**Admin** — On its own host: a password, plus an authenticator code where the
+account has one enrolled → Postgres confirms the account holds the
 role → verification queue → read the permit → approve, or refuse with a reason
 the owner reads word for word and can correct → the "Verified by NASEK" badge
 appears across every listing, and the owner's trips become visible at all.
@@ -230,7 +258,7 @@ would return. The API key must live on that server route — never in this bundl
 | Campaigns, bookings, reviews, notifications, saved trips | **Still `localStorage`, per browser.** The tables exist, are indexed and are policy-protected — the app does not read or write them yet | Move `useCatalogue` and the booking path onto Postgres |
 | Admin moderation (verify, suspend, feature) | **Still `localStorage`.** A decision is invisible to any other browser | Same |
 | Transport | `services/api/client.ts` adds 180–520 ms latency and can fail on demand | `fetch` against the real API |
-| Auth | **Real.** Supabase Auth: one-time codes for pilgrims, passwords plus optional TOTP for owners and administrators, Google when the project has it | Configure your own SMTP; add an SMS provider for phone codes; enable Google |
+| Auth | **Real.** Supabase Auth: email one-time codes for pilgrims and nothing else asked of them, passwords plus optional TOTP for owners and administrators, Google when the project has it | Configure your own SMTP; add an SMS provider for phone codes; enable Google |
 | Authorisation | **Real.** Postgres row-level security, evaluated before any row is returned | — |
 | Payments | "Simulate payment" button; no card fields collect anything | Thawani or another licensed Omani gateway, server-side |
 | Persistence | `localStorage`, per browser | Server-side, per account |

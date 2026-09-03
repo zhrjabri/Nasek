@@ -23,7 +23,11 @@ import {
 } from '@/services/auth/otp'
 import { formatPhone, isValidPhone, maskEmail, maskPhone, toE164 } from '@/services/auth/phone'
 import { MIN_PASSWORD_LENGTH, passwordProblem } from '@/services/auth/password'
+import { fallbackName, profileToUser } from '@/services/auth/session'
+import { contactDetailsToKeep } from '@/services/auth/profileGaps'
+import { ADMIN_EMAIL, hasFixedAdminIdentity, parseAdminEmail } from '@/admin/identity'
 import { landingFor, providerLanding } from '@/hooks/useSignIn'
+import type { ProfileRow } from '@/services/supabase/schema'
 import type { User, VerificationStatus } from '@/types'
 
 /*
@@ -216,6 +220,134 @@ async function main() {
     'and a matching one is not',
     passwordProblem('a-long-enough-one', 'a-long-enough-one') === null,
   )
+
+  console.log('\n--- a pilgrim who registered on an address alone -------------\n')
+
+  /*
+   * The minimal profile.
+   *
+   * Customer registration collects one thing: an address. The database trigger
+   * writes a row with an empty name, and everything downstream has to cope with
+   * that without ever showing "User" or an empty monogram — while still knowing
+   * that what it is showing is not a name anybody gave.
+   */
+  const row = (over: Partial<ProfileRow> = {}): ProfileRow =>
+    ({
+      id: '00000000-0000-4000-8000-000000000001',
+      name: '',
+      email: 'nadia@example.om',
+      phone: null,
+      role: 'customer',
+      wilayah_id: null,
+      avatar_color: '',
+      provider_id: null,
+      suspended: false,
+      removed: false,
+      created_at: '2026-09-03T00:00:00.000Z',
+      ...over,
+    }) as ProfileRow
+
+  const fresh = profileToUser(row())
+  check(
+    'a brand-new account is greeted by the local part of its address',
+    fresh.name === 'nadia',
+    fresh.name,
+  )
+  check('and that greeting is marked as a placeholder', fresh.nameIsPlaceholder === true)
+  check('the wilayah falls back rather than being required', fresh.wilayahId === 'muscat')
+  check('a phone is simply absent, not invented', fresh.phone === '')
+
+  const named = profileToUser(row({ name: 'Nadia Al-Balushi' }))
+  check('a profile with a real name reports one', named.name === 'Nadia Al-Balushi')
+  check('and is not marked as a placeholder', named.nameIsPlaceholder === false)
+
+  check(
+    'a name of nothing but spaces is still a placeholder',
+    profileToUser(row({ name: '   ' })).nameIsPlaceholder === true,
+  )
+  check(
+    'an account with neither name nor address falls back to empty, not to a crash',
+    fallbackName({ name: '', email: null, phone: null }) === '',
+  )
+
+  console.log('\n--- what a booking is allowed to keep ------------------------\n')
+
+  /*
+   * Registration asks for an address; the booking form asks for everything a
+   * campaign actually needs. This is the seam between them, and it is the only
+   * place a booking may change an account.
+   */
+  const contact = { name: 'Nadia Al-Balushi', phone: '+968 9123 4567', email: 'nadia@example.om' }
+
+  const filled = contactDetailsToKeep(fresh, contact)
+  check(
+    'a placeholder name is replaced by the one the booking collected',
+    filled?.name === 'Nadia Al-Balushi',
+  )
+  check('and stops being a placeholder', filled?.nameIsPlaceholder === false)
+  check('a missing phone number is kept too', filled?.phone === '+968 9123 4567')
+
+  /*
+   * The case that matters more than the one above: a son booking for his
+   * mother must not rename his own account to hers.
+   */
+  const established: User = { ...named, phone: '+968 9000 0000' }
+  check(
+    'a name the person already gave is never overwritten by a booking contact',
+    contactDetailsToKeep(established, { ...contact, name: 'Someone Else' }) === null,
+  )
+  check(
+    'nor is a phone number they already gave',
+    contactDetailsToKeep(established, { ...contact, phone: '+968 9111 1111' }) === null,
+  )
+  check(
+    'an empty booking form teaches the profile nothing',
+    contactDetailsToKeep(fresh, { name: '  ', phone: '', email: '' }) === null,
+  )
+  check(
+    'the email address is never among what a booking writes back',
+    !Object.prototype.hasOwnProperty.call(
+      contactDetailsToKeep(fresh, { ...contact, email: 'someone.else@example.om' }) ?? {},
+      'email',
+    ),
+  )
+
+  console.log('\n--- the administration account ------------------------------\n')
+
+  /*
+   * The dashboard asks for a password and nothing else, so it has to be told
+   * which account that password belongs to. Unset here by `.env.harness`, which
+   * is the fallback branch: the login screen asks for the address as well
+   * rather than being unopenable.
+   */
+  check(
+    'with VITE_ADMIN_EMAIL unset there is no fixed identity',
+    hasFixedAdminIdentity === false && ADMIN_EMAIL === '',
+    ADMIN_EMAIL || '(empty)',
+  )
+
+  const cases: [string, string | undefined, string, boolean][] = [
+    // raw value, address it resolves to, whether to complain about it
+    ['unset', undefined, '', false],
+    ['empty', '', '', false],
+    ['whitespace only', '   ', '', false],
+    ['a plain address', 'ops@nasek.om', 'ops@nasek.om', false],
+    ['padded and shouted', '  OPS@Nasek.OM  ', 'ops@nasek.om', false],
+    // The one that must not pass silently: it would reach Supabase as a
+    // credential nobody holds and come back as "invalid login", sending an
+    // administrator to reset a password that was never the problem.
+    ['a name, not an address', 'the admin', '', true],
+    ['half an address', 'ops@', '', true],
+    ['a domain with no dot', 'ops@nasek', '', true],
+  ]
+  for (const [label, raw, email, misconfigured] of cases) {
+    const parsed = parseAdminEmail(raw)
+    check(
+      `${label} -> ${email || 'no fixed identity'}${misconfigured ? ', and says so' : ''}`,
+      parsed.email === email && parsed.misconfigured === misconfigured,
+      `${parsed.email || '(empty)'} misconfigured=${parsed.misconfigured}`,
+    )
+  }
 
   console.log('\n--- where each account lands after signing in ----------------\n')
 

@@ -34,15 +34,83 @@ export type RedirectOutcome =
 /**
  * Where Supabase should send someone after it verifies their link.
  *
- * Computed from the running page rather than configured, so the public site
- * returns to the public site and the administration dashboard to the
- * dashboard — two origins, two destinations, no shared constant to get wrong.
- * The search and hash are dropped: this has to be a stable, allow-listed URL,
- * and `#/signin` on the end would make it a different one each time.
+ * Two sources, in order of authority:
+ *
+ *   1. `VITE_SITE_URL` (public site) or `VITE_ADMIN_URL` (dashboard), baked in
+ *      at build time. This is the deployed address, and it is the only thing
+ *      that can be right in an email: the link is read on a phone, on another
+ *      laptop, three days later — none of which know or care what origin the
+ *      browser that asked for it happened to be served from.
+ *   2. The running page's own origin, when neither variable is set. That is
+ *      development, where the address genuinely is the address, and it is what
+ *      keeps a fresh clone working with nothing configured.
+ *
+ * Before there was a configured source the answer was always (2), and that is
+ * the whole of the bug it replaces. Locally it put `http://localhost:5174/`
+ * into a real email — an address that means nothing in an inbox, and nothing at
+ * all on a phone. In production it inherited whichever origin the page happened
+ * to be opened on, which for a preview deployment is a different host every
+ * time and therefore never on the project's allow-list; Supabase answers an
+ * unlisted address by silently substituting the Site URL, so the failure
+ * arrives as a wrong destination rather than as an error.
+ *
+ * The result is canonicalised, because it has to match an allow-list entry and
+ * Supabase compares the URL it is handed:
+ *
+ *   * search and hash are dropped — `#/signin` on the end would make this a
+ *     different URL on every page;
+ *   * a trailing `index.html` is removed, because a static host serves the same
+ *     page at `/` and at `/index.html`, and only one of the two is worth
+ *     registering;
+ *   * a trailing slash is added, so `https://nasek.example` and
+ *     `https://nasek.example/` cannot become two entries that must both be
+ *     remembered.
  */
+export function resolveRedirectTarget(
+  configured: string | undefined,
+  origin: string,
+  pathname: string,
+): string {
+  const candidate = configured?.trim()
+  let url: URL | null = null
+
+  if (candidate) {
+    /*
+     * A malformed variable must not take sign-in down with it. Getting the
+     * deployed URL wrong is a deployment mistake and wants finding, but the
+     * running origin is a usable answer in the meantime — whereas throwing here
+     * would break every sign-in on the site until someone redeployed.
+     */
+    try {
+      url = new URL(candidate)
+    } catch {
+      url = null
+    }
+  }
+  if (!url) url = new URL(`${origin}${pathname}`)
+
+  url.search = ''
+  url.hash = ''
+  url.pathname = url.pathname.replace(/index\.html$/, '')
+  if (!url.pathname.endsWith('/')) url.pathname = `${url.pathname}/`
+  return url.toString()
+}
+
+/**
+ * The deployed address of whichever application this bundle is.
+ *
+ * Read once, at module scope, because Vite inlines it at build time — there is
+ * nothing to re-evaluate, and the two applications are separate builds, so each
+ * one gets exactly its own answer.
+ */
+const configuredSiteUrl: string | undefined =
+  import.meta.env.VITE_NASEK_APP === 'admin'
+    ? import.meta.env.VITE_ADMIN_URL
+    : import.meta.env.VITE_SITE_URL
+
 export function authRedirectTarget(): string | undefined {
   if (typeof window === 'undefined') return undefined
-  return `${window.location.origin}${window.location.pathname}`
+  return resolveRedirectTarget(configuredSiteUrl, window.location.origin, window.location.pathname)
 }
 
 /** Strip auth material from the address bar without touching the router's hash. */

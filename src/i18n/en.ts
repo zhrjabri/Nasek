@@ -319,7 +319,8 @@ export const en = {
   'booking.docsNote':
     'Non-Omani travellers must also provide a residence card, sponsor details and a photo with a white background — the campaign will request these after booking.',
   'booking.contactTitle': 'Contact details',
-  'booking.contactNote': 'The campaign will use these to reach you about the trip.',
+  'booking.contactNote':
+    'The campaign will use these to reach you about the trip. We keep them on your account, so this is the last time you will be asked.',
   'booking.reviewTitle': 'Review your booking',
   'booking.reviewNote': 'Check everything before you continue to payment.',
   'booking.paymentTitle': 'Payment',
@@ -340,7 +341,8 @@ export const en = {
   'booking.backHome': 'Back to home',
   'booking.notEnoughSeats': 'Only {n} seats remain on this trip.',
   'booking.signInFirst': 'Sign in to continue your booking',
-  'booking.signInNote': 'Your selection is kept — you’ll come straight back here.',
+  'booking.signInNote':
+    'It takes an email address and a code. Your selection is kept — you’ll come straight back here.',
   'booking.print': 'Print confirmation',
 
   // ------------------------------------------------------------------ auth
@@ -372,6 +374,13 @@ export const en = {
   'auth.signUpCustomerNote': 'Find a campaign that suits you and book your trip.',
   'auth.permitBadge': 'Permit upload required',
   'auth.customerSignUpTitle': 'Create your customer account',
+  'auth.customerSignUpSubtitle': 'Your email address is all we need to get started.',
+  'auth.emailOnlyBadge': 'Email only — no password',
+  'auth.createAccount': 'Create my account',
+  'auth.bookingDetailsLater':
+    'That is the whole form. Traveller names, civil ID and passport numbers are asked when you book a trip — not before.',
+  'auth.termsNote':
+    'By continuing you agree to the NASEK terms of use and privacy policy.',
   'auth.signUpSubtitle': 'Save trips you like and book them in a few steps.',
   'auth.password': 'Password',
   'auth.confirmPassword': 'Confirm password',

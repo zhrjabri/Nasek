@@ -15,11 +15,13 @@ import {
   ShieldCheck,
   Users,
 } from 'lucide-react'
-import type { Booking, Campaign, Traveller } from '@/types'
+import type { Booking, Campaign, Traveller, User } from '@/types'
 import { useI18n, type MessageKey } from '@/i18n'
 import { wilayahName } from '@/data/geo'
 import { bookingsApi, priceBreakdown } from '@/services/api/bookings'
 import { isSupabaseConfigured } from '@/services/supabase/client'
+import { saveProfile } from '@/services/auth/session'
+import { contactDetailsToKeep } from '@/services/auth/profileGaps'
 import { createBooking } from '@/services/data/catalogue'
 import { useStore } from '@/store/AppStore'
 import { useCatalogue } from '@/hooks/useCatalogue'
@@ -83,9 +85,24 @@ export function BookingPage() {
   const Back = ArrowLeft
   const Next = ArrowRight
 
-  // Prefill from the signed-in account — nobody should retype what we know.
+  /*
+   * Prefill from the signed-in account — nobody should retype what we know.
+   *
+   * The name is the exception, and the reason is the whole point of registering
+   * with an address alone: a pilgrim who has not given a name is greeted by the
+   * local part of theirs, and `user.name` is that greeting. Prefilling it would
+   * put `ahmed.k` into the field the campaign reads to find someone at an
+   * airport, and — because this form saves what it collects back to the profile
+   * — would then make it permanent. `nameIsPlaceholder` is exactly the question
+   * "is this a name they gave us?", so the field is left empty when it is not.
+   */
   useEffect(() => {
-    if (user) setContact({ name: user.name, phone: user.phone, email: user.email })
+    if (!user) return
+    setContact({
+      name: user.nameIsPlaceholder ? '' : user.name,
+      phone: user.phone,
+      email: user.email,
+    })
   }, [user])
 
   // Keep the traveller array in step with the count.
@@ -201,6 +218,22 @@ export function BookingPage() {
         })
       }
       dispatch({ type: 'addBooking', booking: created })
+
+      /*
+       * The booking is the moment NASEK earns the right to these details, so it
+       * is also the moment they are kept.
+       *
+       * Registration asks for an address and nothing else. Everything a person
+       * is actually known by arrives here, on the form where it matters — and
+       * writing it back means it is asked once rather than at every booking. It
+       * runs after the booking is created and its failure is swallowed on
+       * purpose: a profile that did not update is a prefill that will be empty
+       * next time, not a trip that did not get booked, and there is nothing
+       * useful to say to somebody who has just paid.
+       */
+      void rememberContactDetails(user, contact).then((patch) => {
+        if (patch) dispatch({ type: 'updateProfile', patch })
+      })
       dispatch({
         type: 'pushNotification',
         notification: {
@@ -718,6 +751,29 @@ export function BookingPage() {
 }
 
 // ------------------------------------------------------------------- pieces
+
+/**
+ * Keep what the booking form collected, so it is asked once and not every time.
+ *
+ * The decision of *what* may be kept lives in `contactDetailsToKeep`, where it
+ * is pure and asserted by `npm run verify:auth`. This is only the I/O around
+ * it: write the patch to the profile row where there is one, and hand it back
+ * either way so the caller can update the store without re-reading anything.
+ */
+async function rememberContactDetails(
+  user: User,
+  contact: { name: string; phone: string; email: string },
+): Promise<Partial<User> | null> {
+  const patch = contactDetailsToKeep(user, contact)
+  if (!patch) return null
+
+  // With no backend there is no row to write to; the store is the profile, and
+  // the patch is applied to it by the caller either way.
+  if (!isSupabaseConfigured) return patch
+
+  const saved = await saveProfile(patch)
+  return saved ? patch : null
+}
 
 function StepTitle({ children }: { children: React.ReactNode }) {
   return <h2 className="display mb-5 text-2xl text-ink-900 sm:text-3xl">{children}</h2>

@@ -38,10 +38,40 @@ running — every dynamic thing NASEK does goes to Supabase from the browser.
 
 ## Environment
 
-Both builds read `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` **at build
-time**, not at runtime. Vite inlines them into the JavaScript, so changing a
-key means rebuilding and redeploying — setting it on the host afterwards does
-nothing.
+Both builds read their configuration **at build time**, not at runtime. Vite
+inlines it into the JavaScript, so changing a value means rebuilding and
+redeploying — setting it on the host afterwards does nothing.
+
+| Variable | Public build | Admin build |
+| --- | --- | --- |
+| `VITE_SUPABASE_URL` | required | required |
+| `VITE_SUPABASE_ANON_KEY` | required | required |
+| `VITE_SITE_URL` | the deployed address | — |
+| `VITE_ADMIN_URL` | — | the deployed address |
+| `VITE_ADMIN_EMAIL` | — | the administrator's address |
+
+`VITE_ADMIN_EMAIL` is what lets the dashboard's login screen ask for a password
+and nothing else: there is one administration account, and the form has to know
+which. It is public like everything else in this table and grants nothing —
+`is_admin()` inside Postgres decides whether the dashboard opens, against a
+token no browser can forge. Leave it unset and the login screen asks for the
+address as well, which works and is simply slower at the worst moment. It
+promotes nobody: the account is created and granted the role in SQL, per
+`docs/SUPABASE.md`.
+
+`VITE_SITE_URL` and `VITE_ADMIN_URL` are what a sign-in email points at. Without them the app falls
+back to the origin the page happens to be served on, which is right in
+development and wrong in a deployment: a preview build's origin changes on
+every push, so it is never on the Supabase redirect allow-list, and Supabase
+answers an unlisted address by silently substituting the project's Site URL.
+
+Every address you set here must also be on that allow-list. Check it, and fix
+it, without opening the dashboard:
+
+```bash
+npm run auth:urls              # what would the project actually honour?
+npm run auth:urls -- --apply   # add what is missing (needs SUPABASE_ACCESS_TOKEN)
+```
 
 Set them as build environment variables in your host's dashboard, or in CI. See
 `docs/SUPABASE.md` for where to find them, and `.env.example` for the warning

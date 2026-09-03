@@ -51,7 +51,10 @@ export function DashboardPage() {
   const setTab = (next: Tab) => setParams({ tab: next }, { replace: true })
 
   const [profile, setProfile] = useState({
-    name: user?.name ?? '',
+    // Empty, not the greeting. A pilgrim who registered with an address alone
+    // is shown the local part of it around the site; putting that into the
+    // editable name field would invite them to save it as their actual name.
+    name: user?.nameIsPlaceholder ? '' : (user?.name ?? ''),
     email: user?.email ?? '',
     phone: user?.phone ?? '',
     wilayahId: user?.wilayahId ?? 'muscat',
@@ -327,7 +330,13 @@ export function DashboardPage() {
                  * and the local patch stands, exactly as before.
                  */
                 const saved = await saveProfile(profile)
-                dispatch({ type: 'updateProfile', patch: saved ?? profile })
+                dispatch({
+                  type: 'updateProfile',
+                  // With no backend `saved` is null and the typed values stand;
+                  // the placeholder flag has to be cleared by hand there, since
+                  // nothing round-tripped through `profileToUser` to compute it.
+                  patch: saved ?? { ...profile, nameIsPlaceholder: !profile.name.trim() },
+                })
                 toast(t('dash.profileSaved'))
               }}
               className="space-y-4"

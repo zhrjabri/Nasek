@@ -7,6 +7,7 @@ import { OtpFlow } from '@/components/auth/OtpFlow'
 import { PasswordSignIn } from '@/components/auth/PasswordSignIn'
 import { AdminAuthShell } from '@/admin/layout/AdminAuthShell'
 import { verifyAdminPassphrase } from '@/admin/access'
+import { ADMIN_EMAIL, adminIdentityMisconfigured, hasFixedAdminIdentity } from '@/admin/identity'
 import { loadAdminSession, markLocalGatePassed, type AdminGateReason } from '@/admin/session'
 
 /**
@@ -64,9 +65,16 @@ const DENIAL: Record<Exclude<AdminGateReason, 'anonymous'>, MessageKey> = {
  * the login screen deciding its own outcome, which is the shape of the guard
  * this whole change exists to remove.
  *
- * Three ways in, one gate behind all of them: email and password, that password
- * plus an authenticator code where the account has one enrolled, and the
- * one-time code as the recovery path. Not one of them decides anything.
+ * Three ways in, one gate behind all of them: a password, that password plus an
+ * authenticator code where the account has one enrolled, and the one-time code
+ * as the recovery path. Not one of them decides anything.
+ *
+ * The address is no longer asked for. There is one administration account and
+ * it is named at build time (`VITE_ADMIN_EMAIL`), so typing it was reproducing
+ * a constant under time pressure — and it never protected anything: knowing an
+ * address has always granted nothing, and `is_admin()` inside Postgres is what
+ * this screen actually has to satisfy. Where the variable is unset the address
+ * field comes back, because the alternative is a dashboard nobody can open.
  */
 function RemoteLogin({
   onAuthenticated,
@@ -141,7 +149,21 @@ function RemoteLogin({
         enrolled produces a session at assurance level `aal1`, which reads like
         success and is not one.
       */}
-      <PasswordSignIn bare defaultOpen onSignedIn={check} />
+      {/* Warned about rather than ignored: a `VITE_ADMIN_EMAIL` that is not an
+          address would otherwise surface as "invalid credentials" and send an
+          administrator hunting for a password problem that does not exist. */}
+      {adminIdentityMisconfigured && (
+        <Notice tone="warn" className="mb-5">
+          {t('admin.identityMisconfigured')}
+        </Notice>
+      )}
+
+      <PasswordSignIn
+        bare
+        defaultOpen
+        fixedEmail={hasFixedAdminIdentity ? ADMIN_EMAIL : undefined}
+        onSignedIn={check}
+      />
 
       <div className="my-5 flex items-center gap-3">
         <span className="h-px flex-1 bg-ivory-300" />
@@ -173,7 +195,11 @@ function RemoteLogin({
             organisation controls; a personal handset is not, and NASEK should
             not be one lost phone away from having no administrator.
           */}
-          <OtpFlow channels={['email']} onSuccess={check} />
+          <OtpFlow
+            channels={['email']}
+            lockedValue={hasFixedAdminIdentity ? ADMIN_EMAIL : undefined}
+            onSuccess={check}
+          />
         </div>
       )}
     </AdminAuthShell>

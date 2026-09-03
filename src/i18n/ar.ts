@@ -319,7 +319,8 @@ export const ar: Record<PublicMessageKey, string> = {
   'booking.docsNote':
     'على المسافرين غير العُمانيين تقديم بطاقة الإقامة وبيانات الكفيل وصورة شخصية بخلفية بيضاء — وستطلبها الحملة بعد الحجز.',
   'booking.contactTitle': 'بيانات التواصل',
-  'booking.contactNote': 'ستستخدمها الحملة للتواصل معك بشأن الرحلة.',
+  'booking.contactNote':
+    'ستستخدمها الحملة للتواصل معك بشأن الرحلة. نحفظها في حسابك، فهذه آخر مرة نطلبها منك.',
   'booking.reviewTitle': 'راجع حجزك',
   'booking.reviewNote': 'تأكد من كل شيء قبل الانتقال إلى الدفع.',
   'booking.paymentTitle': 'الدفع',
@@ -340,7 +341,8 @@ export const ar: Record<PublicMessageKey, string> = {
   'booking.backHome': 'العودة للرئيسية',
   'booking.notEnoughSeats': 'لم يتبقَ سوى {n} مقعدًا في هذه الرحلة.',
   'booking.signInFirst': 'سجّل الدخول لإكمال الحجز',
-  'booking.signInNote': 'اختيارك محفوظ — وستعود إلى هنا مباشرة.',
+  'booking.signInNote':
+    'يكفي بريد إلكتروني ورمز تحقق. اختيارك محفوظ — وستعود إلى هنا مباشرة.',
   'booking.print': 'طباعة التأكيد',
 
   // ------------------------------------------------------------------ auth
@@ -372,6 +374,12 @@ export const ar: Record<PublicMessageKey, string> = {
   'auth.signUpCustomerNote': 'اعثر على الحملة التي تناسبك واحجز رحلتك.',
   'auth.permitBadge': 'يلزم رفع التصريح',
   'auth.customerSignUpTitle': 'أنشئ حساب العميل',
+  'auth.customerSignUpSubtitle': 'بريدك الإلكتروني هو كل ما نحتاجه للبدء.',
+  'auth.emailOnlyBadge': 'بالبريد فقط — بدون كلمة مرور',
+  'auth.createAccount': 'أنشئ حسابي',
+  'auth.bookingDetailsLater':
+    'هذه هي الاستمارة كاملة. أسماء المسافرين وأرقام البطاقة الشخصية وجوازات السفر تُطلب عند حجز رحلة — وليس قبل ذلك.',
+  'auth.termsNote': 'بالمتابعة فإنك توافق على شروط الاستخدام وسياسة الخصوصية في ناسِك.',
   'auth.signUpSubtitle': 'احفظ الرحلات التي تعجبك واحجزها في خطوات.',
   'auth.password': 'كلمة المرور',
   'auth.confirmPassword': 'تأكيد كلمة المرور',

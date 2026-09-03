@@ -75,6 +75,17 @@ export type ServiceKey =
 export interface User {
   id: string
   name: string
+  /**
+   * Whether `name` is something the person actually gave us.
+   *
+   * A pilgrim registers with an address and nothing else, so `name` is
+   * initially derived from that address — good enough to greet somebody by,
+   * and not good enough to write onto a booking or to prefill a form as
+   * though they had typed it. Anything that asks a person to confirm their
+   * own name checks this first; everything that merely *displays* one does
+   * not have to care.
+   */
+  nameIsPlaceholder?: boolean
   email: string
   phone: string
   role: Role

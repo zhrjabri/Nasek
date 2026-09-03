@@ -30,13 +30,23 @@ export interface SignInOutcome {
 
 const AVATAR_COLORS = ['#1c5e4c', '#23765e', '#a8842c', '#10402f', '#856422']
 
-/** The details a registration form gathered before the code was sent. */
+/**
+ * The details a registration form gathered before the code was sent.
+ *
+ * All optional, and for customer registration all absent: a pilgrim types an
+ * address and nothing else, so there is nothing to apply. What remains is what
+ * the campaign-owner form genuinely collects about the person registering, and
+ * it is applied to their profile once the code has proved the address.
+ *
+ * `role` used to be here and is gone. It was documented as ignored — the
+ * database reverts it, and becoming a campaign owner runs through
+ * `register_provider` — so an optional field that nothing read and nothing
+ * could honour was an invitation to try asserting a role from a sign-up form.
+ */
 export interface SignUpDetails {
   name?: string
   phone?: string
   wilayahId?: string
-  role?: Exclude<Role, 'admin'>
-  providerId?: string
 }
 
 export function useCompleteSignIn() {
@@ -91,6 +101,9 @@ export function useCompleteSignIn() {
         const merged: User = {
           ...existing,
           name: details.name?.trim() || existing.name,
+          nameIsPlaceholder: details.name?.trim()
+            ? false
+            : (existing.nameIsPlaceholder ?? false),
           phone: details.phone?.trim() || existing.phone,
           wilayahId: details.wilayahId || existing.wilayahId,
         }
@@ -110,12 +123,16 @@ export function useCompleteSignIn() {
       const user: User = {
         id,
         name: details.name?.trim() || defaultName(target, identifier),
+        // A pilgrim registering with nothing but an address gets a greeting
+        // derived from it, flagged as exactly that. See `User.nameIsPlaceholder`.
+        nameIsPlaceholder: !details.name?.trim(),
         email: target.channel === 'email' ? identifier : '',
         phone: target.channel === 'phone' ? identifier : (details.phone?.trim() ?? ''),
-        role: details.role ?? 'customer',
+        // Always. The one way to hold anything else is `registerProviderAccount`,
+        // which replaces this user with the one the registration produced.
+        role: 'customer',
         wilayahId: details.wilayahId ?? 'muscat',
         avatarColor: AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)],
-        providerId: details.providerId,
         createdAt: new Date().toISOString().slice(0, 10),
       }
       dispatch({ type: 'registerUser', user })

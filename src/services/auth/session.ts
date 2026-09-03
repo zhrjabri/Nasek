@@ -42,6 +42,10 @@ export function profileToUser(row: ProfileRow): User {
   return {
     id: row.id,
     name: fallbackName(row),
+    // The column, not the fallback: a pilgrim who registered with an address
+    // and nothing else has an empty `name` here, and the booking form needs to
+    // know that the greeting it is showing is not a name they gave.
+    nameIsPlaceholder: !row.name.trim(),
     email: row.email ?? '',
     phone: row.phone ?? '',
     role: row.role as Role,

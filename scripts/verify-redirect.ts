@@ -19,6 +19,7 @@ import {
   completeAuthRedirect,
   isAuthRedirect,
   parseSignInLink,
+  resolveRedirectTarget,
 } from '@/services/auth/redirect'
 
 let failures = 0
@@ -96,6 +97,81 @@ async function main() {
     'a site served from a sub-path keeps that sub-path',
     authRedirectTarget() === 'https://nasek.example.om/nasek/',
     String(authRedirectTarget()),
+  )
+
+  /*
+   * The configured deployed address, which is the half the running origin
+   * cannot supply.
+   *
+   * `authRedirectTarget()` reads `VITE_SITE_URL` at build time, so the choice
+   * between the two sources cannot be flipped at runtime and cannot be
+   * exercised through that function. `resolveRedirectTarget()` is the same
+   * decision with the value passed in, which is why it is separated out — the
+   * branch that only runs in a production build is the one worth pinning here,
+   * because it is the one nobody can click on locally.
+   */
+  const origin = 'http://localhost:5174'
+
+  check(
+    'a configured site URL beats the origin the page is served on',
+    resolveRedirectTarget('https://nasek.example.com/', origin, '/') ===
+      'https://nasek.example.com/',
+    resolveRedirectTarget('https://nasek.example.com/', origin, '/'),
+  )
+  check(
+    'a configured URL with no trailing slash gains one',
+    resolveRedirectTarget('https://nasek.example.com', origin, '/') ===
+      'https://nasek.example.com/',
+    resolveRedirectTarget('https://nasek.example.com', origin, '/'),
+  )
+  check(
+    'a configured sub-path keeps its path and gains a slash',
+    resolveRedirectTarget('https://example.github.io/Nasek', origin, '/') ===
+      'https://example.github.io/Nasek/',
+    resolveRedirectTarget('https://example.github.io/Nasek', origin, '/'),
+  )
+  check(
+    'a query or fragment pasted into the variable is dropped',
+    resolveRedirectTarget('https://nasek.example.com/?utm=x#/signin', origin, '/') ===
+      'https://nasek.example.com/',
+    resolveRedirectTarget('https://nasek.example.com/?utm=x#/signin', origin, '/'),
+  )
+
+  /*
+   * A static host serves the same page at `/` and at `/index.html`, and only
+   * one of them can reasonably be on the allow-list. Someone arriving on the
+   * explicit filename — a bookmark, a link with the name in it — must still
+   * produce the registered address, or their sign-in silently lands elsewhere.
+   */
+  check(
+    'a trailing index.html is normalised away',
+    resolveRedirectTarget(undefined, 'https://nasek.example.com', '/index.html') ===
+      'https://nasek.example.com/',
+    resolveRedirectTarget(undefined, 'https://nasek.example.com', '/index.html'),
+  )
+
+  // Development: nothing configured, so the address really is the address.
+  check(
+    'no configured URL falls back to the running origin',
+    resolveRedirectTarget(undefined, origin, '/') === 'http://localhost:5174/',
+    resolveRedirectTarget(undefined, origin, '/'),
+  )
+  check(
+    'a blank variable counts as unset rather than as an empty URL',
+    resolveRedirectTarget('   ', origin, '/') === 'http://localhost:5174/',
+    resolveRedirectTarget('   ', origin, '/'),
+  )
+
+  /*
+   * A typo in a deployment variable is a deployment mistake, not a reason for
+   * every sign-in on the site to throw. It degrades to the previous behaviour,
+   * which is wrong in an email but still leaves the app working while someone
+   * finds it.
+   */
+  check(
+    'a malformed configured URL degrades to the origin instead of throwing',
+    resolveRedirectTarget('nasek.example.com', origin, '/') === 'http://localhost:5174/',
+    resolveRedirectTarget('nasek.example.com', origin, '/'),
   )
 
   console.log('\n--- with no backend configured ------------------------------\n')

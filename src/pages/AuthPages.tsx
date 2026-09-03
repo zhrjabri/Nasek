@@ -2,16 +2,13 @@ import { useState } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { Building2, ChevronRight, ShieldCheck, User as UserIcon } from 'lucide-react'
 import { useI18n, type MessageKey } from '@/i18n'
-import { WILAYAT } from '@/data/geo'
-import { isValidPhone } from '@/services/auth/phone'
-import type { OtpChannel, OtpTarget } from '@/services/auth/otp'
+import type { OtpTarget } from '@/services/auth/otp'
 import { useCompleteSignIn, landingFor } from '@/hooks/useSignIn'
-import { useStore } from '@/store/AppStore'
 import { Logo } from '@/components/brand/Logo'
 import { OtpFlow } from '@/components/auth/OtpFlow'
 import { GoogleButton } from '@/components/auth/GoogleButton'
 import { PasswordSignIn } from '@/components/auth/PasswordSignIn'
-import { Button, Card, Checkbox, Field, Input, Notice, Select } from '@/components/ui'
+import { Card, Notice } from '@/components/ui'
 
 export function AuthShell({
   title,
@@ -165,7 +162,22 @@ export function SignInPage() {
         <GoogleButton />
       </div>
 
-      <OtpFlow onSuccess={finish} />
+      {/*
+        Email only, on the way in as well as on the way up.
+
+        This screen registers as much as it signs in — `shouldCreateUser` is
+        true, so a code verified against an unknown identifier creates the
+        account — which means leaving the phone channel here would quietly
+        reopen the registration path that customer sign-up just closed: an
+        account created on a handset, with no address to reach it at.
+
+        It costs nothing today. Phone codes need an SMS provider the project
+        does not have, so the tab offered a channel that could not deliver; and
+        an identifier that cannot be recovered when the handset is lost is a bad
+        one for somebody who signs in around one trip in their life. Campaign
+        owners and administrators were email-only already.
+      */}
+      <OtpFlow channels={['email']} onSuccess={finish} />
 
       {/*
         Folded away, and that placement is the decision rather than an
@@ -245,6 +257,7 @@ export function SignUpPage() {
           icon={<UserIcon className="size-4.5" />}
           title={t('auth.signUpCustomer')}
           note={t('auth.signUpCustomerNote')}
+          badge={t('auth.emailOnlyBadge')}
           to="/signup/customer"
         />
       </div>
@@ -257,96 +270,57 @@ export function SignUpPage() {
 /**
  * Registering as a pilgrim.
  *
- * Two steps: the details NASEK needs, then the code that proves the address is
- * yours. The password and its confirmation are gone — there is nothing left for
- * them to protect, and they were the two fields most likely to end a
- * registration halfway through.
+ * One field. That is the whole form, and it is the decision this screen exists
+ * to express rather than an omission to apologise for.
  *
- * The details are collected *before* the code rather than after, which is worth
- * a word. Asking afterwards would let someone abandon the form with a live
- * account and no name on it; asking first means the account that gets created
- * is complete from its first moment, and the code stays the last thing between
- * a finished form and a working dashboard.
+ * It used to ask for a name, a phone number, a wilayah and an accepted terms
+ * checkbox before it would send a code — four answers NASEK did not need yet,
+ * standing between somebody and the campaign they had already chosen. None of
+ * them made the account safer and none of them made the catalogue more useful;
+ * they existed because registration forms traditionally ask. A pilgrim who
+ * never books gave us four fields of nothing, and a pilgrim who does book has
+ * to give the real details anyway — on the booking form, where a mistyped
+ * passport number matters and a mistyped one on a sign-up screen does not.
+ *
+ * So the address is all that is collected here, because the address is all
+ * that is used: it is the identifier, it is where the code goes, and it is how
+ * a returning pilgrim is recognised. Everything else is asked at
+ * `/booking/:id`, at the moment it becomes load-bearing, and written back to
+ * the profile there so it is asked exactly once.
+ *
+ * This screen and `SignInPage` therefore do the same thing, which is correct
+ * and not a duplication to collapse: `shouldCreateUser` is true on both, so a
+ * code verified against an unknown address creates the account. The two screens
+ * differ only in what they promise the person who arrived at them.
  */
 export function CustomerSignUpPage() {
-  const { t, lang } = useI18n()
+  const { t } = useI18n()
   const navigate = useNavigate()
-  const { toast } = useStore()
-
-  const [form, setForm] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    wilayahId: 'muscat',
-  })
-  const [channel, setChannel] = useState<OtpChannel>('email')
-  const [agreed, setAgreed] = useState(false)
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  const [stage, setStage] = useState<'details' | 'verify'>('details')
+  const complete = useCompleteSignIn()
   const [failure, setFailure] = useState<MessageKey | null>(null)
 
-  const set = (key: keyof typeof form, value: string) =>
-    setForm((f) => ({ ...f, [key]: value }))
-
-  const submitDetails = (e: React.FormEvent) => {
-    e.preventDefault()
-    const next: Record<string, string> = {}
-    if (!form.name.trim()) next.name = t('auth.nameRequired')
-    if (!/^\S+@\S+\.\S+$/.test(form.email)) next.email = t('auth.emailInvalid')
-    if (!isValidPhone(form.phone)) next.phone = t('auth.phoneInvalid')
-    if (!agreed) next.terms = t('auth.termsRequired')
-    setErrors(next)
-    if (Object.keys(next).length) return
-    setStage('verify')
-  }
-
-  if (stage === 'verify') {
-    return (
-      <AuthShell
-        title={t('auth.customerSignUpTitle')}
-        subtitle={t('auth.signUpSubtitle')}
-        footer={
-          <button
-            type="button"
-            onClick={() => setStage('details')}
-            className="font-semibold text-nasek-700 hover:underline"
-          >
-            {t('common.back')}
-          </button>
-        }
-      >
-        {failure && (
-          <Notice tone="danger" live className="mb-5">
-            {t(failure)}
-          </Notice>
-        )}
-
-        {/* The channel is fixed to whichever identifier the form is verifying,
-            so the two screens cannot disagree about which address is being
-            confirmed. */}
-        <VerifyStep
-          channel={channel}
-          value={channel === 'email' ? form.email : form.phone}
-          details={{
-            name: form.name,
-            phone: form.phone,
-            wilayahId: form.wilayahId,
-            role: 'customer',
-          }}
-          onFailure={setFailure}
-          onDone={(path) => {
-            toast(t('dash.profileSaved'))
-            navigate(path, { replace: true })
-          }}
-        />
-      </AuthShell>
-    )
+  /**
+   * No `details` argument, and that absence is the change.
+   *
+   * `useCompleteSignIn` still accepts the registration details a form gathered
+   * — the campaign-owner flow has real ones to pass — and this one has nothing
+   * to say beyond the address that was just proved. The profile is created by
+   * the database trigger with an empty name, which `fallbackName` renders as
+   * the local part of the address until a booking supplies a real one.
+   */
+  const finish = async (target: OtpTarget) => {
+    const outcome = await complete(target)
+    if (outcome.error || !outcome.user) {
+      setFailure(outcome.error ?? 'auth.sessionFailed')
+      return
+    }
+    navigate(landingFor(outcome.user), { replace: true })
   }
 
   return (
     <AuthShell
       title={t('auth.customerSignUpTitle')}
-      subtitle={t('auth.signUpSubtitle')}
+      subtitle={t('auth.customerSignUpSubtitle')}
       footer={
         <>
           {t('auth.haveAccount')}{' '}
@@ -356,9 +330,16 @@ export function CustomerSignUpPage() {
         </>
       }
     >
-      {/* Campaign owners register on their own page: the licence upload and
-          company details do not belong behind a toggle on this form. */}
-      <p className="mb-6 flex items-start gap-2 rounded-[3px] border border-nasek-200 bg-nasek-50/60 p-3.5 text-xs leading-relaxed text-ink-600">
+      {failure && (
+        <Notice tone="danger" live className="mb-5">
+          {t(failure)}
+        </Notice>
+      )}
+
+      {/* Campaign owners register on their own page: the permit upload and the
+          company details do not belong behind a toggle on a form whose entire
+          content is one address. */}
+      <p className="mb-5 flex items-start gap-2 rounded-[3px] border border-nasek-200 bg-nasek-50/60 p-3.5 text-xs leading-relaxed text-ink-600">
         <Building2 className="mt-px size-4 shrink-0 text-nasek-700" />
         <span>
           {t('auth.ownerRedirect')}{' '}
@@ -368,128 +349,32 @@ export function CustomerSignUpPage() {
         </span>
       </p>
 
-      <form onSubmit={submitDetails} className="space-y-4" noValidate>
-        <Field label={t('common.name')} required error={errors.name}>
-          {(p) => (
-            <Input {...p} value={form.name} onChange={(e) => set('name', e.target.value)} autoComplete="name" />
-          )}
-        </Field>
+      {/* Renders nothing unless the project actually has Google configured.
+          It collects no more than the code path does — an address and a
+          verified claim to it — so it belongs on a screen that promises to ask
+          for nothing else. */}
+      <div className="mb-5">
+        <GoogleButton />
+      </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label={t('common.email')} required error={errors.email}>
-            {(p) => (
-              <Input
-                {...p}
-                type="email"
-                dir="ltr"
-                autoComplete="email"
-                value={form.email}
-                onChange={(e) => set('email', e.target.value)}
-              />
-            )}
-          </Field>
-          <Field label={t('common.phone')} required error={errors.phone}>
-            {(p) => (
-              <Input
-                {...p}
-                type="tel"
-                dir="ltr"
-                autoComplete="tel"
-                placeholder="+968 9xxx xxxx"
-                value={form.phone}
-                onChange={(e) => set('phone', e.target.value)}
-              />
-            )}
-          </Field>
-        </div>
+      {/* Email only. The phone channel exists and works, but an account whose
+          only identifier is a handset cannot be recovered when the handset is
+          lost, and a pilgrim signs in around one trip in their life — long
+          enough to change numbers, rarely enough not to notice until it
+          matters. */}
+      <OtpFlow channels={['email']} onSuccess={finish} submitLabel={t('auth.createAccount')} />
 
-        <Field label={t('common.wilayah')} hint={t('smart.q2hint')}>
-          {(p) => (
-            <Select {...p} value={form.wilayahId} onChange={(e) => set('wilayahId', e.target.value)}>
-              {WILAYAT.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.name[lang]} — {w.governorate[lang]}
-                </option>
-              ))}
-            </Select>
-          )}
-        </Field>
+      <p className="mt-5 text-xs leading-relaxed text-ink-500">{t('auth.bookingDetailsLater')}</p>
 
-        {/* Which of the two identifiers to confirm. Both were collected; only
-            one has to be proved, and the person should pick which — an email
-            they can open on this device beats an SMS they cannot. */}
-        <Field label={t('auth.chooseChannel')}>
-          {() => (
-            <div className="grid grid-cols-2 gap-2">
-              {(['email', 'phone'] as const).map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => setChannel(option)}
-                  aria-pressed={channel === option}
-                  className={
-                    channel === option
-                      ? 'rounded-[3px] border border-nasek-700 bg-nasek-50 px-3 py-2.5 text-sm font-bold text-nasek-900'
-                      : 'rounded-[3px] border border-ivory-400 bg-ivory-50 px-3 py-2.5 text-sm font-semibold text-ink-600 transition-colors hover:border-ink-400/60'
-                  }
-                >
-                  {t(option === 'email' ? 'auth.continueEmail' : 'auth.continuePhone')}
-                </button>
-              ))}
-            </div>
-          )}
-        </Field>
+      {/*
+        Consent as a sentence rather than a checkbox.
 
-        <div>
-          <Checkbox checked={agreed} onChange={setAgreed} label={t('auth.termsAgree')} />
-          {errors.terms && (
-            <p role="alert" className="mt-1 text-xs font-medium text-red-600">
-              {errors.terms}
-            </p>
-          )}
-        </div>
-
-        <Button type="submit" size="lg" block>
-          {t('common.continue')}
-        </Button>
-      </form>
+        The checkbox that used to be here could only ever produce one answer
+        before the button would work, which makes it a click and not a choice.
+        Saying what continuing means, immediately above the control that does
+        it, is the same agreement with one less obstacle in front of it.
+      */}
+      <p className="mt-3 text-2xs leading-relaxed text-ink-400">{t('auth.termsNote')}</p>
     </AuthShell>
-  )
-}
-
-/**
- * The verification half of a registration form.
- *
- * Shared by the pilgrim and campaign-owner registrations, which collect very
- * different things and finish identically.
- */
-export function VerifyStep({
-  channel,
-  value,
-  details,
-  onDone,
-  onFailure,
-}: {
-  channel: OtpChannel
-  value: string
-  details: Parameters<ReturnType<typeof useCompleteSignIn>>[1]
-  onDone: (path: string) => void
-  onFailure: (error: MessageKey) => void
-}) {
-  const complete = useCompleteSignIn()
-
-  return (
-    <OtpFlow
-      channels={[channel]}
-      initialValue={value}
-      onSuccess={async (target) => {
-        const outcome = await complete(target, details)
-        if (outcome.error || !outcome.user) {
-          onFailure(outcome.error ?? 'auth.sessionFailed')
-          return
-        }
-        onDone(landingFor(outcome.user))
-      }}
-    />
   )
 }

@@ -52,6 +52,7 @@ const ERROR_KEY: Record<string, MessageKey> = {
 export function OtpFlow({
   channels = ['email', 'phone'],
   initialValue = '',
+  lockedValue,
   onSuccess,
   submitLabel,
   busyLabel,
@@ -68,6 +69,16 @@ export function OtpFlow({
    */
   initialValue?: string
   /**
+   * Send to this address and do not offer to change it.
+   *
+   * Different from `initialValue`, which is a suggestion someone may correct.
+   * This is used where the identifier is not the person's to choose — the
+   * administration dashboard, whose account is configuration rather than
+   * input — so the screen shows which address the code is going to and asks
+   * for nothing. Overrides `initialValue` when both are given.
+   */
+  lockedValue?: string
+  /**
    * Resolve once the session is established; the flow stays busy until it does.
    *
    * Handed the identifier that was just proved, because the caller has no other
@@ -81,7 +92,7 @@ export function OtpFlow({
 }) {
   const { t } = useI18n()
   const [channel, setChannel] = useState<OtpChannel>(channels[0])
-  const [value, setValue] = useState(initialValue)
+  const [value, setValue] = useState(lockedValue ?? initialValue)
   const [code, setCode] = useState('')
   const [step, setStep] = useState<'identify' | 'code'>('identify')
   const [busy, setBusy] = useState(false)
@@ -232,7 +243,7 @@ export function OtpFlow({
         }}
         className="space-y-5"
       >
-        {channels.length > 1 && (
+        {channels.length > 1 && !lockedValue && (
           <Segmented<OtpChannel>
             value={channel}
             onChange={(next) => {
@@ -248,6 +259,34 @@ export function OtpFlow({
           />
         )}
 
+        {lockedValue ? (
+          /*
+           * The address, shown rather than asked for.
+           *
+           * It is still displayed — a code going somewhere unnamed is a code
+           * nobody knows to look for — and the failure it makes visible is the
+           * one worth making visible: a misconfigured address is obvious here,
+           * where the alternative is a code that never arrives and no way to
+           * tell why.
+           */
+          <div className="space-y-1.5">
+            <p className="text-xs font-bold uppercase tracking-wider text-ink-500">
+              {t(channel === 'email' ? 'common.email' : 'common.phone')}
+            </p>
+            <p
+              dir="ltr"
+              className="flex items-center gap-2 rounded-[3px] border border-ivory-300 bg-ivory-50 px-3 py-2.5 text-sm font-semibold text-ink-700"
+            >
+              <Mail className="size-4 shrink-0 text-ink-400" aria-hidden />
+              {lockedValue}
+            </p>
+            {error && (
+              <p role="alert" className="text-xs font-medium text-danger-fg">
+                {t(error)}
+              </p>
+            )}
+          </div>
+        ) : (
         <Field
           label={t(channel === 'email' ? 'common.email' : 'common.phone')}
           hint={t(channel === 'email' ? 'auth.emailHint' : 'auth.phoneHint')}
@@ -281,6 +320,7 @@ export function OtpFlow({
             </div>
           )}
         </Field>
+        )}
 
         <Button type="submit" size="lg" block loading={busy}>
           {busy ? t('auth.sending') : t('auth.sendCode')}

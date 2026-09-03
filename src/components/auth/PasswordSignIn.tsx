@@ -48,14 +48,28 @@ export function PasswordSignIn({
   defaultOpen = false,
   /** Hide the disclosure entirely and render just the form. */
   bare = false,
+  /**
+   * Sign in as this address, and do not ask for it.
+   *
+   * The administration dashboard's whole identity is configuration — one
+   * account, known at build time — so asking an administrator to type it is
+   * asking them to reproduce a constant. The field disappears; the address is
+   * still what Supabase is given, because a password on its own authenticates
+   * nothing.
+   *
+   * Absent everywhere else. On the public site the address is a genuine
+   * question: it is how a campaign owner's account is found.
+   */
+  fixedEmail,
 }: {
   onSignedIn: (email: string) => void | Promise<void>
   defaultOpen?: boolean
   bare?: boolean
+  fixedEmail?: string
 }) {
   const { t } = useI18n()
   const [open, setOpen] = useState(defaultOpen)
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(fixedEmail ?? '')
   const [password, setPassword] = useState('')
   const [reveal, setReveal] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -70,7 +84,11 @@ export function PasswordSignIn({
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
-    if (!/^\S+@\S+\.\S+$/.test(email)) {
+    // The configured address wins over anything in state. It is validated where
+    // it is read (`admin/identity.ts`), so reaching here with a fixed value
+    // means it is well-formed; the check below still applies to a typed one.
+    const address = (fixedEmail ?? email).trim().toLowerCase()
+    if (!/^\S+@\S+\.\S+$/.test(address)) {
       setError('auth.emailInvalid')
       return
     }
@@ -80,7 +98,7 @@ export function PasswordSignIn({
     }
 
     setBusy(true)
-    const outcome = await signInWithPassword(email, password)
+    const outcome = await signInWithPassword(address, password)
 
     if (outcome.mfaRequired && outcome.factorId) {
       setBusy(false)
@@ -94,7 +112,7 @@ export function PasswordSignIn({
       return
     }
 
-    await onSignedIn(email.trim().toLowerCase())
+    await onSignedIn(address)
     setBusy(false)
   }
 
@@ -150,22 +168,25 @@ export function PasswordSignIn({
   ) : (
     // ----------------------------------------------------------- credentials
     <form noValidate onSubmit={submit} className="space-y-4">
-      <Field label={t('common.email')} required>
-        {(p) => (
-          <Input
-            {...p}
-            type="email"
-            dir="ltr"
-            autoComplete="email"
-            placeholder="name@example.com"
-            value={email}
-            onChange={(e) => {
-              setEmail(e.target.value)
-              setError(null)
-            }}
-          />
-        )}
-      </Field>
+      {/* Absent when the caller already knows the account. See `fixedEmail`. */}
+      {!fixedEmail && (
+        <Field label={t('common.email')} required>
+          {(p) => (
+            <Input
+              {...p}
+              type="email"
+              dir="ltr"
+              autoComplete="email"
+              placeholder="name@example.com"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value)
+                setError(null)
+              }}
+            />
+          )}
+        </Field>
+      )}
 
       <Field label={t('auth.password')} required error={error ? t(error) : undefined}>
         {(p) => (
@@ -174,6 +195,7 @@ export function PasswordSignIn({
               {...p}
               type={reveal ? 'text' : 'password'}
               dir="ltr"
+              autoFocus={!!fixedEmail}
               autoComplete="current-password"
               value={password}
               onChange={(e) => {

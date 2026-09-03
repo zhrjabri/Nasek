@@ -41,6 +41,16 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          # The deployed addresses, baked in so a sign-in email points at the
+          # site rather than at whatever origin the browser happened to use.
+          # Unset here means the old behaviour, which is wrong in an inbox.
+          VITE_SITE_URL: ${{ secrets.VITE_SITE_URL }}
+          VITE_ADMIN_URL: ${{ secrets.VITE_ADMIN_URL }}
+          # Which account the administration dashboard signs in as. It asks for
+          # a password and nothing else, so it has to be told whose. Public, and
+          # it grants nothing — `is_admin()` in Postgres decides that. Unset
+          # here means the login screen asks for the address too.
+          VITE_ADMIN_EMAIL: ${{ secrets.VITE_ADMIN_EMAIL }}
       - run: npm run verify
 
       # Kept so a failed deployment can be inspected without a local rebuild.
@@ -74,6 +84,11 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          # The deployed addresses, baked in so a sign-in email points at the
+          # site rather than at whatever origin the browser happened to use.
+          # Unset here means the old behaviour, which is wrong in an inbox.
+          VITE_SITE_URL: ${{ secrets.VITE_SITE_URL }}
+          VITE_ADMIN_URL: ${{ secrets.VITE_ADMIN_URL }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

@@ -116,13 +116,9 @@ const main = async () => {
     historic('u900', 700, '2026-04-09'),
   ]
 
-  const registered = await authApi.signUp({
-    name: 'Registered Customer',
-    email: 'customer@example.com',
-    phone: '+968 9555 6666',
-    wilayahId: 'sohar',
-    role: 'customer',
-  })
+  // An address and nothing else — which is all customer registration collects
+  // now, and therefore all the directory has to be able to display.
+  const registered = await authApi.signUp({ email: 'customer@example.com' })
 
   const directory = buildDirectory([provider], history, [registered])
 

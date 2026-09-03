@@ -1,12 +1,23 @@
 import type { Provider, Role, User } from '@/types'
 import { request } from './client'
 
+/**
+ * Everything customer registration collects: an address.
+ *
+ * It used to carry a name, a phone number, a wilayah and a role. All four are
+ * gone, and the deletion is the change rather than a tidy-up around it — a
+ * pilgrim now registers on an address alone, and an interface that still
+ * accepted the other four would be an invitation to start asking for them
+ * again. What a campaign genuinely needs is collected by the booking form,
+ * which is also where it is written back to the profile.
+ *
+ * `role` went with them for a different reason: a sign-up form does not get to
+ * assert what kind of account it is creating. Everyone who arrives here is a
+ * customer, and becoming a campaign owner is a separate, guarded step through
+ * `register_provider`.
+ */
 export interface SignUpInput {
-  name: string
   email: string
-  phone: string
-  wilayahId: string
-  role: Exclude<Role, 'admin'>
 }
 
 /** Everything the campaign-owner registration form collects. */
@@ -126,16 +137,26 @@ export const authApi = {
       }
     }, { latencyMs: 900 }),
 
+  /**
+   * Customer registration, for a browser with no backend.
+   *
+   * The mirror of what Supabase does on the configured path: an account exists
+   * the moment an address is proved, with a profile that holds nothing else.
+   * The name is derived from the address so there is something to greet the
+   * person by, and flagged as derived so nothing mistakes it for one they gave.
+   */
   signUp: (input: SignUpInput) =>
     request<User>(() => {
       const id = `u${Math.floor(Math.random() * 90000) + 10000}`
+      const email = input.email.trim().toLowerCase()
       return {
         id,
-        name: input.name,
-        email: input.email,
-        phone: input.phone,
-        role: input.role,
-        wilayahId: input.wilayahId,
+        name: email.split('@')[0],
+        nameIsPlaceholder: true,
+        email,
+        phone: '',
+        role: 'customer',
+        wilayahId: 'muscat',
         avatarColor: AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)],
         createdAt: new Date().toISOString().slice(0, 10),
       }
