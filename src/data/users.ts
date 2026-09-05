@@ -22,6 +22,25 @@ export interface DirectoryUser {
   /** Set for campaign owners — links the account to the company it runs. */
   providerId?: string
   avatarColor: string
+  /**
+   * Moderation as the database records it, where there is a row to record it.
+   *
+   * Undefined for a row assembled from a company or a booking rather than read
+   * from `profiles` — the offline prototype, and the handful of historical
+   * customers who exist only in the booking ledger. The screen falls back to
+   * this session's own decisions for those.
+   */
+  suspended?: boolean
+  removed?: boolean
+  /**
+   * False when this row is a stand-in rather than an account.
+   *
+   * A company with no readable owner profile still has to appear in the
+   * directory, but it cannot be suspended — there is no account to suspend, and
+   * the id here is invented. The screen uses this to stop offering an action
+   * that would quietly do nothing, which is what it did before.
+   */
+  isAccount: boolean
 }
 
 const AVATAR_COLORS = ['#1c5e4c', '#23765e', '#a8842c', '#10402f', '#856422']
@@ -36,18 +55,31 @@ function colorFor(id: string): string {
 /**
  * Assemble the account directory.
  *
- * Three sources, because there is no single user table in this prototype and
- * each source knows about accounts the others miss:
+ * Three sources, because no one of them knows about every account:
  *
- *   - `providers` covers campaign owners, including one who registered
- *     minutes ago and has not sold anything yet.
- *   - `registered` covers customers who signed up, who would otherwise be
- *     invisible until their first booking.
- *   - `bookings` covers everyone who has ever booked, which is the only
- *     record of a customer from before the account list existed, and is what
- *     supplies the trip counts and spend for all of them.
+ *   - `registered` is the authority wherever it reaches. Against a database it
+ *     is `profiles` as the policies handed it over — every account on the
+ *     platform for an administrator — so each row carries the id the account
+ *     actually has.
+ *   - `providers` covers a company whose owner profile is not readable, which
+ *     is every company in the offline prototype and none of them for an
+ *     administrator.
+ *   - `bookings` covers customers known only by having booked, and supplies the
+ *     trip counts and spend for everybody.
  *
  * Overlaps are merged by id rather than listed twice.
+ *
+ * WHY THE ORDER MATTERS
+ *
+ * Companies used to come first and to invent their own key — `owner-<uuid>` —
+ * and the account row that followed was skipped outright for anyone who was not
+ * a customer. So a campaign owner appeared in this table under an id that
+ * belonged to no account, and the suspend and remove buttons sent that id to
+ * `profiles`, where it matched nothing. The dashboard reported success and
+ * changed nothing, for every campaign owner on the platform.
+ *
+ * Real accounts are therefore laid down first and keyed by their real id; a
+ * company only contributes a row of its own when no account claimed it.
  */
 export function buildDirectory(
   providers: Provider[],
@@ -55,12 +87,38 @@ export function buildDirectory(
   registered: User[] = [],
 ): DirectoryUser[] {
   const rows = new Map<string, DirectoryUser>()
+  const companies = new Map(providers.map((p) => [p.id, p]))
+  /** Companies already represented by an account, so they are not listed twice. */
+  const claimed = new Set<string>()
+
+  for (const user of registered) {
+    const company = user.providerId ? companies.get(user.providerId) : undefined
+    if (company) claimed.add(company.id)
+    rows.set(user.id, {
+      id: user.id,
+      // A campaign owner is recognised by their company, not by the name on the
+      // account — that is what an administrator is looking at the row to find.
+      name: company ? company.name.en || company.name.ar : user.name,
+      email: user.email || company?.email || '',
+      phone: user.phone || company?.phone || '',
+      role: user.role,
+      wilayahId: user.wilayahId,
+      joinedAt: user.createdAt,
+      bookings: 0,
+      spend: 0,
+      providerId: company?.id,
+      avatarColor: company?.brandColor || user.avatarColor || colorFor(user.id),
+      suspended: user.suspended,
+      removed: user.removed,
+      isAccount: true,
+    })
+  }
 
   for (const provider of providers) {
+    if (claimed.has(provider.id)) continue
     const id = `owner-${provider.id}`
     rows.set(id, {
       id,
-      // The company is what the admin recognises an owner by.
       name: provider.name.en || provider.name.ar,
       email: provider.email,
       phone: provider.phone,
@@ -71,24 +129,9 @@ export function buildDirectory(
       spend: 0,
       providerId: provider.id,
       avatarColor: provider.brandColor,
-    })
-  }
-
-  for (const user of registered) {
-    // An owner's account is already represented by their company row above;
-    // listing the same person twice would only invite contradictory actions.
-    if (user.role !== 'customer') continue
-    rows.set(user.id, {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      role: 'customer',
-      wilayahId: user.wilayahId,
-      joinedAt: user.createdAt,
-      bookings: 0,
-      spend: 0,
-      avatarColor: user.avatarColor || colorFor(user.id),
+      // Not an account: the id above is this function's invention, and there is
+      // no profile row behind it to moderate.
+      isAccount: false,
     })
   }
 
@@ -122,6 +165,9 @@ export function buildDirectory(
       bookings: 1,
       spend,
       avatarColor: colorFor(booking.userId),
+      // `booking.userId` is a real account id, so this row can be moderated
+      // even though no profile was readable to describe it.
+      isAccount: true,
     })
   }
 

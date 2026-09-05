@@ -2,11 +2,11 @@ import type { ServiceKey } from '@/types'
 import { WILAYAT } from '@/data/geo'
 
 /**
- * Bilingual lexicon backing the natural-language search and the assistant.
+ * Bilingual lexicon backing the natural-language search.
  *
  * Everything here is deliberately data, not code: adding a dialect word or a
- * new service synonym is a one-line change, and the same tables are reused by
- * `nlSearch.ts` and `assistant.ts` so the two never disagree about what a
+ * new service synonym is a one-line change, and `nlSearch.ts` and
+ * `smartMatch.ts` read the same tables so the two never disagree about what a
  * word means.
  */
 
@@ -162,14 +162,6 @@ export const INTENT_WORDS = {
   family: ['عائله', 'عائلي', 'اسره', 'اطفال', 'family', 'children', 'kids'],
   elderly: ['كبار السن', 'والدي', 'والدتي', 'مسن', 'عجوز', 'elderly', 'parents', 'old', 'senior'],
 } as const
-
-/** Questions the assistant must decline, per §11 of the brief. */
-export const RELIGIOUS_RULING_WORDS = [
-  'حكم', 'فتوى', 'يجوز', 'حلال', 'حرام', 'واجب', 'سنه مؤكده', 'كفاره', 'دم',
-  'اركان الحج', 'شروط الحج', 'ماذا افعل اذا', 'نسيت التلبيه', 'محظورات الاحرام',
-  'fatwa', 'ruling', 'is it permissible', 'halal', 'haram', 'obligatory',
-  'pillars of hajj', 'sin', 'expiation',
-]
 
 /** Any of `words` present in the prepared text? Returns the matched word. */
 export function findWord(text: string, words: readonly string[]): string | null {

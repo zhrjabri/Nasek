@@ -15,6 +15,7 @@ import { wilayahName } from '@/data/geo'
 import { serviceLabel } from '@/data/services'
 import { useStore } from '@/store/AppStore'
 import { useCatalogue } from '@/hooks/useCatalogue'
+import { campaignImageUrl } from '@/services/storage/campaignImages'
 import { useToggleSaved } from '@/hooks/useToggleSaved'
 import { tripDays } from '@/lib/trip'
 import { Badge, Rating, cx } from '@/components/ui'
@@ -46,6 +47,35 @@ export function CampaignCard({
         'hover:border-gold-300 hover:shadow-lift',
       )}
     >
+      {/*
+        The cover photograph, where the owner uploaded one.
+
+        Above the existing header band rather than replacing it: the company
+        strip — monogram, name, verified tick — is what makes this card a NASEK
+        card, and swapping it for a picture would be a redesign rather than a
+        new field. Cards with no image look exactly as they always have, which
+        is most of them for a while yet.
+
+        `compact` cards are the ones in sidebars and "similar trips" rows, where
+        the whole card is a couple of hundred pixels tall; a picture there would
+        crowd out the facts somebody is actually comparing.
+      */}
+      {!compact && campaign.images.length > 0 && (
+        <Link
+          to={`/campaigns/${campaign.id}`}
+          className="block overflow-hidden border-b border-ivory-300"
+          tabIndex={-1}
+          aria-hidden
+        >
+          <img
+            src={campaignImageUrl(campaign.images[0])}
+            alt=""
+            loading="lazy"
+            className="aspect-[16/9] w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+          />
+        </Link>
+      )}
+
       {/* ------------------------------------------------------- header band */}
       <div className="girih relative flex items-start gap-3 border-b border-ivory-300 bg-ivory-100/70 p-4">
         <div

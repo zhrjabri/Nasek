@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
 import { BadgeCheck, Ban, Building2, RotateCcw, Trash2, UserCog, Users } from 'lucide-react'
-import type { Provider, Role, User } from '@/types'
+import type { Role } from '@/types'
 import { useI18n } from '@/i18n'
 import { wilayahName } from '@/data/geo'
 
-import { buildDirectory, type DirectoryUser } from '@/data/users'
+import { type DirectoryUser } from '@/data/users'
 import { setProfileModeration } from '@/services/data/catalogue'
+import { useSnapshotLoader } from '@/hooks/useRemoteData'
 import { useStore } from '@/store/AppStore'
 import { Badge, Button, EmptyState, Modal } from '@/components/ui'
 import { BodyRow, DetailRow, HeadRow, IconAction, Kpi, TableShell, Th, Toolbar, useCountLabel } from './shared'
@@ -20,28 +21,60 @@ type Filter = 'all' | Role | 'suspended' | 'removed'
  * booking history and erasing a person outright would erase the bookings the
  * revenue figures are built from.
  */
-export function UsersTab({
-  providers,
-  sessionUsers,
-}: {
-  providers: Provider[]
-  sessionUsers: User[]
-}) {
+export function UsersTab({ directory }: { directory: DirectoryUser[] }) {
   const { t, lang, money, n, date } = useI18n()
-  const { dispatch, toast, suspendedUserIds, removedUserIds, bookings } = useStore()
+  const { dispatch, toast, suspendedUserIds, removedUserIds } = useStore()
+  const { reload } = useSnapshotLoader()
   const countLabel = useCountLabel()
 
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
   const [account, setAccount] = useState<DirectoryUser | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
 
-  const suspended = useMemo(() => new Set(suspendedUserIds), [suspendedUserIds])
-  const removed = useMemo(() => new Set(removedUserIds), [removedUserIds])
+  const localSuspended = useMemo(() => new Set(suspendedUserIds), [suspendedUserIds])
+  const localRemoved = useMemo(() => new Set(removedUserIds), [removedUserIds])
 
-  const directory = useMemo(
-    () => buildDirectory(providers, bookings, sessionUsers),
-    [providers, sessionUsers],
-  )
+  /*
+   * The row's own column wins wherever there is one.
+   *
+   * `suspendedUserIds` records decisions taken in *this* browser and nothing
+   * else, so reading status out of it meant an account barred by a colleague —
+   * or by this same administrator last week — was drawn as active, and the
+   * "suspend" button offered again on someone already suspended.
+   */
+  const suspended = { has: (id: string) => localSuspended.has(id) }
+  const removed = { has: (id: string) => localRemoved.has(id) }
+  const isSuspendedRow = (u: DirectoryUser) => u.suspended ?? suspended.has(u.id)
+  const isRemovedRow = (u: DirectoryUser) => u.removed ?? removed.has(u.id)
+
+  /**
+   * Write the decision, then reflect it — and say so when the write is refused.
+   *
+   * Every one of these was `void setProfileModeration(...)`: the promise was
+   * dropped, the toast fired regardless, and the store recorded a change the
+   * database may well have rejected. For campaign owners it *always* rejected
+   * it, because the id being sent was one this dashboard had invented.
+   */
+  const moderate = async (
+    u: DirectoryUser,
+    patch: { suspended?: boolean; removed?: boolean },
+    done: () => void,
+  ) => {
+    if (!u.isAccount) {
+      toast(t('admin.userNotAnAccount'), 'warning')
+      return
+    }
+    setBusy(u.id)
+    const ok = await setProfileModeration(u.id, patch)
+    setBusy(null)
+    if (!ok) {
+      toast(t('admin.userModerationFailed'), 'warning')
+      return
+    }
+    done()
+    await reload()
+  }
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase()
@@ -49,13 +82,13 @@ export function UsersTab({
       // "Removed" is its own view, so removed accounts stay out of every
       // other one — otherwise a decision the admin already made keeps
       // reappearing in the list they work from.
-      const isRemoved = removed.has(u.id)
+      const isRemoved = isRemovedRow(u)
       if (filter === 'removed') {
         if (!isRemoved) return false
       } else if (isRemoved) {
         return false
       } else if (filter === 'suspended') {
-        if (!suspended.has(u.id)) return false
+        if (!isSuspendedRow(u)) return false
       } else if (filter !== 'all' && u.role !== filter) {
         return false
       }
@@ -71,12 +104,13 @@ export function UsersTab({
 
   const counts = useMemo(
     () => ({
-      total: directory.filter((u) => !removed.has(u.id)).length,
-      customers: directory.filter((u) => u.role === 'customer' && !removed.has(u.id)).length,
-      owners: directory.filter((u) => u.role === 'provider' && !removed.has(u.id)).length,
-      suspended: directory.filter((u) => suspended.has(u.id) && !removed.has(u.id)).length,
+      total: directory.filter((u) => !isRemovedRow(u)).length,
+      customers: directory.filter((u) => u.role === 'customer' && !isRemovedRow(u)).length,
+      owners: directory.filter((u) => u.role === 'provider' && !isRemovedRow(u)).length,
+      suspended: directory.filter((u) => isSuspendedRow(u) && !isRemovedRow(u)).length,
     }),
-    [directory, suspended, removed],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [directory, localSuspended, localRemoved],
   )
 
   return (
@@ -133,8 +167,8 @@ export function UsersTab({
             </thead>
             <tbody>
               {visible.map((u) => {
-                const isSuspended = suspended.has(u.id)
-                const isRemoved = removed.has(u.id)
+                const isSuspended = isSuspendedRow(u)
+                const isRemoved = isRemovedRow(u)
                 return (
                   <BodyRow key={u.id} dim={isRemoved}>
                     <td className="p-3.5">
@@ -182,15 +216,25 @@ export function UsersTab({
                     </td>
                     <td className="p-3.5">
                       <div className="flex items-center justify-end gap-1.5">
-                        {isRemoved ? (
+                        {!u.isAccount ? (
+                          /* A company with no readable owner account. There is
+                             nothing here to suspend, and offering the button
+                             anyway is what made this screen report success on an
+                             action that reached no row. */
+                          <span className="text-2xs text-ink-400">
+                            {t('admin.userNotAnAccount')}
+                          </span>
+                        ) : isRemoved ? (
                           <Button
                             size="sm"
                             variant="secondary"
-                            onClick={() => {
-                              void setProfileModeration(u.id, { removed: false })
-                              dispatch({ type: 'restoreUser', userId: u.id })
-                              toast(t('admin.userRestoredToast', { name: u.name }))
-                            }}
+                            loading={busy === u.id}
+                            onClick={() =>
+                              void moderate(u, { removed: false }, () => {
+                                dispatch({ type: 'restoreUser', userId: u.id })
+                                toast(t('admin.userRestoredToast', { name: u.name }))
+                              })
+                            }
                           >
                             <RotateCcw className="size-3.5" />
                             {t('admin.userRestore')}
@@ -200,20 +244,22 @@ export function UsersTab({
                             <Button
                               size="sm"
                               variant="secondary"
-                              onClick={() => {
-                                void setProfileModeration(u.id, { suspended: !isSuspended })
-                                dispatch({
-                                  type: 'setUserSuspended',
-                                  userId: u.id,
-                                  suspended: !isSuspended,
+                              loading={busy === u.id}
+                              onClick={() =>
+                                void moderate(u, { suspended: !isSuspended }, () => {
+                                  dispatch({
+                                    type: 'setUserSuspended',
+                                    userId: u.id,
+                                    suspended: !isSuspended,
+                                  })
+                                  toast(
+                                    isSuspended
+                                      ? t('admin.userReactivatedToast', { name: u.name })
+                                      : t('admin.userSuspendedToast', { name: u.name }),
+                                    isSuspended ? 'success' : 'warning',
+                                  )
                                 })
-                                toast(
-                                  isSuspended
-                                    ? t('admin.userReactivatedToast', { name: u.name })
-                                    : t('admin.userSuspendedToast', { name: u.name }),
-                                  isSuspended ? 'success' : 'warning',
-                                )
-                              }}
+                              }
                             >
                               {isSuspended ? (
                                 <BadgeCheck className="size-3.5" />
@@ -226,14 +272,15 @@ export function UsersTab({
                               icon={<Trash2 className="size-3.5" />}
                               label={t('admin.userRemove')}
                               danger
-                              onClick={() => {
+                              onClick={() =>
                                 /* Recorded as a flag, never a DELETE: the
                                    bookings and revenue history are
                                    reconstructed from these rows. */
-                                void setProfileModeration(u.id, { removed: true })
-                                dispatch({ type: 'removeUser', userId: u.id })
-                                toast(t('admin.userRemovedToast', { name: u.name }), 'warning')
-                              }}
+                                void moderate(u, { removed: true }, () => {
+                                  dispatch({ type: 'removeUser', userId: u.id })
+                                  toast(t('admin.userRemovedToast', { name: u.name }), 'warning')
+                                })
+                              }
                             />
                           </>
                         )}

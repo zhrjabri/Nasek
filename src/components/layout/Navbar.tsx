@@ -5,9 +5,9 @@ import {
   Bookmark,
   ChevronDown,
   Globe,
-  LayoutGrid,
   LogOut,
   Menu,
+  Ticket,
   User as UserIcon,
   X,
 } from 'lucide-react'
@@ -30,7 +30,7 @@ export function Navbar() {
   const { user, savedIds, unreadCount, dispatch } = useStore()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
-  const [scrolled, setScrolled] = useState(false)
+  const [scrollY, setScrollY] = useState(0)
   const location = useLocation()
   const navigate = useNavigate()
   const menuRef = useRef<HTMLDivElement>(null)
@@ -41,11 +41,16 @@ export function Navbar() {
   }, [location.pathname])
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8)
+    const onScroll = () => setScrollY(window.scrollY)
     onScroll()
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
+
+  // A route change scrolls to the top, which fires the listener above — but a
+  // frame later. Reading the position directly on navigation stops the bar
+  // rendering one frame of its scrolled self at the top of a new page.
+  useEffect(() => setScrollY(window.scrollY), [location.pathname])
 
   useEffect(() => {
     if (!menuOpen) return
@@ -56,18 +61,37 @@ export function Navbar() {
     return () => document.removeEventListener('mousedown', onClick)
   }, [menuOpen])
 
-  // Two destinations, because the public site now has two kinds of account.
-  // Administration is not among them: it is a different application on a
-  // different host, and this navigation has no way to name it.
-  const dashboardPath = user?.role === 'provider' ? '/provider' : '/dashboard'
+  const scrolled = scrollY > 8
+
+  /*
+   * Over the home page's photograph, this bar has no ground of its own.
+   *
+   * The home page opens with a full-bleed image of the Haram that runs up
+   * underneath here, and an opaque parchment strip across the top of it cut
+   * the page in half before anybody had read a word. Transparent while it is
+   * over the picture, parchment from the moment it is not.
+   *
+   * The threshold is 120px rather than the 8px that decides `scrolled`,
+   * because these are different questions: `scrolled` asks "has this moved at
+   * all", which is when the bar should gain its blur and its rule; this asks
+   * "is there still photograph behind me", and a nudge of the wheel does not
+   * change the answer.
+   *
+   * The mobile drawer is the one exception. It opens as a parchment panel
+   * hanging off the bottom of this bar, and a transparent header above an
+   * opaque drawer looks like a rendering fault.
+   */
+  const overHero = location.pathname === '/' && scrollY < 120 && !mobileOpen
 
   return (
     <header
       className={cx(
         'sticky top-0 z-50 border-b transition-colors duration-300',
-        scrolled
-          ? 'border-gold-300/60 bg-ivory-100/95 backdrop-blur-md'
-          : 'border-ivory-300 bg-ivory-100',
+        overHero
+          ? 'on-dark border-transparent bg-transparent'
+          : scrolled
+            ? 'border-gold-300/60 bg-ivory-100/95 backdrop-blur-md'
+            : 'border-ivory-300 bg-ivory-100',
       )}
     >
       <nav
@@ -75,7 +99,7 @@ export function Navbar() {
         aria-label={t('common.menu')}
       >
         <Link to="/" className="shrink-0 rounded-[3px]" aria-label={t('common.appName')}>
-          <Logo size="sm" showWordmark />
+          <Logo size="sm" showWordmark tone={overHero ? 'ivory' : 'green'} />
         </Link>
 
         {/* -------------------------------------------------- desktop links */}
@@ -87,9 +111,13 @@ export function Navbar() {
                 className={({ isActive }) =>
                   cx(
                     'relative rounded-[2px] px-3.5 py-2 text-base font-semibold tracking-wide transition-colors',
-                    isActive
-                      ? 'text-nasek-800'
-                      : 'text-ink-500 hover:bg-ivory-200/70 hover:text-ink-800',
+                    overHero
+                      ? isActive
+                        ? 'text-ivory-50'
+                        : 'text-ivory-100/80 hover:bg-ivory-50/12 hover:text-ivory-50'
+                      : isActive
+                        ? 'text-nasek-800'
+                        : 'text-ink-500 hover:bg-ivory-200/70 hover:text-ink-800',
                   )
                 }
               >
@@ -97,7 +125,12 @@ export function Navbar() {
                   <>
                     {t(link.key)}
                     {isActive && (
-                      <span className="absolute inset-x-3 -bottom-[9px] h-px bg-gold-500" />
+                      <span
+                        className={cx(
+                          'absolute inset-x-3 -bottom-[9px] h-px',
+                          overHero ? 'bg-gold-300' : 'bg-gold-500',
+                        )}
+                      />
                     )}
                   </>
                 )}
@@ -111,23 +144,30 @@ export function Navbar() {
           <button
             type="button"
             onClick={toggleLang}
-            className="flex items-center gap-1.5 rounded-[3px] px-2.5 py-2 text-sm font-semibold text-ink-600 transition-colors hover:bg-ivory-200 hover:text-ink-900"
+            className={cx(
+              'flex items-center gap-1.5 rounded-[3px] px-2.5 py-2 text-sm font-semibold transition-colors',
+              overHero
+                ? 'text-ivory-100/85 hover:bg-ivory-50/12 hover:text-ivory-50'
+                : 'text-ink-600 hover:bg-ivory-200 hover:text-ink-900',
+            )}
             aria-label={t('common.language')}
           >
             <Globe className="size-4" strokeWidth={2} />
             <span>{lang === 'ar' ? 'English' : 'العربية'}</span>
           </button>
 
-          {/* Saved and notifications live on the customer dashboard, so a
-              provider or admin would only be bounced by the role guard. */}
-          {user?.role === 'customer' && (
+          {/* Saved and notifications live on the customer dashboard, which is
+              the only dashboard this application has. The role branch that used
+              to be here went with the three-application split: everyone signed
+              in here is a customer while they are here. */}
+          {user && (
             <>
               <IconLink
                 to="/dashboard?tab=saved"
                 label={t('nav.saved')}
                 count={savedIds.length}
                 icon={<Bookmark className="size-[18px]" strokeWidth={2} />}
-                className="hidden sm:inline-flex"
+                className={cx('hidden sm:inline-flex', overHero && 'text-ivory-100/85 hover:bg-ivory-50/12 hover:text-ivory-50')}
               />
               <IconLink
                 to="/dashboard?tab=notifications"
@@ -135,7 +175,7 @@ export function Navbar() {
                 count={unreadCount}
                 tone="gold"
                 icon={<Bell className="size-[18px]" strokeWidth={2} />}
-                className="hidden sm:inline-flex"
+                className={cx('hidden sm:inline-flex', overHero && 'text-ivory-100/85 hover:bg-ivory-50/12 hover:text-ivory-50')}
               />
             </>
           )}
@@ -148,7 +188,12 @@ export function Navbar() {
                 onClick={() => setMenuOpen((v) => !v)}
                 aria-expanded={menuOpen}
                 aria-haspopup="menu"
-                className="flex items-center gap-2 rounded-[3px] border border-ivory-400 bg-ivory-50 ps-1.5 pe-2.5 py-1.5 transition-colors hover:border-nasek-600"
+                className={cx(
+                  'flex items-center gap-2 rounded-[3px] border ps-1.5 pe-2.5 py-1.5 transition-colors',
+                  overHero
+                    ? 'border-ivory-50/30 bg-ivory-50/10 backdrop-blur-sm hover:border-gold-300'
+                    : 'border-ivory-400 bg-ivory-50 hover:border-nasek-600',
+                )}
               >
                 <span
                   className="flex size-7 items-center justify-center rounded-[2px] text-xs font-bold text-ivory-50"
@@ -157,10 +202,15 @@ export function Navbar() {
                 >
                   {user.name.trim().charAt(0)}
                 </span>
-                <span className="hidden max-w-28 truncate text-sm font-semibold text-ink-700 sm:block">
+                <span
+                  className={cx(
+                    'hidden max-w-28 truncate text-sm font-semibold sm:block',
+                    overHero ? 'text-ivory-50' : 'text-ink-700',
+                  )}
+                >
                   {user.name.split(' ')[0]}
                 </span>
-                <ChevronDown className="size-3.5 text-ink-400" />
+                <ChevronDown className={cx('size-3.5', overHero ? 'text-ivory-100/70' : 'text-ink-400')} />
               </button>
 
               {menuOpen && (
@@ -172,19 +222,33 @@ export function Navbar() {
                     <p className="truncate text-sm font-bold text-ink-900">{user.name}</p>
                     <p className="truncate text-xs text-ink-400">{user.email}</p>
                   </div>
-                  <MenuItem to={dashboardPath} icon={<LayoutGrid className="size-4" />}>
-                    {t('nav.dashboard')}
+                  {/*
+                    The account menu, in the order somebody actually uses it.
+
+                    "My details" first because it is the one thing here that is
+                    *about* them; bookings, saved trips and notifications after,
+                    because those are things they came to look at. Every entry
+                    points at a tab of the same page, so the menu is a shortcut
+                    rather than a second navigation with its own idea of where
+                    anything lives.
+
+                    No role branch any more. This site has one kind of signed-in
+                    person — a customer — and the two others have applications
+                    of their own; a campaign owner who books a trip here is a
+                    customer while they do it.
+                  */}
+                  <MenuItem to="/dashboard?tab=profile" icon={<UserIcon className="size-4" />}>
+                    {t('account.title')}
                   </MenuItem>
-                  {user.role === 'customer' && (
-                    <>
-                      <MenuItem to="/dashboard?tab=bookings" icon={<UserIcon className="size-4" />}>
-                        {t('nav.myBookings')}
-                      </MenuItem>
-                      <MenuItem to="/dashboard?tab=saved" icon={<Bookmark className="size-4" />}>
-                        {t('nav.saved')}
-                      </MenuItem>
-                    </>
-                  )}
+                  <MenuItem to="/dashboard?tab=bookings" icon={<Ticket className="size-4" />}>
+                    {t('nav.myBookings')}
+                  </MenuItem>
+                  <MenuItem to="/dashboard?tab=saved" icon={<Bookmark className="size-4" />}>
+                    {t('nav.saved')}
+                  </MenuItem>
+                  <MenuItem to="/dashboard?tab=notifications" icon={<Bell className="size-4" />}>
+                    {t('nav.notifications')}
+                  </MenuItem>
                   <button
                     type="button"
                     role="menuitem"
@@ -207,15 +271,31 @@ export function Navbar() {
             </div>
           ) : (
             <div className="hidden items-center gap-2 sm:flex">
+              {/*
+                One control, and it is the only authentication this site has.
+
+                There is no "create account" beside it and no link to either of
+                the other two NASEK applications. Signing in for the first time
+                creates the account, so a second button would be a second name
+                for the same operation; and a pilgrim has no business being
+                shown a Campaign Owner Portal they cannot use — the portal is a
+                separate application on a separate host, and this bundle does
+                not know its address.
+
+                Glass rather than gold over the photograph: gold is spent on the
+                hero's own primary button eighty pixels below, and two of them in
+                one eyeful is what turns an accent into a theme.
+              */}
               <Button
-                variant="ghost"
                 size="sm"
+                className={
+                  overHero
+                    ? 'border-ivory-50/35 bg-ivory-50/12 text-ivory-50 backdrop-blur-sm hover:bg-ivory-50/22'
+                    : undefined
+                }
                 onClick={() => navigate('/signin')}
               >
                 {t('nav.signIn')}
-              </Button>
-              <Button size="sm" onClick={() => navigate('/signup')}>
-                {t('nav.signUp')}
               </Button>
             </div>
           )}
@@ -223,7 +303,12 @@ export function Navbar() {
           <button
             type="button"
             onClick={() => setMobileOpen((v) => !v)}
-            className="rounded-[3px] p-2 text-ink-600 transition-colors hover:bg-ivory-200 lg:hidden"
+            className={cx(
+              'rounded-[3px] p-2 transition-colors lg:hidden',
+              overHero
+                ? 'text-ivory-50 hover:bg-ivory-50/12'
+                : 'text-ink-600 hover:bg-ivory-200',
+            )}
             aria-expanded={mobileOpen}
             aria-label={t('common.menu')}
           >
@@ -257,7 +342,7 @@ export function Navbar() {
             {user && (
               <>
                 <li className="mt-2 border-t border-ivory-300 pt-2">
-                  <MobileLink to={dashboardPath}>{t('nav.dashboard')}</MobileLink>
+                  <MobileLink to="/dashboard?tab=profile">{t('account.title')}</MobileLink>
                 </li>
                 {user.role === 'customer' && (
                   <>
@@ -279,12 +364,9 @@ export function Navbar() {
               </>
             )}
             {!user && (
-              <li className="mt-2 flex gap-2 border-t border-ivory-300 pt-3">
-                <Button variant="secondary" block onClick={() => navigate('/signin')}>
+              <li className="mt-2 border-t border-ivory-300 pt-3">
+                <Button block onClick={() => navigate('/signin')}>
                   {t('nav.signIn')}
-                </Button>
-                <Button block onClick={() => navigate('/signup')}>
-                  {t('nav.signUp')}
                 </Button>
               </li>
             )}

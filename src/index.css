@@ -325,6 +325,15 @@ html[dir='rtl'] .eyebrow {
   height: 1px;
 }
 
+/* Type set directly on a photograph.
+   Wide, soft and in the deep green rather than black, so it reads as the
+   image receding behind the words instead of as a drop shadow. This is what
+   replaced the hero's dark plate — the plate cost the photograph half its
+   light to do the same job. */
+@utility on-photo {
+  text-shadow: 0 1px 2px rgb(12 36 29 / 0.28), 0 2px 26px rgb(12 36 29 / 0.45);
+}
+
 /* Marks a dark-ground container so focus rings inside it stay visible. */
 @utility on-dark {
   --nasek-focus: var(--color-gold-300);

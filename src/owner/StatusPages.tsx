@@ -1,9 +1,8 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { Ban, Clock, FileWarning, Mail, ShieldAlert } from 'lucide-react'
 import type { Provider } from '@/types'
 import { useI18n } from '@/i18n'
-import { WILAYAT } from '@/data/geo'
+import { WILAYAT, wilayahById } from '@/data/geo'
 import { useStore } from '@/store/AppStore'
 import { useCatalogue } from '@/hooks/useCatalogue'
 import { useSnapshotLoader } from '@/hooks/useRemoteData'
@@ -13,7 +12,7 @@ import { resubmitProviderAccount } from '@/services/auth/registerProvider'
 import { signOutRemote } from '@/services/auth/session'
 import { uploadLicence } from '@/services/storage/licence'
 import { LicencePicker, type LicenceSelection } from '@/components/auth/LicencePicker'
-import { AuthShell } from '@/pages/AuthPages'
+import { OwnerAuthShell } from './layout/OwnerShell'
 import { Button, Field, Input, Notice, Select, Textarea } from '@/components/ui'
 
 /**
@@ -41,7 +40,7 @@ import { Button, Field, Input, Notice, Select, Textarea } from '@/components/ui'
  * state genuinely cannot do anything yet, and a screen full of disabled
  * controls invites them to try each one and work out why from the silence.
  */
-export function ProviderPendingPage() {
+export function PendingPage() {
   const { t, date } = useI18n()
   const { user } = useStore()
   const { getProvider } = useCatalogue()
@@ -51,7 +50,7 @@ export function ProviderPendingPage() {
   const provider = user?.providerId ? getProvider(user.providerId) : undefined
 
   return (
-    <AuthShell title={t('prov.pendingTitle')} subtitle={t('prov.pendingSubtitle')}>
+    <OwnerAuthShell title={t('prov.pendingTitle')} subtitle={t('prov.pendingSubtitle')}>
       <div className="space-y-5">
         <div className="flex flex-col items-center gap-3 text-center">
           <span className="flex size-12 items-center justify-center rounded-[3px] bg-gold-100 text-gold-800">
@@ -96,7 +95,7 @@ export function ProviderPendingPage() {
 
         <StatusFooter />
       </div>
-    </AuthShell>
+    </OwnerAuthShell>
   )
 }
 
@@ -110,10 +109,10 @@ export function ProviderPendingPage() {
  * cannot undecide it. What the screen does owe them is the reason and a way to
  * reach a person.
  */
-export function ProviderSuspendedPage({ provider }: { provider?: Provider }) {
+export function SuspendedPage({ provider }: { provider?: Provider }) {
   const { t } = useI18n()
   return (
-    <AuthShell title={t('prov.suspendedTitle')} subtitle={t('prov.suspendedSubtitle')}>
+    <OwnerAuthShell title={t('prov.suspendedTitle')} subtitle={t('prov.suspendedSubtitle')}>
       <div className="space-y-5">
         <div className="flex flex-col items-center gap-3 text-center">
           <span className="flex size-12 items-center justify-center rounded-[3px] bg-red-50 text-red-600">
@@ -128,7 +127,7 @@ export function ProviderSuspendedPage({ provider }: { provider?: Provider }) {
         )}
         <StatusFooter />
       </div>
-    </AuthShell>
+    </OwnerAuthShell>
   )
 }
 
@@ -145,9 +144,8 @@ export function ProviderSuspendedPage({ provider }: { provider?: Provider }) {
  * A new permit is optional. Resubmitting with the same document is a legitimate
  * answer when the objection was to something else entirely.
  */
-export function ProviderReviewPage() {
+export function RejectedPage() {
   const { t, lang } = useI18n()
-  const navigate = useNavigate()
   const { user, dispatch, toast } = useStore()
   const { getProvider } = useCatalogue()
   const { reload } = useSnapshotLoader()
@@ -157,10 +155,22 @@ export function ProviderReviewPage() {
   const [form, setForm] = useState({
     companyName: provider?.name.en ?? '',
     tagline: provider?.tagline.en ?? '',
+    description: provider?.description.en ?? '',
     experienceYears: provider ? String(provider.experienceYears) : '',
     phone: provider?.phone ?? user?.phone ?? '',
     email: provider?.email ?? user?.email ?? '',
     wilayahId: provider?.wilayahId ?? user?.wilayahId ?? 'muscat',
+    /*
+     * The licensing fields are prefilled and editable here for the same reason
+     * the company details are: the usual refusal is one of them — an expired
+     * permit, a number that does not match the scan — and an owner who has to
+     * retype their whole company profile to correct a date is an owner who
+     * decides NASEK is not worth the trouble.
+     */
+    address: provider?.address ?? '',
+    commercialRegistration: provider?.commercialRegistration ?? '',
+    permitNumber: provider?.permitNumber ?? '',
+    permitExpiry: provider?.permitExpiry ?? '',
   })
   const [licence, setLicence] = useState<LicenceSelection | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -205,12 +215,22 @@ export function ProviderReviewPage() {
           email: form.email,
           phone: form.phone,
           wilayahId: form.wilayahId,
+          // Derived rather than asked for again: the wilayah already determines
+          // it, and a second dropdown on a correction form is a second thing to
+          // get wrong.
+          governorate: wilayahById(form.wilayahId)?.governorate.en,
+          address: form.address,
           companyName: form.companyName,
           tagline: form.tagline,
+          description: form.description,
+          commercialRegistration: form.commercialRegistration,
+          permitNumber: form.permitNumber,
+          permitExpiry: form.permitExpiry,
           experienceYears: form.experienceYears ? Number(form.experienceYears) : 0,
           licenceImage: licencePath ? '' : (licence?.dataUrl ?? ''),
           licenceFileName: licence?.fileName ?? '',
           licencePath,
+          licenceMime: licence?.mime,
         })
 
         // Re-read rather than patch: the status moved server-side, and the
@@ -223,7 +243,6 @@ export function ProviderReviewPage() {
       }
       setBusy(false)
       toast(t('prov.resubmitted'), 'success')
-      navigate('/provider/pending', { replace: true })
     } catch (reason) {
       setBusy(false)
       setFailure(reason instanceof Error ? reason.message : t('auth.sessionFailed'))
@@ -231,7 +250,7 @@ export function ProviderReviewPage() {
   }
 
   return (
-    <AuthShell title={t('prov.rejectedTitle')} subtitle={t('prov.rejectedSubtitle')}>
+    <OwnerAuthShell title={t('prov.rejectedTitle')} subtitle={t('prov.rejectedSubtitle')}>
       <div className="space-y-5">
         <div className="flex flex-col items-center gap-3 text-center">
           <span className="flex size-12 items-center justify-center rounded-[3px] bg-red-50 text-red-600">
@@ -326,6 +345,62 @@ export function ProviderReviewPage() {
             </Field>
           </div>
 
+          <Field label={t('owner.description')} hint={t('owner.descriptionHint')}>
+            {(p) => (
+              <Textarea
+                {...p}
+                rows={3}
+                value={form.description}
+                onChange={(e) => set('description', e.target.value)}
+              />
+            )}
+          </Field>
+
+          <Field label={t('owner.address')} hint={t('owner.addressHint')}>
+            {(p) => (
+              <Textarea
+                {...p}
+                rows={2}
+                value={form.address}
+                onChange={(e) => set('address', e.target.value)}
+              />
+            )}
+          </Field>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label={t('owner.permitNumber')}>
+              {(p) => (
+                <Input
+                  {...p}
+                  dir="ltr"
+                  value={form.permitNumber}
+                  onChange={(e) => set('permitNumber', e.target.value)}
+                />
+              )}
+            </Field>
+            <Field label={t('owner.permitExpiry')}>
+              {(p) => (
+                <Input
+                  {...p}
+                  type="date"
+                  value={form.permitExpiry}
+                  onChange={(e) => set('permitExpiry', e.target.value)}
+                />
+              )}
+            </Field>
+          </div>
+
+          <Field label={t('owner.commercialRegistration')}>
+            {(p) => (
+              <Input
+                {...p}
+                dir="ltr"
+                value={form.commercialRegistration}
+                onChange={(e) => set('commercialRegistration', e.target.value)}
+              />
+            )}
+          </Field>
+
           <LicencePicker
             value={licence}
             onChange={setLicence}
@@ -342,7 +417,7 @@ export function ProviderReviewPage() {
 
         <StatusFooter />
       </div>
-    </AuthShell>
+    </OwnerAuthShell>
   )
 }
 
@@ -357,7 +432,6 @@ export function ProviderReviewPage() {
 function StatusFooter() {
   const { t } = useI18n()
   const { dispatch } = useStore()
-  const navigate = useNavigate()
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ivory-300 pt-4 text-xs">
@@ -373,7 +447,6 @@ function StatusFooter() {
         onClick={async () => {
           await signOutRemote()
           dispatch({ type: 'signOut' })
-          navigate('/', { replace: true })
         }}
         className="flex items-center gap-1.5 font-semibold text-ink-500 transition-colors hover:text-ink-900"
       >

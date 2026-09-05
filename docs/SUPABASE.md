@@ -23,9 +23,27 @@ enough to start) and, for SMS, a Twilio account (which is not free).
 
 The files in `supabase/migrations/` are the whole schema, its security
 policies, the reference data, the administrator tooling, the booking
-transaction, the provider verification workflow and the private bucket the
-trade permits live in. They are ordered by filename and must be applied in that
-order.
+transaction, the owner verification workflow, the campaign approval workflow,
+the outbound message queue and the two Storage buckets. They are ordered by
+filename and must be applied in that order.
+
+Two buckets are created by the migrations and their difference is deliberate:
+
+| Bucket | Read | Holds |
+| --- | --- | --- |
+| `provider-licences` | **private**, signed URLs that expire in minutes | operating permits — images and PDF |
+| `campaign-images` | public | campaign photographs |
+
+A permit is evidence and exactly two people have any business seeing it. A
+campaign photograph is advertising whose whole purpose is to be fetched by an
+anonymous visitor on a phone. Writing to either is restricted to the uploader's
+own folder; only reading differs.
+
+> **Upgrading an existing project.** `20260904000300_campaign_approval.sql`
+> adds approval to campaigns and backfills every row that already existed to
+> `active`, so applying it does **not** empty a live catalogue. From that point
+> on, a new or materially-edited campaign goes to `pending_approval` and waits
+> for an administrator.
 
 **With the CLI** (recommended — it records what has been applied):
 
@@ -58,6 +76,29 @@ where schemaname = 'public' order by tablename;
 Every row must show `rowsecurity = true`. If any table shows `false`, stop and
 re-run `20260901000200_rls_policies.sql` — a table without RLS is readable by
 anyone holding the anon key, which is everyone.
+
+Then check the two most recent migrations landed, because the application
+tolerates their absence rather than failing loudly and you would otherwise not
+notice:
+
+```sql
+select to_regclass('public.reviews_public')      as reviews_view,
+       to_regclass('public.booking_reference_seq') as reference_sequence;
+```
+
+Both must be non-null.
+
+* **`reviews_public`** (`20260903000100`) is what puts a name under a review.
+  Without it the site falls back to the bare `reviews` table and every byline
+  reads "A pilgrim" — visibly wrong rather than broken.
+* **`booking_reference_seq`** (`20260903000200`) is what stops two people
+  booking two *different* trips at the same moment from being handed the same
+  booking reference. The old expression derived it from `count(*)`, which the
+  per-row lock in `book_campaign` does not serialise, so the second traveller
+  met a unique-violation at the instant they pressed pay. The same migration
+  stops a campaign being booked before its company has been approved.
+
+`npm run verify:backend` asserts both against the live project.
 
 Then check the one that was wrong until 2026-09-02:
 
@@ -105,8 +146,9 @@ sits looking at six empty boxes with only a link in their inbox.
 
 ### a. Tell the build where the site lives
 
-`VITE_SITE_URL` in `.env` (and `VITE_ADMIN_URL` for the dashboard) is the
-address a sign-in email points at:
+`VITE_SITE_URL` in `.env` — plus `VITE_OWNER_URL` for the Campaign Owner Portal
+and `VITE_ADMIN_URL` for the dashboard — is the address each application's
+emails point at:
 
 ```
 VITE_SITE_URL=https://your-site.example.com/
@@ -126,7 +168,7 @@ Dashboard → **Authentication → URL Configuration**:
 | Field | Value |
 | --- | --- |
 | Site URL | your public site (`http://localhost:5173` while developing) |
-| Redirect URLs | `http://localhost:5173/**`, `http://localhost:5174/**`, and every deployed address |
+| Redirect URLs | `http://localhost:5173/**`, `http://localhost:5175/**`, `http://localhost:5174/**`, and every deployed address |
 
 If a redirect target is not on this list, Supabase does not refuse it and does
 not report an error — it silently substitutes the Site URL. The person clicks a
@@ -189,48 +231,48 @@ work, and doing so also unlocks template editing. Until then, sign-ins start
 failing silently under any real traffic, and the symptom is a message that
 simply never arrives.
 
-## 5. Continue with Google (optional, recommended)
+## 5. The three redirect URLs
 
-The sign-in screen shows a **Continue with Google** button only when the
-project actually has Google configured. That is not a feature flag in this
-repository — `src/services/auth/oauth.ts` asks the project's own
-`/auth/v1/settings` on load — so enabling it in the dashboard makes the button
-appear with no rebuild and nothing here to fall out of step.
+NASEK is three applications on three hosts, and each one emails links that have
+to come back to *itself*:
 
-It is conditional because an unconfigured provider does not fail politely: the
-browser leaves NASEK, Supabase answers "provider is not enabled", and the
-person comes back to an error page having done nothing wrong.
+| Application | Emails | Build variable |
+| --- | --- | --- |
+| Customer site | the pilgrim's one-time code / sign-in link | `VITE_SITE_URL` |
+| Campaign Owner Portal | the invitation an administrator sends, and password resets | `VITE_OWNER_URL` |
+| Administration | nothing routine — the access code needs no email | `VITE_ADMIN_URL` |
 
-1. **Google Cloud Console** → *APIs & Services* → *Credentials* → **Create
-   credentials → OAuth client ID** → *Web application*.
-2. Authorised redirect URI — exactly this, from your Supabase project:
+Every one of those addresses must be on **Authentication → URL Configuration →
+Redirect URLs**, including the development ones:
 
-   ```
-   https://<project-ref>.supabase.co/auth/v1/callback
-   ```
+```
+http://localhost:5173/
+http://localhost:5175/
+http://localhost:5174/
+https://<your public site>/
+https://<your owner portal>/
+https://<your admin site>/
+```
 
-3. Copy the client ID and secret into Supabase → **Authentication → Providers →
-   Google** → enable, paste, save.
-4. Add both applications' URLs to **Authentication → URL Configuration →
-   Redirect URLs**, including the development ones:
+`authRedirectTarget()` computes each application's target from the page it is
+running on, so the customer site returns to the customer site and the portal to
+the portal. **An address that is not on this list is not rejected** — Supabase
+silently substitutes the Site URL, which for a three-application project is
+wrong two times in three. `npm run auth:urls` checks this from the outside, and
+`npm run auth:urls -- --apply` fixes it.
 
-   ```
-   http://localhost:5173/
-   http://localhost:5174/
-   https://<your public site>/
-   https://<your admin site>/
-   ```
+The one that bites hardest is the owner portal. An administrator adds a company
+from the dashboard on `admin.nasek.om`; the invitation is built from
+`NASEK_OWNER_PORTAL_URL`, a secret of the `admin-create-owner` function; and if
+that address is missing from the allow-list the new owner lands on the
+administration host, which will not let them in and cannot tell them why.
 
-   NASEK computes its own redirect target from the page it is running on
-   (`authRedirectTarget()` — origin plus pathname), so the public site returns
-   to the public site and the dashboard to the dashboard. An address that is not
-   on this list is silently replaced by the Site URL, which for a
-   two-application project is wrong half the time.
-
-A Google account arrives as an ordinary `auth.users` row. `handle_new_user`
-gives it a profile with the role hard-coded to `customer`, exactly like an
-emailed code — signing in with Google is a different way of proving an address,
-not a different kind of account.
+> **Continue with Google is gone.** The customer site had it, conditional on the
+> project having Google enabled. The brief for the three-door split was one
+> authentication method per audience — a pilgrim signs in with a code, an owner
+> with a password, an administrator with an access code — so `oauth.ts` and the
+> button were removed. Nothing in the dashboard needs turning off; if Google is
+> still enabled on the project it is simply never offered.
 
 ## 6. Phone codes (optional)
 
@@ -267,26 +309,6 @@ every new profile to `customer`.
    select * from public.promote_to_admin('you@example.com');
    ```
 
-3. Tell the administration build which account it signs in as. In your
-   deployment environment (and in `.env` for local work):
-
-   ```
-   VITE_ADMIN_EMAIL=you@example.com
-   ```
-
-   The dashboard's login screen asks for a password and nothing else, so it has
-   to be told whose password to ask for. This is not a secret and is not treated
-   as one — it is compiled into the admin bundle like every other `VITE_`
-   variable, and knowing an administrator's address grants nothing. Setting it
-   promotes nobody; only step 2 does that. **Read at build time**, so a change
-   needs a rebuild.
-
-   Left unset, the login screen falls back to asking for the address alongside
-   the password. Nothing breaks; it is simply one more thing to type at the
-   worst moment.
-
-4. Open the administration site and sign in with that account.
-
 To see who currently holds it:
 
 ```sql
@@ -304,25 +326,125 @@ Editor and the CLI run as. Calling it with the anon key — from either app, or
 from a script someone writes — is a permission error, not a check that happens
 to fail.
 
+## 8. Deploy the Edge Functions
+
+Three of them, and the dashboard cannot be opened without `admin-access`.
+
+```bash
+npm install -g supabase        # if you have not already
+supabase login
+supabase link --project-ref <your-project-ref>
+supabase functions deploy admin-access
+supabase functions deploy admin-create-owner
+supabase functions deploy send-emails
+```
+
+### a. Adding campaign owners
+
+`admin-create-owner` is what the **Add campaign owner** button on the
+administration dashboard calls. There is no public registration any more: an
+administrator enters the company, uploads the permit, and NASEK emails an
+invitation to the Campaign Owner Portal where the owner sets their own password.
+
+It needs one secret beyond the platform's own, and getting it wrong is the
+mistake that shows up latest:
+
+```bash
+supabase secrets set NASEK_OWNER_PORTAL_URL="https://<your owner portal>/"
+```
+
+That is the **portal's** address, not the dashboard's. The invitation is built
+from it, and it must also be on the project's Redirect URLs (§5) — otherwise
+Supabase substitutes the Site URL and the new owner lands on the customer site,
+which has no portal on it.
+
+### b. The administration access code
+
+The dashboard opens on one secret code. It is **not** in the bundle, not in a
+`VITE_` variable, and not in this repository — it lives in the `admin-access`
+function's environment and is compared there, in constant time, against a code
+the browser never receives.
+
+```bash
+supabase secrets set ADMIN_ACCESS_CODE="a long random phrase you will remember"
+```
+
+Generate one you have not used elsewhere; length is what matters:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"
+```
+
+Two optional refinements:
+
+```bash
+# Store a derivation rather than the phrase. If both are set, the hash wins.
+supabase secrets set ADMIN_ACCESS_CODE_SALT="$(node -e "console.log(require('crypto').randomBytes(16).toString('hex'))")"
+supabase secrets set ADMIN_ACCESS_CODE_HASH="<sha256 of SALT+CODE, hex>"
+
+# Name the account the code opens. Required only if you have more than one
+# administrator — with several, the function refuses rather than guessing.
+supabase secrets set NASEK_ADMIN_EMAIL="you@example.com"
+```
+
+`SUPABASE_URL`, `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` are injected
+by the platform. Do not set them, and never put the service role key anywhere a
+browser can reach.
+
+**What the code does and does not buy.** It produces an ordinary Supabase
+session for the administrator account — the function mints a single-use
+magic-link token with the service role and the browser redeems it. Whether that
+session administers NASEK is still decided by `is_admin()` inside Postgres and
+enforced row by row by the policies. Holding the code is a door, not authority:
+defeat every line of the client and you hold a session that reads what a
+pilgrim's reads.
+
+Failed attempts are counted per source in `admin_access_attempts`; eight inside
+fifteen minutes and the door stops answering for a while.
+
+### c. Approval and refusal emails (optional)
+
+Decisions queue a message in `public.email_outbox` inside the same transaction
+that takes the decision, and `send-emails` drains that queue. With no mail
+provider configured the rows simply sit there — **which is a supported state**:
+every decision also writes an in-app notification, so an owner still sees it in
+their portal. Nothing is blocked on this.
+
+To actually send:
+
+```bash
+supabase secrets set RESEND_API_KEY="re_..."
+supabase secrets set EMAIL_FROM="NASEK <no-reply@your-verified-domain>"
+supabase secrets set NASEK_OWNER_PORTAL_URL="https://<your owner portal>/"
+supabase secrets set CRON_SECRET="$(node -e "console.log(require('crypto').randomBytes(24).toString('hex'))")"
+```
+
+The domain in `EMAIL_FROM` has to be verified with Resend, or every message is
+rejected. Then run the drain on a schedule — Supabase's Cron, a GitHub Action,
+anything that can POST once a minute:
+
+```
+POST https://<project-ref>.supabase.co/functions/v1/send-emails
+Header: x-cron-secret: <CRON_SECRET>
+```
+
+An administrator's own session can also call it, so **Security → Message
+delivery** in the dashboard shows what has been queued, sent or failed, and why.
+
 ### Then set a password and turn on two-factor
 
-The administration dashboard signs in with **a password alone** — the address
-comes from `VITE_ADMIN_EMAIL` — with the one-time code kept as the recovery
-path, sent to that same address without asking for it.
+The access code opens the dashboard; the account behind it should still be
+protected. **Security** in the sidebar sets a password and enrols an
+authenticator app (TOTP — Google Authenticator, 1Password, Aegis, any of them).
 
-A newly promoted administrator has no password yet, so the first sign-in uses
-the code: open the dashboard, choose **Sign in with a one-time code instead**,
-and send it. After that, **Security** in the sidebar sets a password, and the
-password field on the login screen becomes the everyday route in.
-
-The same screen enrols an authenticator app (TOTP — Google Authenticator,
-1Password, Aegis, any of them). Do it. An administration account can suspend a
+Do enrol one. The second factor is checked at the gate, whichever door opened
+the session — including this one — so an access code that leaks is not on its
+own enough to reach the dashboard. An administration account can suspend a
 company, hide a review and read every booking on the platform; it is the single
-most valuable credential NASEK has, and a password on its own is one phishing
-email away from all of it. Nothing needs buying — Supabase supports TOTP on
-every plan.
+most valuable credential NASEK has. Nothing needs buying: Supabase supports TOTP
+on every plan.
 
-## 8. Check the security actually holds
+## 9. Check the security actually holds
 
 Worth doing once, because "I wrote policies" and "the policies work" are
 different claims.

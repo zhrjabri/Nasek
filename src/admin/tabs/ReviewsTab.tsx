@@ -4,6 +4,7 @@ import type { Campaign } from '@/types'
 import { useI18n } from '@/i18n'
 
 import { setReviewHidden } from '@/services/data/catalogue'
+import { useSnapshotLoader } from '@/hooks/useRemoteData'
 import { useStore } from '@/store/AppStore'
 import { Badge, Button, Card, EmptyState, Rating, cx } from '@/components/ui'
 import { Kpi, Toolbar, useCountLabel } from './shared'
@@ -31,12 +32,30 @@ export function ReviewsTab({ campaigns }: { campaigns: Campaign[] }) {
    * what it would restore.
    */
   const { dispatch, toast, hiddenReviewIds, reviews } = useStore()
+  const { reload } = useSnapshotLoader()
   const countLabel = useCountLabel()
 
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
 
-  const hidden = useMemo(() => new Set(hiddenReviewIds), [hiddenReviewIds])
+  const localHidden = useMemo(() => new Set(hiddenReviewIds), [hiddenReviewIds])
+  /*
+   * The row's own column where there is one, this session's list otherwise.
+   *
+   * `hiddenReviewIds` records takedowns made in *this* browser, so a review
+   * hidden by a colleague was drawn as live and offered the "hide" button
+   * again.
+   */
+  const hidden = useMemo(
+    () => ({
+      has: (id: string) =>
+        reviews.find((r) => r.id === id)?.hidden ?? localHidden.has(id),
+      get size() {
+        return reviews.filter((r) => r.hidden || localHidden.has(r.id)).length
+      },
+    }),
+    [reviews, localHidden],
+  )
 
   const titleOf = useMemo(() => {
     const map = new Map(campaigns.map((c) => [c.id, c]))
@@ -61,7 +80,9 @@ export function ReviewsTab({ campaigns }: { campaigns: Campaign[] }) {
         bl(r.comment).toLowerCase().includes(needle)
       )
     })
-  }, [filter, query, hidden, bl])
+    // `reviews` belongs here — it lands from the snapshot after mount, and
+    // without it this list was computed once against an empty store.
+  }, [reviews, filter, query, hidden, bl])
 
   const stats = useMemo(() => {
     const live = reviews.filter((r) => !hidden.has(r.id))
@@ -74,7 +95,7 @@ export function ReviewsTab({ campaigns }: { campaigns: Campaign[] }) {
       low: live.filter((r) => r.rating <= 2).length,
       hidden: hidden.size,
     }
-  }, [hidden])
+  }, [reviews, hidden])
 
   return (
     <section className="space-y-5">
@@ -126,7 +147,9 @@ export function ReviewsTab({ campaigns }: { campaigns: Campaign[] }) {
                 <Card className={cx('flex h-full flex-col p-5', isHidden && 'opacity-60')}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate text-base font-bold text-ink-900">{review.userName}</p>
+                      <p className="truncate text-base font-bold text-ink-900">
+                        {review.userName || t('review.anonymous')}
+                      </p>
                       {campaign && (
                         <p className="truncate text-2xs text-ink-400">{bl(campaign.title)}</p>
                       )}
@@ -145,13 +168,19 @@ export function ReviewsTab({ campaigns }: { campaigns: Campaign[] }) {
                       <Button
                         size="sm"
                         variant="secondary"
-                        onClick={() => {
-                          void setReviewHidden(review.id, !isHidden)
+                        onClick={async () => {
+                          // Checked rather than fired and forgotten: a refused
+                          // takedown used to look exactly like an applied one.
+                          if (!(await setReviewHidden(review.id, !isHidden))) {
+                            toast(t('admin.reviewModerationFailed'), 'warning')
+                            return
+                          }
                           dispatch({ type: 'setReviewHidden', reviewId: review.id, hidden: !isHidden })
                           toast(
                             isHidden ? t('admin.reviewShownToast') : t('admin.reviewHiddenToast'),
                             isHidden ? 'success' : 'warning',
                           )
+                          await reload()
                         }}
                       >
                         {isHidden ? <Undo2 className="size-3.5" /> : <EyeOff className="size-3.5" />}

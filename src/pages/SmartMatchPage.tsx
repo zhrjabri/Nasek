@@ -767,7 +767,7 @@ function Results({
           {t('smart.restart')}
         </Button>
         <LinkButton to="/campaigns" variant="ghost">
-          {t('compare.browse')}
+          {t('campaign.browse')}
         </LinkButton>
       </div>
     </div>

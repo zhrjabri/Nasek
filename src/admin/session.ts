@@ -1,6 +1,7 @@
 import type { User } from '@/types'
 import { supabase, isSupabaseConfigured } from '@/services/supabase/client'
 import { profileToUser, signOutRemote } from '@/services/auth/session'
+import { pendingMfaFactor } from '@/services/auth/password'
 import type { ProfileRow } from '@/services/supabase/schema'
 
 /**
@@ -24,11 +25,24 @@ import type { ProfileRow } from '@/services/supabase/schema'
  * withhold. The interface is not the security boundary any more.
  */
 
-export type AdminGateReason = 'anonymous' | 'not_admin' | 'suspended' | 'unavailable'
+export type AdminGateReason =
+  | 'anonymous'
+  | 'not_admin'
+  | 'suspended'
+  | 'unavailable'
+  /** Signed in, holds the role, and still owes the authenticator code. */
+  | 'mfa_required'
 
 export interface AdminSession {
   user: User | null
   reason: AdminGateReason | null
+  /**
+   * The factor still owed, when `reason` is `mfa_required`.
+   *
+   * Handed back so the login screen can present the code step directly rather
+   * than asking Supabase the same question a second time.
+   */
+  factorId?: string
 }
 
 const DENIED = (reason: AdminGateReason): AdminSession => ({ user: null, reason })
@@ -84,6 +98,24 @@ export async function loadAdminSession(): Promise<AdminSession> {
 
   const { data: auth } = await supabase.auth.getSession()
   if (!auth.session?.user?.id) return DENIED('anonymous')
+
+  /*
+   * A second factor, if the account has one — whichever door was used.
+   *
+   * This check belongs here rather than in the password form, and that is the
+   * correction. `PasswordSignIn` asks for the authenticator code and refuses to
+   * report success without it, so the password route was sound — but the login
+   * screen also offers "use a code instead", and an emailed one-time code
+   * produces a perfectly good `aal1` session with nothing to stop it. An
+   * administrator who had turned two-factor on could therefore be signed in
+   * past it by anyone holding their inbox, which is the single thing the second
+   * factor exists to prevent.
+   *
+   * Placing it at the gate covers the email route, a session restored from
+   * storage, and any door added later, because they all arrive here.
+   */
+  const owed = await pendingMfaFactor()
+  if (owed) return { user: null, reason: 'mfa_required', factorId: owed }
 
   // Asked of the database, not of the row we are about to read. If this and the
   // profile below ever disagreed, the database's answer is the one that governs

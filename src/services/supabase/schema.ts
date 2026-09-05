@@ -31,6 +31,7 @@ export type VerificationStatusRow =
   | 'suspended'
   | 'unverified'
 export type BookingStatusRow = 'pending' | 'confirmed' | 'completed' | 'cancelled'
+export type CampaignStatusRow = 'pending_approval' | 'active' | 'rejected'
 export type ProviderPlanRow = 'basic' | 'plus' | 'premium'
 export type NotificationKindRow = 'booking' | 'trip' | 'availability' | 'system'
 
@@ -56,6 +57,13 @@ export type ProfileRow = {
   suspended: boolean
   removed: boolean
   created_at: string
+  /**
+   * The account holder's own nationality, for prefilling a booking.
+   *
+   * Travellers on a booking keep theirs separately: a person may book for
+   * family of another nationality, and the booking is where that matters.
+   */
+  nationality: string | null
 }
 
 export type ProviderRow = {
@@ -81,11 +89,20 @@ export type ProviderRow = {
   licence_image: string | null
   licence_file_name: string | null
   licence_path: string | null
+  licence_mime: string | null
   rejection_reason: string | null
   submitted_at: string | null
   verified_by: string | null
   verified_at: string | null
   created_at: string
+  // Added by 20260904000200. Nullable throughout: rows registered before that
+  // migration have none of them, and the form — not the column — is what makes
+  // them required from now on.
+  governorate: string | null
+  address: string | null
+  commercial_registration: string | null
+  permit_number: string | null
+  permit_expiry: string | null
 }
 
 /**
@@ -103,11 +120,19 @@ export type ProviderPublicRow = Omit<
   | 'licence_image'
   | 'licence_file_name'
   | 'licence_path'
+  | 'licence_mime'
   | 'rejection_reason'
   | 'submitted_at'
   | 'verified_by'
   | 'verified_at'
   | 'created_at'
+  // The verification evidence. `governorate` stays — a pilgrim comparing
+  // companies has a legitimate interest in where one operates from — and the
+  // rest is what NASEK checked the company *with*.
+  | 'address'
+  | 'commercial_registration'
+  | 'permit_number'
+  | 'permit_expiry'
 >
 
 export type CampaignRow = {
@@ -138,6 +163,21 @@ export type CampaignRow = {
   suspended: boolean
   deleted: boolean
   created_at: string
+  // Added by 20260904000300 — approval, and the rest of what a trip offers.
+  status: CampaignStatusRow
+  rejection_reason: string | null
+  submitted_at: string | null
+  reviewed_by: string | null
+  reviewed_at: string | null
+  registration_deadline: string | null
+  excluded_services: string[]
+  /** Object paths in the `campaign-images` bucket. Never URLs. */
+  images: string[]
+  contact_name: string | null
+  contact_phone: string | null
+  contact_email: string | null
+  terms_ar: string
+  terms_en: string
 }
 
 export type BookingRow = {
@@ -178,6 +218,26 @@ export type ReviewRow = {
   comment_en: string
   hidden: boolean
   created_at: string
+  reply_ar: string | null
+  reply_en: string | null
+  replied_at: string | null
+}
+
+/**
+ * A review as the public view serves it: the same columns plus the author's
+ * display name, which lives on `profiles` and is unreachable from here.
+ *
+ * `user_name` is null when the reviewer never gave a name — the interface says
+ * "A pilgrim" rather than deriving something from their email address.
+ */
+export type ReviewPublicRow = ReviewRow & { user_name: string | null }
+
+/** An expression of interest in NASEK Giving. Write-only to everyone but an admin. */
+export type GivingInterestRow = {
+  id: string
+  email: string
+  user_id: string | null
+  created_at: string
 }
 
 export type NotificationRow = {
@@ -196,6 +256,53 @@ export type SavedCampaignRow = {
   user_id: string
   campaign_id: string
   created_at: string
+}
+
+/**
+ * A queued message, as `20260904000100_email_outbox.sql` stores it.
+ *
+ * Read-only from the client, and only by an administrator: the queue is written
+ * by definer functions inside a decision's transaction and drained by the
+ * `send-emails` Edge Function under the service role. The dashboard reads it to
+ * answer one question — did the approval mail actually go out — which was
+ * previously unanswerable from anywhere.
+ */
+export type EmailOutboxRow = {
+  id: number
+  to_email: string
+  template: string
+  subject_ar: string
+  subject_en: string
+  body_ar: string
+  body_en: string
+  payload: Record<string, unknown>
+  status: 'queued' | 'sending' | 'sent' | 'failed'
+  attempts: number
+  last_error: string | null
+  created_at: string
+  sent_at: string | null
+}
+
+/**
+ * A change to a company's verification-sensitive details, awaiting review.
+ *
+ * `proposed` holds only the columns that actually differ from the live row, as
+ * `{ column: value }` — a diff rather than a second copy of the company, which
+ * is also what an administrator wants to look at.
+ */
+export type ProviderProfileChangeRow = {
+  id: string
+  provider_id: string
+  submitted_by: string | null
+  status: 'pending' | 'approved' | 'rejected' | 'superseded'
+  proposed: Record<string, string | null>
+  licence_path: string | null
+  licence_file_name: string | null
+  licence_mime: string | null
+  rejection_reason: string | null
+  created_at: string
+  reviewed_by: string | null
+  reviewed_at: string | null
 }
 
 export type AdminAuditRow = {
@@ -223,18 +330,28 @@ export type Database = {
   public: {
     Tables: {
       wilayat: Table<WilayahRow>
-      profiles: Table<ProfileRow, Insertable<ProfileRow, 'created_at' | 'avatar_color' | 'role' | 'suspended' | 'removed' | 'name'>>
-      providers: Table<ProviderRow, Insertable<ProviderRow, 'id' | 'created_at' | 'joined_at' | 'verification' | 'rating' | 'review_count' | 'plan' | 'initials' | 'brand_color' | 'experience_years' | 'verified_by' | 'verified_at' | 'tagline_ar' | 'tagline_en' | 'description_ar' | 'description_en'>>
-      campaigns: Table<CampaignRow, Insertable<CampaignRow, 'id' | 'created_at' | 'rating' | 'review_count' | 'featured' | 'bookings_count' | 'suspended' | 'deleted' | 'services' | 'description_ar' | 'description_en' | 'hotel_makkah_ar' | 'hotel_makkah_en' | 'hotel_madinah_ar' | 'hotel_madinah_en' | 'haram_distance_m'>>
+      profiles: Table<ProfileRow, Insertable<ProfileRow, 'created_at' | 'avatar_color' | 'role' | 'suspended' | 'removed' | 'name' | 'nationality'>>
+      providers: Table<ProviderRow, Insertable<ProviderRow, 'id' | 'created_at' | 'joined_at' | 'verification' | 'rating' | 'review_count' | 'plan' | 'initials' | 'brand_color' | 'experience_years' | 'verified_by' | 'verified_at' | 'tagline_ar' | 'tagline_en' | 'description_ar' | 'description_en' | 'governorate' | 'address' | 'commercial_registration' | 'permit_number' | 'permit_expiry' | 'licence_mime'>>
+      campaigns: Table<CampaignRow, Insertable<CampaignRow, 'id' | 'created_at' | 'rating' | 'review_count' | 'featured' | 'bookings_count' | 'suspended' | 'deleted' | 'services' | 'description_ar' | 'description_en' | 'hotel_makkah_ar' | 'hotel_makkah_en' | 'hotel_madinah_ar' | 'hotel_madinah_en' | 'haram_distance_m' | 'status' | 'rejection_reason' | 'submitted_at' | 'reviewed_by' | 'reviewed_at' | 'registration_deadline' | 'excluded_services' | 'images' | 'contact_name' | 'contact_phone' | 'contact_email' | 'terms_ar' | 'terms_en'>>
       bookings: Table<BookingRow, Insertable<BookingRow, 'id' | 'created_at' | 'booking_date' | 'status' | 'notes'>>
       travellers: Table<TravellerRow, Insertable<TravellerRow, 'id' | 'nationality'>>
-      reviews: Table<ReviewRow, Insertable<ReviewRow, 'id' | 'created_at' | 'hidden' | 'comment_ar' | 'comment_en'>>
+      reviews: Table<ReviewRow, Insertable<ReviewRow, 'id' | 'created_at' | 'hidden' | 'comment_ar' | 'comment_en' | 'reply_ar' | 'reply_en' | 'replied_at'>>
       notifications: Table<NotificationRow, Insertable<NotificationRow, 'id' | 'created_at' | 'read' | 'kind' | 'body_ar' | 'body_en'>>
       saved_campaigns: Table<SavedCampaignRow, Insertable<SavedCampaignRow, 'created_at'>>
       admin_audit: Table<AdminAuditRow, Insertable<AdminAuditRow, 'id' | 'created_at' | 'detail' | 'actor_id'>>
+      giving_interest: Table<GivingInterestRow, Insertable<GivingInterestRow, 'id' | 'created_at' | 'user_id'>>
+      // No insert shape worth naming: there is no write policy on this table at
+      // all, by design. Every statement a client sends against it fails,
+      // including an administrator's.
+      email_outbox: Table<EmailOutboxRow>
+      // Read-only from every client. Both directions go through
+      // `submit_provider_profile` and `review_provider_changes`, which is what
+      // stops an owner writing themselves an `approved` row.
+      provider_profile_changes: Table<ProviderProfileChangeRow>
     }
     Views: {
       providers_public: { Row: ProviderPublicRow; Relationships: [] }
+      reviews_public: { Row: ReviewPublicRow; Relationships: [] }
     }
     Functions: {
       is_admin: { Args: Record<string, never>; Returns: boolean }
@@ -246,15 +363,22 @@ export type Database = {
           p_name_ar: string
           p_name_en: string
           p_tagline?: string
+          p_description?: string
           p_wilayah_id?: string | null
+          p_governorate?: string | null
+          p_address?: string | null
           p_experience_years?: number
           p_phone?: string | null
           p_email?: string | null
           p_initials?: string
           p_brand_color?: string
+          p_commercial_registration?: string | null
+          p_permit_number?: string | null
+          p_permit_expiry?: string | null
           p_licence_image?: string | null
           p_licence_file_name?: string | null
           p_licence_path?: string | null
+          p_licence_mime?: string | null
         }
         Returns: ProviderRow
       }
@@ -264,15 +388,69 @@ export type Database = {
           p_name_ar: string
           p_name_en: string
           p_tagline?: string
+          p_description?: string
           p_wilayah_id?: string | null
+          p_governorate?: string | null
+          p_address?: string | null
           p_experience_years?: number
           p_phone?: string | null
           p_email?: string | null
+          p_commercial_registration?: string | null
+          p_permit_number?: string | null
+          p_permit_expiry?: string | null
           p_licence_image?: string | null
           p_licence_file_name?: string | null
           p_licence_path?: string | null
+          p_licence_mime?: string | null
         }
         Returns: ProviderRow
+      }
+      /**
+       * An owner saving their company profile.
+       *
+       * Applies the marketing fields immediately and, for an already-approved
+       * company, queues any change to the verification evidence for review.
+       * Returns `{ review_required, change_id? }`.
+       */
+      submit_provider_profile: {
+        Args: {
+          p_tagline?: string | null
+          p_description?: string | null
+          p_wilayah_id?: string | null
+          p_governorate?: string | null
+          p_address?: string | null
+          p_phone?: string | null
+          p_email?: string | null
+          p_experience_years?: number | null
+          p_name?: string | null
+          p_commercial_registration?: string | null
+          p_permit_number?: string | null
+          p_permit_expiry?: string | null
+          p_licence_path?: string | null
+          p_licence_file_name?: string | null
+          p_licence_mime?: string | null
+        }
+        Returns: { review_required: boolean; change_id?: string }
+      }
+      /** An administrator's decision on such a change. */
+      review_provider_changes: {
+        Args: { p_change_id: string; p_approve: boolean; p_reason?: string | null }
+        Returns: ProviderProfileChangeRow
+      }
+      /**
+       * An administrator's decision on a trip.
+       *
+       * The campaign counterpart of `set_provider_status`, and an RPC for the
+       * same reason: the status, the reason, the audit entry and the message to
+       * the owner have to land in one transaction or not at all.
+       */
+      set_campaign_status: {
+        Args: {
+          p_campaign_id: string
+          p_status: CampaignStatusRow
+          p_reason?: string | null
+        }
+        Returns: CampaignRow
       }
       /** An administrator's decision, with the reason attached to the same row. */
       set_provider_status: {
@@ -295,6 +473,8 @@ export type Database = {
         Returns: BookingRow
       }
       cancel_booking: { Args: { p_booking_id: string }; Returns: BookingRow }
+      /** Advances the caller's own past-dated bookings; returns how many moved. */
+      complete_past_bookings: { Args: Record<string, never>; Returns: number }
     }
     Enums: {
       user_role: UserRole
@@ -302,6 +482,7 @@ export type Database = {
       travel_method: TravelMethodRow
       verification_status: VerificationStatusRow
       booking_status: BookingStatusRow
+      campaign_status: CampaignStatusRow
       provider_plan: ProviderPlanRow
       notification_kind: NotificationKindRow
     }

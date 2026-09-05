@@ -11,6 +11,7 @@ import {
 import type {
   Booking,
   Campaign,
+  CampaignStatus,
   Notification,
   Provider,
   Review,
@@ -50,6 +51,21 @@ export interface PersistedState {
   campaignSuspensions: string[]
   /** The admin's featured decisions, laid over each campaign's own flag. */
   featureOverrides: Record<string, boolean>
+  /**
+   * The admin's approval decisions on trips, for the no-backend prototype.
+   *
+   * The exact counterpart of `verificationOverrides`, and it exists for the same
+   * narrow reason: with a database, approval is a column an administrator wrote
+   * and everyone reads, and this map is never consulted. Without one, the store
+   * is the whole platform — so a clone with no setup still has a working
+   * approval queue rather than a dashboard whose approve button does nothing.
+   *
+   * The two are never combined. `deriveCatalogue` reads the column when a
+   * snapshot has landed and this only when one has not, because laying a
+   * browser's stale opinion over a server row is how a campaign the platform
+   * refused keeps showing as live on one laptop.
+   */
+  campaignStatusOverrides: Record<string, CampaignStatus>
   /** Reviews the admin has taken down. */
   hiddenReviewIds: string[]
   /** Hashed sign-in credentials, one per registered account. */
@@ -81,6 +97,15 @@ export interface PersistedState {
   remoteProviders: Provider[]
   remoteCampaigns: Campaign[]
   reviews: Review[]
+  /**
+   * The account directory, as the policies handed it over.
+   *
+   * One row for a pilgrim, everyone for an administrator. Held apart from
+   * `sessionUsers` — which is only ever "accounts registered in this browser" —
+   * because the administration screen needs the platform's answer, not this
+   * browser's recollection of it.
+   */
+  remoteProfiles: User[]
 }
 
 export type Action =
@@ -103,6 +128,7 @@ export type Action =
   | { type: 'restoreUser'; userId: string }
   | { type: 'setCampaignSuspended'; campaignId: string; suspended: boolean }
   | { type: 'setCampaignFeatured'; campaignId: string; featured: boolean }
+  | { type: 'setCampaignStatus'; campaignId: string; status: CampaignStatus; reason?: string }
   | { type: 'setReviewHidden'; reviewId: string; hidden: boolean }
   | { type: 'addCredential'; credential: Credential }
   | { type: 'signInFailed'; key: string; now: number }
@@ -125,6 +151,7 @@ export const emptyState: PersistedState = {
   removedUserIds: [],
   campaignSuspensions: [],
   featureOverrides: {},
+  campaignStatusOverrides: {},
   hiddenReviewIds: [],
   credentials: [],
   lockouts: {},
@@ -133,6 +160,7 @@ export const emptyState: PersistedState = {
   remoteProviders: [],
   remoteCampaigns: [],
   reviews: [],
+  remoteProfiles: [],
 }
 
 export function reducer(state: PersistedState, action: Action): PersistedState {
@@ -167,6 +195,7 @@ export function reducer(state: PersistedState, action: Action): PersistedState {
         remoteReady: true,
         remoteProviders: action.snapshot.providers,
         remoteCampaigns: action.snapshot.campaigns,
+        remoteProfiles: action.snapshot.profiles,
         bookings: action.snapshot.bookings,
         reviews: action.snapshot.reviews,
         notifications: action.snapshot.notifications,
@@ -211,6 +240,7 @@ export function reducer(state: PersistedState, action: Action): PersistedState {
         removedUserIds: state.removedUserIds,
         campaignSuspensions: state.campaignSuspensions,
         featureOverrides: state.featureOverrides,
+        campaignStatusOverrides: state.campaignStatusOverrides,
         hiddenReviewIds: state.hiddenReviewIds,
         credentials: state.credentials,
         lockouts: state.lockouts,
@@ -220,6 +250,7 @@ export function reducer(state: PersistedState, action: Action): PersistedState {
         remoteReady: false,
         remoteProviders: [],
         remoteCampaigns: [],
+        remoteProfiles: [],
         reviews: [],
       }
 
@@ -354,6 +385,38 @@ export function reducer(state: PersistedState, action: Action): PersistedState {
         featureOverrides: { ...state.featureOverrides, [action.campaignId]: action.featured },
       }
 
+    /*
+     * An approval decision, and the refusal reason that has to travel with it.
+     *
+     * Two writes, deliberately. The override map is what `deriveCatalogue`
+     * consults for a trip that came from the seed catalogue; the copy on the
+     * row is what the owner's own dashboard reads, and it is where the reason
+     * has to live — a refusal kept in a second map beside the campaign is a
+     * refusal that goes missing the moment the two fall out of step.
+     *
+     * Never reached when a database is configured. There, `set_campaign_status`
+     * writes a column and everybody reads the same one.
+     */
+    case 'setCampaignStatus':
+      return {
+        ...state,
+        campaignStatusOverrides: {
+          ...state.campaignStatusOverrides,
+          [action.campaignId]: action.status,
+        },
+        providerCampaigns: state.providerCampaigns.map((c) =>
+          c.id === action.campaignId
+            ? {
+                ...c,
+                status: action.status,
+                rejectionReason:
+                  action.status === 'rejected' ? (action.reason ?? c.rejectionReason) : undefined,
+                reviewedAt: new Date().toISOString(),
+              }
+            : c,
+        ),
+      }
+
     case 'setReviewHidden':
       return {
         ...state,
@@ -453,6 +516,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       remoteReady: _r,
       remoteProviders: _p,
       remoteCampaigns: _c,
+      remoteProfiles: _u,
       reviews: _v,
       ...persistable
     } = state

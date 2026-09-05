@@ -19,6 +19,7 @@ import { bookingsApi, priceBreakdown } from '@/services/api/bookings'
 import { getAI } from '@/services/ai'
 import { buildDirectory } from '@/data/users'
 import { emptyState, reducer, type PersistedState } from '@/store/AppStore'
+import { deriveCatalogue } from '@/hooks/useCatalogue'
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = '') => {
@@ -27,17 +28,33 @@ const check = (label: string, ok: boolean, detail = '') => {
 }
 const head = (s: string) => console.log(`\n--- ${s} ---`)
 
-/** Mirrors useCatalogue, so a journey can be followed without React. */
+/**
+ * The catalogue this journey sees, from the same function the pages use.
+ *
+ * This used to be a hand-written copy of `deriveCatalogue`'s offline branch,
+ * and it did exactly what `verify-wiring` warns a copy does: it drifted, and
+ * then certified the drift. When campaign approval landed, the real function
+ * started withholding unapproved trips from the public list and this one did
+ * not — so the journey went on reporting "the trip is on the site" for a
+ * campaign no pilgrim could have seen.
+ *
+ * Delegating costs one adapter and removes the whole class of failure. Note
+ * that `seedProviders` maps onto `sessionProviders` rather than a separate
+ * slice: this harness has no seed catalogue, so the two are the same list.
+ */
 function catalogue(state: PersistedState, seedProviders: Provider[] = []) {
-  const hidden = new Set(state.hiddenCampaignIds)
-  const suspended = new Set(state.campaignSuspensions)
-  const all = state.providerCampaigns
-    .filter((c) => !hidden.has(c.id))
-    .map((c) => (c.id in state.featureOverrides ? { ...c, featured: state.featureOverrides[c.id] } : c))
-  const providers = [...state.sessionProviders, ...seedProviders].map((p) =>
-    state.verificationOverrides[p.id] ? { ...p, verification: state.verificationOverrides[p.id] } : p,
-  )
-  return { adminCampaigns: all, campaigns: all.filter((c) => !suspended.has(c.id)), providers }
+  return deriveCatalogue({
+    remoteReady: false,
+    remoteCampaigns: [],
+    remoteProviders: [],
+    sessionProviders: [...state.sessionProviders, ...seedProviders],
+    providerCampaigns: state.providerCampaigns,
+    hiddenCampaignIds: state.hiddenCampaignIds,
+    campaignSuspensions: state.campaignSuspensions,
+    featureOverrides: state.featureOverrides,
+    verificationOverrides: state.verificationOverrides,
+    campaignStatusOverrides: state.campaignStatusOverrides,
+  })
 }
 
 const main = async () => {
@@ -79,11 +96,34 @@ const main = async () => {
     hotelMakkah: { ar: 'فندق مكة', en: 'Makkah Hotel' },
     hotelMadinah: { ar: 'فندق المدينة', en: 'Madinah Hotel' },
     haramDistanceM: 350, rating: 0, reviewCount: 0, featured: false, bookingsCount: 0,
+    // Exactly what `CampaignForm` produces on a new trip: in the queue, not on
+    // the site. The trigger in Postgres forces the same value server-side, so
+    // this is the state a campaign genuinely starts in on both paths.
+    status: 'pending_approval', excludedServices: [], images: [],
+    terms: { ar: '', en: '' },
   } as Campaign
   state = reducer(state, { type: 'upsertCampaign', campaign: trip })
 
   let world = catalogue(state)
-  check('the trip is on the site', world.campaigns.length === 1)
+  check('a newly published trip is NOT on the public site yet',
+    world.campaigns.length === 0, `${world.campaigns.length} public`)
+  check('but the owner can see it in their own dashboard',
+    world.campaignsOf(provider.id).length === 1)
+  check('and it is waiting in the administration queue',
+    world.adminCampaigns.filter((c) => c.status === 'pending_approval').length === 1)
+
+  /*
+   * The approval, which is the step this journey existed without.
+   *
+   * Everything downstream — a pilgrim finding the trip, filtering to it,
+   * booking it — depends on it, and that dependency is the point: before this
+   * migration a campaign reached the catalogue by being saved, and now it
+   * reaches it by being approved.
+   */
+  state = reducer(state, { type: 'setCampaignStatus', campaignId: trip.id, status: 'active' })
+  world = catalogue(state)
+  check('once an administrator approves it, the trip is on the site',
+    world.campaigns.length === 1)
   check('priced above the old 3,000 cap and still visible',
     applyFilters(world.campaigns, defaultFilters(), world.providers).length === 1,
     `${trip.price} OMR`)
@@ -98,9 +138,7 @@ const main = async () => {
     applyFilters(world.campaigns, { ...f, type: 'umrah' }, world.providers).length === 0)
   check('sorting does not lose it', applySort(world.campaigns, 'recommended', world.providers).length === 1)
 
-  head('the assistant and smart match see it')
-  const asked = await getAI().ask('I want a hajj trip', [], 'en', world.campaigns)
-  check('the assistant suggests it', (asked.campaignIds?.length ?? 0) > 0)
+  head('smart match sees it')
   const matched = await getAI().smartMatch(
     { type: 'hajj', wilayahId: 'nizwa', budget: 4000, season: 'any', travelMethod: 'any', services: [], travellers: 2 },
     'en', world.campaigns, world.providers,

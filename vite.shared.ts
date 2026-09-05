@@ -139,8 +139,13 @@ export function renameEntry(from: string, outDir: string, to = 'index.html'): Pl
  * catastrophe above, and not worth failing a build someone is running for a
  * host this repository has not been told about.
  */
-export function assertBackendConfigured(app: 'web' | 'admin'): Plugin {
-  const siteVar = app === 'admin' ? 'VITE_ADMIN_URL' : 'VITE_SITE_URL'
+export function assertBackendConfigured(app: 'web' | 'owner' | 'admin'): Plugin {
+  // Each application is deployed to its own host and each emails links back to
+  // its own address, so each has its own variable. Getting this wrong is
+  // invisible until somebody clicks a link in an email and lands on the wrong
+  // application, which is exactly the failure `npm run auth:urls` exists for.
+  const siteVar =
+    app === 'admin' ? 'VITE_ADMIN_URL' : app === 'owner' ? 'VITE_OWNER_URL' : 'VITE_SITE_URL'
 
   return {
     name: 'nasek-assert-backend-configured',
@@ -166,8 +171,11 @@ export function assertBackendConfigured(app: 'web' | 'admin'): Plugin {
             '',
             'Set them in the build environment of whatever is running this:',
             '',
-            '  Vercel   Project -> Settings -> Environment Variables (Production),',
-            '           then redeploy. Setting them after a build changes nothing.',
+            '  Vercel   Project -> Settings -> Environment Variables. Tick EVERY',
+            '           environment you deploy — a preview deployment is a public URL',
+            '           and builds in production mode, so Preview needs these too, not',
+            '           only Production. Then redeploy with the build cache OFF:',
+            '           setting a variable after a build changes nothing by itself.',
             '  GitHub   Repository -> Settings -> Secrets and variables -> Actions',
             '  Locally  cp .env.example .env, then fill both in',
             '',

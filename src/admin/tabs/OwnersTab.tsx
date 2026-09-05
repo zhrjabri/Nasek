@@ -6,15 +6,19 @@ import {
   FileImage,
   ShieldCheck,
   ShieldX,
+  UserPlus,
   XCircle,
 } from 'lucide-react'
 import { isPendingProvider, type Provider, type VerificationStatus } from '@/types'
 import { useI18n, type MessageKey } from '@/i18n'
 import { wilayahName } from '@/data/geo'
 import { licenceUrl, setProviderVerification } from '@/services/data/catalogue'
+import { useSnapshotLoader } from '@/hooks/useRemoteData'
 import { useStore } from '@/store/AppStore'
 import { Badge, Button, EmptyState, Field, Modal, Rating, Spinner, Textarea } from '@/components/ui'
 import { BodyRow, HeadRow, Kpi, TableShell, Th, Toolbar, useCountLabel } from './shared'
+import { NewOwnerDialog } from './NewOwnerDialog'
+import { OwnerChangesPanel } from './OwnerChangesPanel'
 
 type Filter = 'all' | 'pending' | 'verified' | 'rejected' | 'suspended'
 
@@ -38,12 +42,23 @@ type Filter = 'all' | 'pending' | 'verified' | 'rejected' | 'suspended'
 export function OwnersTab({ providers }: { providers: Provider[] }) {
   const { t, lang, bl, n, date } = useI18n()
   const { dispatch, toast } = useStore()
+  const { reload } = useSnapshotLoader()
   const countLabel = useCountLabel()
 
   const [query, setQuery] = useState('')
-  const [filter, setFilter] = useState<Filter>('all')
+  // Opens on the queue. The full directory is a reference you go to; the
+  // applications waiting on a decision are the reason this screen exists.
+  const [filter, setFilter] = useState<Filter>('pending')
   const [permit, setPermit] = useState<Provider | null>(null)
   const [refusing, setRefusing] = useState<{ provider: Provider; status: 'rejected' | 'suspended' } | null>(null)
+  /*
+   * Adding one, which is now the only way a company gets onto NASEK.
+   *
+   * The public registration form is gone: an owner does not apply, NASEK takes
+   * them on. That makes this screen the start of the relationship rather than
+   * the middle of it, so the button belongs at the top of it.
+   */
+  const [adding, setAdding] = useState(false)
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase()
@@ -63,6 +78,7 @@ export function OwnersTab({ providers }: { providers: Provider[] }) {
 
   const waiting = providers.filter((p) => isPendingProvider(p.verification)).length
   const approved = providers.filter((p) => p.verification === 'verified').length
+  const refused = providers.filter((p) => p.verification === 'rejected').length
 
   /**
    * Write the decision, then reflect it.
@@ -82,26 +98,72 @@ export function OwnersTab({ providers }: { providers: Provider[] }) {
     dispatch({ type: 'setVerification', providerId: p.id, status })
     toast(t(TOAST[status] ?? 'admin.unverifiedToast', { name: bl(p.name) }),
       status === 'verified' ? 'success' : 'info')
+    /*
+     * Re-read, because the dispatch above no longer reaches this table.
+     *
+     * `verificationOverrides` is consulted only when there is no database.
+     * Once a snapshot has landed, `useCatalogue` returns the server's providers
+     * untouched — correctly, so that one browser's stale opinion cannot outrank
+     * the platform's — which meant the decision was written, acknowledged, and
+     * then not drawn. The administrator saw an unchanged badge and clicked
+     * again.
+     */
+    await reload()
     return true
   }
 
   return (
     <section className="space-y-5">
-      <ul className="grid gap-4 sm:grid-cols-3">
-        <Kpi label={t('admin.kpiProviders')} value={n(providers.length)} icon={<Building2 className="size-4" />} />
+      {/*
+        The three states, named as states rather than as a total and two
+        subsets. "12 owners, 9 verified" leaves the reader doing the subtraction
+        that matters — how many are waiting — which is the only figure on this
+        screen that represents work.
+      */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-bold text-ink-900">{t('admin.providers')}</h2>
+          <p className="text-sm text-ink-500">{t('admin.newOwnerBody')}</p>
+        </div>
+        <Button onClick={() => setAdding(true)}>
+          <UserPlus className="size-4" />
+          {t('admin.newOwnerButton')}
+        </Button>
+      </div>
+
+      <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi
-          label={t('admin.ownersVerified')}
-          value={n(approved)}
-          icon={<BadgeCheck className="size-4" />}
-        />
-        <Kpi
-          label={t('admin.kpiPending')}
+          label={t('admin.ownersPendingTitle')}
           value={n(waiting)}
           icon={<ShieldCheck className="size-4" />}
           tone={waiting > 0 ? 'alert' : undefined}
           hint={waiting > 0 ? t('admin.ownersPendingHint') : undefined}
         />
+        <Kpi
+          label={t('admin.ownersApprovedTitle')}
+          value={n(approved)}
+          icon={<BadgeCheck className="size-4" />}
+        />
+        <Kpi
+          label={t('admin.ownersRejectedTitle')}
+          value={n(refused)}
+          icon={<XCircle className="size-4" />}
+        />
+        <Kpi
+          label={t('admin.kpiProviders')}
+          value={n(providers.length)}
+          icon={<Building2 className="size-4" />}
+        />
       </ul>
+
+      {/*
+        Proposed changes to verified details, above the directory.
+
+        Renders nothing when the queue is empty, which is most of the time —
+        so it costs an administrator no attention until there is something to
+        pay attention to, and is impossible to miss when there is.
+      */}
+      <OwnerChangesPanel providers={providers} />
 
       <Toolbar<Filter>
         query={query}
@@ -112,11 +174,14 @@ export function OwnersTab({ providers }: { providers: Provider[] }) {
         filterLabel={t('admin.ownerFilter')}
         count={countLabel(visible.length, providers.length)}
         options={[
-          { value: 'all', label: t('admin.userAll') },
-          { value: 'pending', label: t('common.pendingVerification') },
-          { value: 'verified', label: t('admin.verified') },
-          { value: 'rejected', label: t('admin.rejected') },
+          // Same order as the campaign queue, and for the same reason: the
+          // lifecycle reads as a pipeline rather than as an alphabetised set of
+          // flags, and the two screens teach the same shape.
+          { value: 'pending', label: t('admin.ownersPendingTitle') },
+          { value: 'verified', label: t('admin.ownersApprovedTitle') },
+          { value: 'rejected', label: t('admin.ownersRejectedTitle') },
           { value: 'suspended', label: t('admin.suspendedFilter') },
+          { value: 'all', label: t('admin.filterAll') },
         ]}
       />
 
@@ -124,7 +189,7 @@ export function OwnersTab({ providers }: { providers: Provider[] }) {
         <EmptyState
           icon={<Building2 className="size-5" />}
           title={providers.length === 0 ? t('admin.noProviders') : t('admin.noOwnerMatch')}
-          body={providers.length === 0 ? t('admin.noProvidersBody') : t('admin.noUsersBody')}
+          body={providers.length === 0 ? t('admin.newOwnerNoneBody') : t('admin.noUsersBody')}
         />
       ) : (
         <TableShell>
@@ -136,7 +201,7 @@ export function OwnersTab({ providers }: { providers: Provider[] }) {
                 <Th>{t('common.rating')}</Th>
                 <Th>{t('prov.plan')}</Th>
                 <Th>{t('admin.licence')}</Th>
-                <Th>{t('compare.row.verification')}</Th>
+                <Th>{t('provider.verificationLabel')}</Th>
                 <Th end>{t('admin.userActions')}</Th>
               </HeadRow>
             </thead>
@@ -253,13 +318,54 @@ export function OwnersTab({ providers }: { providers: Provider[] }) {
           <div className="space-y-4">
             <PermitImage provider={permit} />
 
+            {/*
+              What the permit is checked *against*.
+
+              This dialog used to show a scan, the years of trading and a join
+              date — which is enough to look at a licence and not enough to
+              verify one. There was no number to compare with the number printed
+              on the document, no expiry to notice had passed, no commercial
+              registration and no address. An administrator was being asked to
+              grant the badge NASEK's whole proposition rests on with nothing but
+              a photograph.
+            */}
             <dl className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
+              <PermitFact label={t('admin.ownerPermitNumber')} value={permit.permitNumber} ltr />
+              <div>
+                <dt className="text-2xs font-bold uppercase tracking-wider text-ink-400">
+                  {t('admin.ownerPermitExpiry')}
+                </dt>
+                <dd className="mt-1 flex items-center gap-2 text-sm text-ink-800">
+                  {permit.permitExpiry ? date(permit.permitExpiry) : '—'}
+                  {/* Flagged, never enforced. A renewal in progress is a
+                      conversation, and refusing the application automatically
+                      would mean it never reaches the person who could have it. */}
+                  {permit.permitExpiry &&
+                    permit.permitExpiry < new Date().toISOString().slice(0, 10) && (
+                      <Badge tone="red">{t('admin.ownerPermitExpired')}</Badge>
+                    )}
+                </dd>
+              </div>
+              <PermitFact
+                label={t('admin.ownerCommercialRegistration')}
+                value={permit.commercialRegistration}
+                ltr
+              />
+              <PermitFact label={t('admin.ownerGovernorate')} value={permit.governorate} />
+              <PermitFact
+                label={t('common.wilayah')}
+                value={wilayahName(permit.wilayahId, lang)}
+              />
+              <PermitFact label={t('common.phone')} value={permit.phone} ltr />
+              <PermitFact label={t('common.email')} value={permit.email} ltr />
               <div>
                 <dt className="text-2xs font-bold uppercase tracking-wider text-ink-400">
                   {t('common.experience').replace('{n}', '').trim()}
                 </dt>
                 <dd className="nums mt-1 text-sm text-ink-800">{n(permit.experienceYears)}</dd>
               </div>
+              <PermitFact label={t('admin.ownerAddress')} value={permit.address} wide />
+              <PermitFact label={t('owner.description')} value={bl(permit.description)} wide />
               <div>
                 <dt className="text-2xs font-bold uppercase tracking-wider text-ink-400">
                   {t('admin.userJoined')}
@@ -283,6 +389,16 @@ export function OwnersTab({ providers }: { providers: Provider[] }) {
                 </div>
               )}
             </dl>
+
+            {/* A company that registered before these fields existed is not a
+                broken row and should not read as one — but the reviewer has to
+                know that the blanks are missing history rather than an
+                application somebody submitted half-finished. */}
+            {!permit.permitNumber && !permit.address && (
+              <p className="rounded-[3px] border border-ivory-300 bg-ivory-50 p-3 text-xs text-ink-500">
+                {t('admin.ownerIncomplete')}
+              </p>
+            )}
 
             <div className="flex flex-wrap justify-end gap-2 border-t border-ivory-300 pt-4">
               {permit.verification !== 'verified' && (
@@ -312,6 +428,8 @@ export function OwnersTab({ providers }: { providers: Provider[] }) {
           </div>
         )}
       </Modal>
+
+      <NewOwnerDialog open={adding} onClose={() => setAdding(false)} />
 
       {/* -------------------------------------------------------- the reason */}
       <RefusalDialog
@@ -353,6 +471,37 @@ function StatusBadge({ status }: { status: VerificationStatus }) {
  * The signing happens on open rather than with the table, so a page of thirty
  * companies does not mint thirty URLs to documents nobody looked at.
  */
+/**
+ * One fact from the application, with an em dash where there is nothing.
+ *
+ * A dash rather than an empty cell, because on this screen the difference
+ * between "they did not give us a registration number" and "the layout has a
+ * gap here" is a decision an administrator is about to take.
+ */
+function PermitFact({
+  label,
+  value,
+  ltr,
+  wide,
+}: {
+  label: string
+  value?: string
+  ltr?: boolean
+  wide?: boolean
+}) {
+  return (
+    <div className={wide ? 'sm:col-span-2' : undefined}>
+      <dt className="text-2xs font-bold uppercase tracking-wider text-ink-400">{label}</dt>
+      <dd
+        dir={ltr ? 'ltr' : undefined}
+        className={value ? 'mt-1 text-sm text-ink-800' : 'mt-1 text-sm text-ink-400'}
+      >
+        {value || '—'}
+      </dd>
+    </div>
+  )
+}
+
 function PermitImage({ provider }: { provider: Provider }) {
   const { t } = useI18n()
   const [src, setSrc] = useState<string | null>(provider.licenceImage ?? null)
@@ -386,6 +535,46 @@ function PermitImage({ provider }: { provider: Provider }) {
         <FileImage className="size-4" />
         {t('admin.noLicence')}
       </p>
+    )
+  }
+
+  /*
+   * A PDF is embedded, not rendered as an image.
+   *
+   * The bucket accepts PDF since `20260904000200`, because an official Omani
+   * operating permit is issued as one at least as often as it is photographed —
+   * and an `<img>` pointed at a PDF renders as a broken-image icon on the one
+   * screen where somebody has to actually read the document. That would have
+   * been a silent regression: the upload works, the row is written, the queue
+   * shows an application, and the permit is unreadable.
+   *
+   * The MIME type comes off the row rather than the file extension, because the
+   * extension is whatever the owner's phone happened to call the file. The
+   * fallback matters for rows written before the column existed: those are all
+   * images, so treating an unknown type as an image is right for every one of
+   * them.
+   */
+  if (provider.licenceMime === 'application/pdf') {
+    return (
+      <object
+        data={src}
+        type="application/pdf"
+        className="h-[60vh] w-full rounded-[3px] border border-ivory-300 bg-ivory-50"
+        aria-label={provider.licenceFileName ?? t('admin.licence')}
+      >
+        {/* Some browsers refuse to embed a PDF at all. A link is not as good as
+            the document on the page, and it is a great deal better than an
+            empty box with no way out of it. */}
+        <a
+          href={src}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex h-full items-center justify-center gap-2 text-sm font-semibold text-nasek-700 hover:underline"
+        >
+          <FileImage className="size-4" />
+          {provider.licenceFileName ?? t('admin.licence')}
+        </a>
+      </object>
     )
   }
 

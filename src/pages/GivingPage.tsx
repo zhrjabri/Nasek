@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ClipboardCheck, HandHeart, HeartHandshake, Info, Send, Users } from 'lucide-react'
 import { useI18n, type MessageKey } from '@/i18n'
+import { registerGivingInterest } from '@/services/data/catalogue'
 import { Button, Card, Field, Input, cx } from '@/components/ui'
 
 const STEPS: { title: MessageKey; body: MessageKey; icon: typeof HandHeart }[] = [
@@ -23,6 +24,7 @@ export function GivingPage() {
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
 
   return (
     <main>
@@ -105,13 +107,27 @@ export function GivingPage() {
           ) : (
             <form
               className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end"
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault()
                 if (!/^\S+@\S+\.\S+$/.test(email)) {
                   setError(t('auth.emailInvalid'))
                   return
                 }
                 setError('')
+                /*
+                 * The address is kept now, rather than thanked and discarded.
+                 *
+                 * The programme is planned rather than running and the page
+                 * says so — but "we will tell you when it opens" is a promise,
+                 * and it needs somewhere to keep the address in order to be one.
+                 */
+                setBusy(true)
+                const ok = await registerGivingInterest(email)
+                setBusy(false)
+                if (!ok) {
+                  setError(t('giving.interestFailed'))
+                  return
+                }
                 setSent(true)
               }}
             >
@@ -126,7 +142,7 @@ export function GivingPage() {
                   />
                 )}
               </Field>
-              <Button type="submit" size="lg" className="shrink-0">
+              <Button type="submit" size="lg" loading={busy} className="shrink-0">
                 <Send className="size-4 rtl:-scale-x-100" />
                 {t('giving.interest')}
               </Button>

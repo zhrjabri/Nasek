@@ -18,11 +18,13 @@ import {
   Phone,
   Plane,
   Users,
+  X,
 } from 'lucide-react'
 import type { Campaign } from '@/types'
 import { useI18n } from '@/i18n'
 import { wilayahName } from '@/data/geo'
 import { serviceLabel } from '@/data/services'
+import { campaignImageUrl } from '@/services/storage/campaignImages'
 
 import { campaignsApi } from '@/services/api/campaigns'
 import { useStore } from '@/store/AppStore'
@@ -78,7 +80,7 @@ export function CampaignDetailPage() {
         <EmptyState
           title={t('state.notFoundTitle')}
           body={t('state.notFoundBody')}
-          action={<LinkButton to="/campaigns">{t('compare.browse')}</LinkButton>}
+          action={<LinkButton to="/campaigns">{t('campaign.browse')}</LinkButton>}
         />
       </main>
     )
@@ -96,12 +98,31 @@ export function CampaignDetailPage() {
    * browser and nothing else would apply it.
    */
   const reviews = allReviews.filter(
-    (r) => r.campaignId === campaign.id && !hiddenReviewIds.includes(r.id),
+    // `r.hidden` is the row's own column and covers the two callers the policy
+    // deliberately still sends a hidden review to — its author, and an
+    // administrator — neither of whom should meet it on the public trip page.
+    (r) => r.campaignId === campaign.id && !r.hidden && !hiddenReviewIds.includes(r.id),
   )
   const saved = isSaved(campaign.id)
   const days = tripDays(campaign)
   const booked = campaign.seatsTotal - campaign.seatsAvailable
   const soldOut = campaign.seatsAvailable === 0
+  /*
+   * Registration closes before the trip departs, where the owner set a date.
+   *
+   * Compared as ISO strings against today's date rather than as `Date` objects,
+   * which is not laziness: `new Date('2027-03-01') < new Date()` compares a
+   * midnight-UTC instant against the local clock, so a deadline of "today" reads
+   * as passed for anyone east of Greenwich — which is everyone in Oman. Both
+   * sides sliced to `YYYY-MM-DD` compare the calendar days people mean.
+   *
+   * Closed registration and a sold-out trip are separate reasons that produce
+   * the same outcome, and both have to be checked wherever booking is offered.
+   */
+  const closed =
+    !!campaign.registrationDeadline &&
+    campaign.registrationDeadline < new Date().toISOString().slice(0, 10)
+  const bookable = !soldOut && !closed
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-6 pb-28 sm:px-6 lg:px-8 lg:pb-6">
@@ -202,12 +223,12 @@ export function CampaignDetailPage() {
               />
               <Glance
                 icon={<BedDouble className="size-4" />}
-                label={t('compare.row.haram')}
+                label={t('campaign.haramLabel')}
                 value={`${n(campaign.haramDistanceM)} m`}
               />
               <Glance
                 icon={<Users className="size-4" />}
-                label={t('compare.row.seats')}
+                label={t('campaign.seatsLabel')}
                 value={soldOut ? t('common.soldOut') : n(campaign.seatsAvailable)}
                 tone={soldOut ? 'muted' : campaign.seatsAvailable <= 6 ? 'urgent' : 'normal'}
               />
@@ -218,6 +239,30 @@ export function CampaignDetailPage() {
           <Section title={t('campaign.aboutTrip')}>
             <p className="text-md leading-[1.85] text-ink-600">{bl(campaign.description)}</p>
           </Section>
+
+          {/* ------------------------------------------------ photographs */}
+          {/*
+            Shown only when there are some, rather than reserving a gallery
+            that is empty on most listings. Campaigns predate this field and
+            plenty will never have one; a heading over nothing reads as a
+            broken page rather than as an owner who did not upload photos.
+          */}
+          {campaign.images.length > 0 && (
+            <Section title={t('campaign.gallery')}>
+              <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {campaign.images.map((path) => (
+                  <li key={path}>
+                    <img
+                      src={campaignImageUrl(path)}
+                      alt=""
+                      loading="lazy"
+                      className="aspect-[4/3] w-full rounded-[3px] border border-ivory-300 object-cover"
+                    />
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          )}
 
           {/* ---------------------------------------------------- services */}
           <Section title={t('campaign.includes')}>
@@ -234,6 +279,37 @@ export function CampaignDetailPage() {
                 </li>
               ))}
             </ul>
+
+            {/*
+              What the price does not cover, immediately under what it does.
+
+              Together rather than in separate sections, because they are one
+              question — "what am I paying for" — and a pilgrim who reads the
+              included list and stops has read half an answer. Only what the
+              owner ticked appears: a service in neither list is simply not
+              mentioned, which is honest, and listing every unticked service as
+              excluded would publish a wall of things nobody claimed.
+            */}
+            {campaign.excludedServices.length > 0 && (
+              <>
+                <h3 className="mt-6 mb-2.5 text-2xs font-bold uppercase tracking-[0.14em] text-ink-400">
+                  {t('campaign.excluded')}
+                </h3>
+                <ul className="grid gap-2.5 sm:grid-cols-2">
+                  {campaign.excludedServices.map((s) => (
+                    <li
+                      key={s}
+                      className="flex items-center gap-2.5 rounded-[3px] border border-ivory-300 bg-ivory-50/40 px-3.5 py-2.5"
+                    >
+                      <X className="size-4 shrink-0 text-ink-400" />
+                      <span className="text-sm font-medium text-ink-500">
+                        {serviceLabel(s, lang)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
           </Section>
 
           {/* ----------------------------------------------- accommodation */}
@@ -245,7 +321,7 @@ export function CampaignDetailPage() {
           </Section>
 
           {/* --------------------------------------------------- occupancy */}
-          <Section title={t('compare.row.seats')}>
+          <Section title={t('campaign.seatsLabel')}>
             <div className="rounded-[3px] border border-ivory-300 bg-ivory-50/60 p-5">
               <div className="flex items-baseline justify-between">
                 <p className="nums text-md font-bold text-ink-800">
@@ -265,7 +341,7 @@ export function CampaignDetailPage() {
                 value={booked}
                 max={campaign.seatsTotal}
                 tone={campaign.seatsAvailable <= 6 ? 'amber' : 'green'}
-                label={t('compare.row.seats')}
+                label={t('campaign.seatsLabel')}
               />
             </div>
           </Section>
@@ -281,13 +357,31 @@ export function CampaignDetailPage() {
                 {reviews.map((review) => (
                   <li key={review.id} className="rounded-[3px] border border-ivory-300 bg-ivory-50 p-5">
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-base font-bold text-ink-900">{review.userName}</span>
+                      <span className="text-base font-bold text-ink-900">
+                        {review.userName || t('review.anonymous')}
+                      </span>
                       <Rating value={review.rating} size="sm" />
                     </div>
                     <p className="mt-2.5 text-base leading-relaxed text-ink-600">
                       {bl(review.comment)}
                     </p>
                     <p className="mt-2.5 text-2xs text-ink-400">{date(review.date)}</p>
+
+                    {/* The campaign's answer, where it gave one. This is the
+                        half of the reply feature that was missing entirely:
+                        owners could type a reply and no traveller ever saw it,
+                        because it lived in component state on the owner's own
+                        dashboard. */}
+                    {bl(review.reply) && (
+                      <div className="mt-3 rounded-[3px] border-s-2 border-nasek-600 bg-white/70 px-4 py-3">
+                        <p className="text-2xs font-bold uppercase tracking-wider text-nasek-700">
+                          {t('review.replyTitle')}
+                        </p>
+                        <p className="mt-1 text-sm leading-relaxed text-ink-700">
+                          {bl(review.reply)}
+                        </p>
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -295,30 +389,57 @@ export function CampaignDetailPage() {
           </Section>
 
           {/* ------------------------------------------------------- terms */}
+          {/*
+            The owner's own terms where they wrote some, NASEK's standing text
+            where they did not.
+
+            Not a fallback out of laziness: a campaign page with no terms at all
+            is worse for the pilgrim than the platform's general wording, and
+            listings that predate this field have nothing of their own to show.
+            An owner who writes terms replaces the generic paragraph entirely,
+            which is the incentive that matters.
+          */}
           <Section title={t('campaign.terms')}>
             <div className="rounded-[3px] border border-ivory-300 bg-ivory-50/60 p-5">
-              <p className="text-sm leading-[1.9] text-ink-600">{t('campaign.termsBody')}</p>
+              <p className="whitespace-pre-line text-sm leading-[1.9] text-ink-600">
+                {bl(campaign.terms) || t('campaign.termsBody')}
+              </p>
             </div>
           </Section>
 
           {/* ----------------------------------------------------- contact */}
-          {provider && (
+          {/*
+            The campaign's own contact where it has one, the company's
+            otherwise. An owner running several trips out of different offices
+            has a real reason to route a specific campaign elsewhere, and a
+            pilgrim ringing about a trip should reach whoever runs that trip.
+          */}
+          {(campaign.contactPhone || campaign.contactEmail || provider) && (
             <Section title={t('campaign.contact')}>
+              {campaign.contactName && (
+                <p className="mb-2.5 text-sm font-semibold text-ink-700">
+                  {campaign.contactName}
+                </p>
+              )}
               <div className="flex flex-wrap gap-3">
-                <a
-                  href={`tel:${provider.phone.replace(/\s/g, '')}`}
-                  className="flex items-center gap-2.5 rounded-[3px] border border-ivory-300 bg-ivory-50 px-4 py-3 text-sm font-semibold text-ink-700 transition-colors hover:border-nasek-300 hover:text-nasek-800"
-                >
-                  <Phone className="size-4 text-nasek-600" />
-                  <span className="nums">{provider.phone}</span>
-                </a>
-                <a
-                  href={`mailto:${provider.email}`}
-                  className="flex items-center gap-2.5 rounded-[3px] border border-ivory-300 bg-ivory-50 px-4 py-3 text-sm font-semibold text-ink-700 transition-colors hover:border-nasek-300 hover:text-nasek-800"
-                >
-                  <Mail className="size-4 text-nasek-600" />
-                  {provider.email}
-                </a>
+                {(campaign.contactPhone || provider?.phone) && (
+                  <a
+                    href={`tel:${(campaign.contactPhone || provider?.phone || '').replace(/\s/g, '')}`}
+                    className="flex items-center gap-2.5 rounded-[3px] border border-ivory-300 bg-ivory-50 px-4 py-3 text-sm font-semibold text-ink-700 transition-colors hover:border-nasek-300 hover:text-nasek-800"
+                  >
+                    <Phone className="size-4 text-nasek-600" />
+                    <span className="nums">{campaign.contactPhone || provider?.phone}</span>
+                  </a>
+                )}
+                {(campaign.contactEmail || provider?.email) && (
+                  <a
+                    href={`mailto:${campaign.contactEmail || provider?.email}`}
+                    className="flex items-center gap-2.5 rounded-[3px] border border-ivory-300 bg-ivory-50 px-4 py-3 text-sm font-semibold text-ink-700 transition-colors hover:border-nasek-300 hover:text-nasek-800"
+                  >
+                    <Mail className="size-4 text-nasek-600" />
+                    {campaign.contactEmail || provider?.email}
+                  </a>
+                )}
               </div>
             </Section>
           )}
@@ -361,15 +482,24 @@ export function CampaignDetailPage() {
               </div>
 
               <div className="space-y-2.5 p-5">
-                {soldOut ? (
-                  <Button block size="lg" disabled>
-                    {t('common.soldOut')}
-                  </Button>
-                ) : (
+                {bookable ? (
                   <LinkButton to={`/booking/${campaign.id}`} block size="lg">
                     {t('common.bookNow')}
                     <Arrow className="size-4" />
                   </LinkButton>
+                ) : (
+                  <Button block size="lg" disabled>
+                    {soldOut ? t('common.soldOut') : t('campaign.deadlinePassed')}
+                  </Button>
+                )}
+
+                {/* The deadline is worth stating while it is still in the
+                    future — it is a date somebody has to plan around — and not
+                    only once it has passed and the button has gone. */}
+                {campaign.registrationDeadline && !closed && (
+                  <p className="text-center text-2xs text-ink-500">
+                    {t('campaign.deadline')} · {date(campaign.registrationDeadline)}
+                  </p>
                 )}
 
                 <div className="grid grid-cols-2 gap-2.5">
@@ -408,21 +538,21 @@ export function CampaignDetailPage() {
               </span>
               <span className="text-xs text-ink-400">{t('common.perPerson')}</span>
             </p>
-            {!soldOut && campaign.seatsAvailable <= 10 && (
+            {bookable && campaign.seatsAvailable <= 10 && (
               <p className="text-2xs font-semibold text-amber-700">
                 {t('common.lastSeats', { n: n(campaign.seatsAvailable) })}
               </p>
             )}
           </div>
-          {soldOut ? (
-            <Button className="ms-auto" size="lg" disabled>
-              {t('common.soldOut')}
-            </Button>
-          ) : (
+          {bookable ? (
             <LinkButton to={`/booking/${campaign.id}`} size="lg" className="ms-auto">
               {t('common.bookNow')}
               <Arrow className="size-4" />
             </LinkButton>
+          ) : (
+            <Button className="ms-auto" size="lg" disabled>
+              {soldOut ? t('common.soldOut') : t('campaign.deadlinePassed')}
+            </Button>
           )}
         </div>
       </div>

@@ -1,4 +1,5 @@
 import { supabase } from '@/services/supabase/client'
+import { authRedirectTarget } from './redirect'
 
 /**
  * Passwords, for the two roles that have a reason to hold one.
@@ -73,6 +74,31 @@ export async function setPassword(password: string): Promise<{ ok: boolean; erro
   if (!supabase) return { ok: false, error: 'offline' }
   const { error } = await supabase.auth.updateUser({ password })
   return error ? { ok: false, error: classify(error.message) } : { ok: true }
+}
+
+/**
+ * Send a campaign owner a link to set a new password.
+ *
+ * The reason the owner portal can offer email-and-password *only* and still
+ * have a way back in. A pilgrim's recovery path is the one-time code, which is
+ * also their sign-in; an owner's sign-in is a password, so recovery has to be
+ * something else — and a reset link proves control of exactly the same address
+ * a code would, while ending in a password rather than in a session with none.
+ *
+ * Always resolves, and never reports whether the address was found. Supabase
+ * behaves the same way at the API and for the same reason: an honest "no such
+ * account" here would let anyone discover which companies are registered on
+ * NASEK, one address at a time.
+ *
+ * `redirectTo` is the site's own recovery route, which has to be on the
+ * project's redirect allow-list — `npm run auth:urls` checks that from the
+ * outside.
+ */
+export async function requestPasswordReset(email: string): Promise<void> {
+  if (!supabase) return
+  await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+    redirectTo: authRedirectTarget(),
+  })
 }
 
 // ----------------------------------------------------------------- signing in

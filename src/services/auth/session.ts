@@ -1,6 +1,7 @@
 import type { Role, User } from '@/types'
 import { supabase } from '@/services/supabase/client'
 import type { ProfileRow } from '@/services/supabase/schema'
+import { authRedirectTarget } from './redirect'
 
 /**
  * Who is signed in, according to the server.
@@ -53,6 +54,12 @@ export function profileToUser(row: ProfileRow): User {
     avatarColor: row.avatar_color || colourFor(row.id),
     providerId: row.provider_id ?? undefined,
     createdAt: row.created_at.slice(0, 10),
+    // Carried for the administration directory, which is the only screen that
+    // sees an account it cannot sign in as. `loadSession` below refuses the
+    // session whenever either is true, so these never describe a live user.
+    suspended: row.suspended,
+    removed: row.removed,
+    nationality: row.nationality ?? undefined,
   }
 }
 
@@ -146,13 +153,26 @@ export async function saveProfile(patch: Partial<User>): Promise<User | null> {
   const id = auth.session?.user?.id
   if (!id) return null
 
-  // Typed against the row rather than a loose record, so a column renamed in a
-  // migration fails here at compile time instead of silently updating nothing.
-  const update: Partial<Pick<ProfileRow, 'name' | 'phone' | 'wilayah_id' | 'avatar_color'>> = {}
+  /*
+   * Typed against the row rather than a loose record, so a column renamed in a
+   * migration fails here at compile time instead of silently updating nothing.
+   *
+   * `email` is deliberately absent, and its absence is load-bearing. The
+   * address on this row is a *copy* of the credential in `auth.users`; writing
+   * it here would change what the interface displays and nothing about how
+   * anybody signs in — an account showing an address that receives no code.
+   * `guard_profile_privileges` reverts it for the same reason, so sending it
+   * would be silently ignored rather than merely useless. Changing the real
+   * address goes through `requestEmailChange` below.
+   */
+  const update: Partial<
+    Pick<ProfileRow, 'name' | 'phone' | 'wilayah_id' | 'avatar_color' | 'nationality'>
+  > = {}
   if (patch.name !== undefined) update.name = patch.name
   if (patch.phone !== undefined) update.phone = patch.phone
   if (patch.wilayahId !== undefined) update.wilayah_id = patch.wilayahId
   if (patch.avatarColor !== undefined) update.avatar_color = patch.avatarColor
+  if (patch.nationality !== undefined) update.nationality = patch.nationality || null
   if (!Object.keys(update).length) return null
 
   const { data, error } = await supabase
@@ -163,6 +183,49 @@ export async function saveProfile(patch: Partial<User>): Promise<User | null> {
     .maybeSingle()
 
   return error || !data ? null : profileToUser(data as ProfileRow)
+}
+
+/**
+ * Ask Supabase to change the address this account signs in with.
+ *
+ * Not a profile edit. The address is the credential — a pilgrim receives their
+ * one-time code at it — so moving it is an authentication operation and takes
+ * the path Supabase provides for one: `updateUser({ email })` records the new
+ * address as *pending* and emails a confirmation link to it. Nothing changes
+ * until that link is followed, at which point `auth.users.email` moves and the
+ * `on_auth_user_email_changed` trigger copies it onto the profile.
+ *
+ * Two consequences the interface has to be honest about, and both are why this
+ * returns `pending` rather than a new user object:
+ *
+ *   * The old address keeps working until the new one is confirmed. That is
+ *     correct — an unconfirmed address may be a typo, and locking somebody out
+ *     of their account over one would be unrecoverable.
+ *   * Nothing on screen changes when this succeeds. The caller must say "check
+ *     your new address", not "saved".
+ *
+ * Depending on the project's settings Supabase may also email the *old* address
+ * to confirm the change. That is a project setting (Authentication → Email
+ * Change), not something this can decide, and it is the safer configuration.
+ */
+export async function requestEmailChange(
+  email: string,
+): Promise<{ ok: true } | { ok: false; error: 'offline' | 'invalid' | 'taken' | 'rate_limited' | 'failed' }> {
+  if (!supabase) return { ok: false, error: 'offline' }
+
+  const next = email.trim().toLowerCase()
+  if (!/^\S+@\S+\.\S+$/.test(next)) return { ok: false, error: 'invalid' }
+
+  const { error } = await supabase.auth.updateUser(
+    { email: next },
+    { emailRedirectTo: authRedirectTarget() },
+  )
+  if (!error) return { ok: true }
+
+  const text = error.message.toLowerCase()
+  if (/already|registered|exists/.test(text)) return { ok: false, error: 'taken' }
+  if (/rate|too many|seconds/.test(text)) return { ok: false, error: 'rate_limited' }
+  return { ok: false, error: 'failed' }
 }
 
 /** End the session everywhere this browser holds it. */

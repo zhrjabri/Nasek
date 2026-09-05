@@ -224,12 +224,33 @@ export async function startOtp(target: OtpTarget): Promise<OtpStartResult> {
           })
 
     if (error) {
+      /*
+       * Two different limits reach here, and telling them apart is the whole
+       * value of this branch.
+       *
+       *   * A short per-address cooldown — "you can only request this after 51
+       *     seconds" — which is over in under a minute and is genuinely "wait a
+       *     moment".
+       *   * The project's *hourly email quota*, which Supabase's built-in mail
+       *     service caps very low because it is meant for development. Once
+       *     that is exhausted nobody can sign in until the hour rolls over, and
+       *     no amount of waiting a moment helps. Telling somebody to "wait a
+       *     moment" when the real answer is "this project cannot send any more
+       *     email this hour" is how an operator spends an afternoon retrying a
+       *     button.
+       *
+       * Supabase words the second one as an "email rate limit exceeded" with no
+       * seconds in it, so the presence of a countdown is what separates them.
+       */
+      const message = error.message
+      const seconds = message.match(/(\d+)\s*second/i)?.[1]
+      const shortCooldown = seconds !== undefined
+      const limited = /rate|limit|seconds|too many/i.test(message)
+
       return {
         ok: false,
-        cooldownSeconds: 0,
-        // Supabase rate-limits sending, and that is worth naming precisely:
-        // "try again" is useless advice when the answer is "in 40 seconds".
-        error: /rate|limit|seconds/i.test(error.message) ? 'rate_limited' : 'send_failed',
+        cooldownSeconds: shortCooldown ? Number(seconds) : 0,
+        error: limited ? (shortCooldown ? 'rate_limited' : 'quota_exhausted') : 'send_failed',
       }
     }
     return { ok: true, cooldownSeconds: RESEND_COOLDOWN_SECONDS }

@@ -23,8 +23,16 @@ import { supabase } from '@/services/supabase/client'
 /** Matches the bucket created in `20260902000300_licence_storage.sql`. */
 export const LICENCE_BUCKET = 'provider-licences'
 
-/** What the bucket accepts, mirrored here so the browser can refuse first. */
-export const LICENCE_MIME = ['image/jpeg', 'image/png', 'image/webp']
+/**
+ * What the bucket accepts, mirrored here so the browser can refuse first.
+ *
+ * PDF is on this list since `20260904000200`, and it belongs there: an official
+ * Omani operating permit is issued as a PDF at least as often as it is
+ * photographed, and rejecting one made an owner with the correct document
+ * believe their document was wrong. HTML is deliberately still absent — a file
+ * served back from the Storage origin would run there.
+ */
+export const LICENCE_MIME = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
 export const LICENCE_MAX_BYTES = 8 * 1024 * 1024
 
 export type LicenceUploadError = 'offline' | 'unauthenticated' | 'type' | 'size' | 'failed'

@@ -52,9 +52,13 @@ export function MapPage() {
                 <EmptyState
                   title={t('map.none')}
                   body={t('map.noneHint')}
+                  /* Was "list your campaign here", pointing into the owner
+                     portal. A pilgrim who finds no trips in their wilayah wants
+                     the other wilayat, not an invitation to start a travel
+                     company. */
                   action={
-                    <LinkButton to="/signup/provider" variant="secondary">
-                      {t('footer.listCampaign')}
+                    <LinkButton to="/campaigns" variant="secondary">
+                      {t('campaign.browse')}
                     </LinkButton>
                   }
                 />

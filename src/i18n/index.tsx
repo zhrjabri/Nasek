@@ -10,21 +10,34 @@ import {
 import type { Bilingual, Lang } from '@/types'
 import { en, type PublicMessageKey } from './en'
 import { ar } from './ar'
-// Type-only, and that is the whole trick. TypeScript erases this import, so the
-// administration strings are named in the key union without a single one of
-// them being bundled into the public site. `src/admin/main.tsx` supplies the
-// values at runtime through the `extra` prop below.
+// Type-only, and that is the whole trick. TypeScript erases these imports, so
+// the owner and administration strings are named in the key union without a
+// single one of them being bundled into the public site. Each application's
+// entry supplies its own values at runtime through the `extra` prop below.
 import type { AdminMessageKey } from './adminEn'
+import type { OwnerMessageKey } from './ownerEn'
 
 /**
- * Every key either application can name.
+ * Every key any of the three applications can name.
  *
- * The public site can resolve only the public half; ask it for an
+ * The public site can resolve only the public third; ask it for an owner or an
  * administration key and `t` falls back to returning the key itself, which is
  * the same thing it has always done for a missing translation. Nothing in
- * `src/pages/` or `src/components/` asks for one.
+ * `src/pages/` or `src/components/layout/` asks for one, and
+ * `npm run verify:isolation` reads the built bundle to prove it.
+ *
+ * Which application loads which dictionary:
+ *
+ *   public site   `en` / `ar` only
+ *   owner portal  `en` / `ar` + `ownerEn` / `ownerAr`
+ *   administration `en` / `ar` + `ownerEn` / `ownerAr` + `adminEn` / `adminAr`
+ *
+ * The administrator gets the owner dictionary because they manage campaign
+ * owners and their campaigns, and duplicating those words into a third file so
+ * that two screens could disagree about what "Under review" is called would be
+ * the wrong kind of separation.
  */
-export type MessageKey = PublicMessageKey | AdminMessageKey
+export type MessageKey = PublicMessageKey | OwnerMessageKey | AdminMessageKey
 
 /** A dictionary that need not be complete — what `extra` supplies. */
 export type PartialDict = Partial<Record<MessageKey, string>>
