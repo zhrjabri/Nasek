@@ -75,11 +75,31 @@ function canonical(raw) {
 
 // ------------------------------------------------------------- the wanted set
 
-const DEV = ['http://localhost:5173/', 'http://localhost:5174/']
+/*
+ * One entry per application, and all three of them.
+ *
+ * 5175 is the Campaign Owner Portal, and it was missing along with
+ * `VITE_OWNER_URL` below — this script predates the portal and was never taught
+ * about it. The effect was worse than an omission: the owner portal is the one
+ * application whose *entire* first contact with a person is an emailed link, so
+ * an invitation redirect that is not on the allow-list is silently replaced by
+ * the Site URL and a new owner lands on the customer website. And because the
+ * script only checked the two addresses it knew, it printed "every address
+ * NASEK sends is one this project will honour" while that was untrue.
+ *
+ * The ports are the ones the Vite configs pin with `strictPort`, so they cannot
+ * drift out from under this list.
+ */
+const DEV = [
+  'http://localhost:5173/', // customer site
+  'http://localhost:5174/', // administration dashboard
+  'http://localhost:5175/', // campaign owner portal
+]
 
 const siteUrl = env.VITE_SITE_URL?.trim() ? canonical(env.VITE_SITE_URL.trim()) : null
+const ownerUrl = env.VITE_OWNER_URL?.trim() ? canonical(env.VITE_OWNER_URL.trim()) : null
 const adminUrl = env.VITE_ADMIN_URL?.trim() ? canonical(env.VITE_ADMIN_URL.trim()) : null
-const deployed = [siteUrl, adminUrl].filter(Boolean)
+const deployed = [siteUrl, ownerUrl, adminUrl].filter(Boolean)
 
 /*
  * Development stays on the list alongside production, deliberately.

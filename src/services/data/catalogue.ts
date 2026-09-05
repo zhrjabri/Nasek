@@ -530,10 +530,22 @@ export interface BookingRequest {
  * something a person can act on, and inventing a generic message here would
  * throw that away.
  */
+/**
+ * The SQLSTATEs `book_campaign` raises on purpose, and only those.
+ *
+ *   23514  check_violation        — no travellers, closed, not enough seats
+ *   P0002  no_data_found          — no such trip, or not approved
+ *   42501  insufficient_privilege — not signed in
+ *
+ * Kept as codes rather than by matching message text, because the text is
+ * user-facing copy that will be reworded and the codes are the contract.
+ */
+const DELIBERATE_BOOKING_REFUSALS = new Set(['23514', 'P0002', '42501'])
+
 export async function createBooking(
   input: BookingRequest,
-): Promise<{ booking: Booking } | { error: string }> {
-  if (!supabase) return { error: 'offline' }
+): Promise<{ booking: Booking } | { error: string; fromServer: boolean }> {
+  if (!supabase) return { error: 'offline', fromServer: false }
 
   const { data, error } = await supabase.rpc('book_campaign', {
     p_campaign_id: input.campaignId,
@@ -544,7 +556,32 @@ export async function createBooking(
     p_notes: input.notes ?? null,
   })
 
-  if (error || !data) return { error: error?.message ?? 'Booking failed' }
+  if (error || !data) {
+    /*
+     * Only the refusals the function writes on purpose are shown to a customer.
+     *
+     * `book_campaign` raises with a message meant to be read — "Only 2 seat(s)
+     * remain on this trip", "Registration for this campaign has closed" — and
+     * surfacing those is the whole point: they are actionable, and a generic
+     * failure is not. But `error.message` is whatever Postgres said, and
+     * Postgres says things like
+     *
+     *     relation "public.booking_reference_seq" does not exist
+     *
+     * which is exactly what the live site is telling customers right now, and
+     * which is both meaningless to them and a description of the schema.
+     *
+     * The three SQLSTATEs below are the ones the function raises deliberately
+     * (`check_violation`, `no_data_found`, `insufficient_privilege`). Anything
+     * else is a fault on our side and reads as one.
+     */
+    const deliberate = DELIBERATE_BOOKING_REFUSALS.has(error?.code ?? '')
+    return {
+      error: deliberate ? error!.message : '',
+      /** False when the message is ours to explain rather than the server's. */
+      fromServer: deliberate,
+    }
+  }
   return { booking: toBooking(data as BookingRow, []) }
 }
 

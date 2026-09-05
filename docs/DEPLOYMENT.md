@@ -28,38 +28,43 @@ produces:
 
 | Directory | Contents | Deploy to |
 | --- | --- | --- |
-| `dist/` | Public site. `index.html`, hashed assets, permissive `robots.txt` | `nasek.om` |
-| `dist-admin/` | Dashboard. `index.html`, hashed assets, `Disallow: /` | `admin.nasek.om` |
+| `dist/` | Public site. `index.html`, hashed assets, permissive `robots.txt` | `nasek.vercel.app` |
+| `dist-owner/` | Campaign Owner Portal. `index.html`, hashed assets, `Disallow: /` | `nasek-owner.vercel.app` |
+| `dist-admin/` | Dashboard. `index.html`, hashed assets, `Disallow: /` | `nasek-admin.vercel.app` |
 
-Either can be built alone with `npm run build:web` / `npm run build:admin`.
+Any one can be built alone with `npm run build:web` / `npm run build:owner` /
+`npm run build:admin`.
 
-Both are static. No Node process, no server-side rendering, nothing to keep
+All three are static. No Node process, no server-side rendering, nothing to keep
 running — every dynamic thing NASEK does goes to Supabase from the browser.
 
 ## Environment
 
-Both builds read their configuration **at build time**, not at runtime. Vite
+All three builds read their configuration **at build time**, not at runtime. Vite
 inlines it into the JavaScript, so changing a value means rebuilding and
 redeploying — setting it on the host afterwards does nothing.
 
-| Variable | Public build | Admin build |
-| --- | --- | --- |
-| `VITE_SUPABASE_URL` | required | required |
-| `VITE_SUPABASE_ANON_KEY` | required | required |
-| `VITE_SITE_URL` | the deployed address | — |
-| `VITE_ADMIN_URL` | — | the deployed address |
-| `VITE_ADMIN_EMAIL` | — | the administrator's address |
+| Variable | Public build | Owner build | Admin build |
+| --- | --- | --- | --- |
+| `VITE_SUPABASE_URL` | required | required | required |
+| `VITE_SUPABASE_ANON_KEY` | required | required | required |
+| `VITE_SITE_URL` | the deployed address | — | — |
+| `VITE_OWNER_URL` | — | the deployed address | — |
+| `VITE_ADMIN_URL` | — | — | the deployed address |
 
-`VITE_ADMIN_EMAIL` is what lets the dashboard's login screen ask for a password
-and nothing else: there is one administration account, and the form has to know
-which. It is public like everything else in this table and grants nothing —
-`is_admin()` inside Postgres decides whether the dashboard opens, against a
-token no browser can forge. Leave it unset and the login screen asks for the
-address as well, which works and is simply slower at the worst moment. It
-promotes nobody: the account is created and granted the role in SQL, per
-`docs/SUPABASE.md`.
+Each build reads only its own address variable, and nothing else in the table
+is a secret: Vite inlines every `VITE_` value into the JavaScript each visitor
+downloads. The administration access code, the service role key and the Resend
+credentials are Edge Function secrets and appear nowhere in any bundle.
 
-`VITE_SITE_URL` and `VITE_ADMIN_URL` are what a sign-in email points at. Without them the app falls
+`VITE_ADMIN_EMAIL` used to be here and is gone. It named the account the
+dashboard signed in as, because the login screen asked for a password and had
+to know whose. The dashboard now opens on a single access code checked by the
+`admin-access` Edge Function against `is_admin()` in Postgres, so there is
+nothing left for it to name — and no runtime code has read it since.
+
+`VITE_SITE_URL`, `VITE_OWNER_URL` and `VITE_ADMIN_URL` are what a sign-in or
+invitation email points at. Without them the app falls
 back to the origin the page happens to be served on, which is right in
 development and wrong in a deployment: a preview build's origin changes on
 every push, so it is never on the Supabase redirect allow-list, and Supabase

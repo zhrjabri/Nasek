@@ -318,6 +318,8 @@ export const adminEn = {
     'Enter the company as it appears on the permit, upload the permit itself, and NASEK emails an invitation. The owner sets their own password and signs in at the Campaign Owner Portal. There is no public registration.',
   'admin.newOwnerCreate': 'Create and send the invitation',
   'admin.newOwnerCreated': '{name} has been added and invited',
+  'admin.newOwnerCreatedNoEmail':
+    '{name} has been added, but the invitation could not be sent. The account exists — check email delivery, then ask them to use “forgot password” on the owner portal.',
   'admin.newOwnerEmailHint': 'Where the invitation goes, and the address they will sign in with.',
   'admin.newOwnerStatus': 'Verification',
   'admin.newOwnerStatusHint':

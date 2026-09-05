@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useState } from 'react'
 import { useI18n } from '@/i18n'
 import { useStore } from '@/store/AppStore'
 import { useCatalogue } from '@/hooks/useCatalogue'
@@ -9,8 +9,28 @@ import { Spinner } from '@/components/ui'
 import { OwnerShell } from './layout/OwnerShell'
 import { OwnerLoginPage } from './LoginPage'
 import { SetPasswordPage } from './SetPasswordPage'
-import { DashboardPage } from './DashboardPage'
 import { PendingPage, RejectedPage, SuspendedPage } from './StatusPages'
+
+/*
+ * The dashboard is split out, and the charting library is why.
+ *
+ * `DashboardPage` imports `recharts` — for the trend on the overview tab and
+ * the two bar charts under analytics — and that library is most of this
+ * application's weight. Imported at the top of this file it landed in the entry
+ * chunk, so the portal shipped 1,094 kB before it could draw anything, and the
+ * first thing it draws for a signed-out owner is a password field.
+ *
+ * That is the wrong order. An owner arriving at the portal is, at that moment,
+ * a person who needs a login form; the four screens behind the gate are worth
+ * nothing to them until they are through it, and an invited owner following a
+ * link on a phone is exactly the case that can least afford a megabyte first.
+ *
+ * `src/admin/AdminApp.tsx` makes the same split for the same reason, and the
+ * public site made it for the old provider dashboard before that.
+ */
+const DashboardPage = lazy(() =>
+  import('./DashboardPage').then((m) => ({ default: m.DashboardPage })),
+)
 
 /**
  * The Campaign Owner Portal.
@@ -172,7 +192,17 @@ function OwnerPortal() {
       ) : status === 'rejected' ? (
         <RejectedPage />
       ) : status === 'verified' ? (
-        <DashboardPage />
+        /* Held while the dashboard chunk arrives. Sized so the shell, which is
+           already painted around it, does not jump when it lands. */
+        <Suspense
+          fallback={
+            <div className="flex min-h-[60dvh] items-center justify-center">
+              <Spinner className="size-7 text-nasek-600" />
+            </div>
+          }
+        >
+          <DashboardPage />
+        </Suspense>
       ) : (
         <PendingPage />
       )}

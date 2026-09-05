@@ -36,8 +36,9 @@ export type RedirectOutcome =
  *
  * Two sources, in order of authority:
  *
- *   1. `VITE_SITE_URL` (public site) or `VITE_ADMIN_URL` (dashboard), baked in
- *      at build time. This is the deployed address, and it is the only thing
+ *   1. `VITE_SITE_URL` (public site), `VITE_OWNER_URL` (Campaign Owner Portal)
+ *      or `VITE_ADMIN_URL` (dashboard) — one per application, baked in at
+ *      build time. This is the deployed address, and it is the only thing
  *      that can be right in an email: the link is read on a phone, on another
  *      laptop, three days later — none of which know or care what origin the
  *      browser that asked for it happened to be served from.

@@ -23,6 +23,7 @@ import type { Credential, Lockout } from '@/services/api/credentials'
 import { LOCKOUT_MS, MAX_ATTEMPTS } from '@/services/api/credentials'
 import { DEMO_CUSTOMER_BOOKINGS, DEMO_NOTIFICATIONS } from '@/data/seed'
 import { storage } from '@/services/api/client'
+import { isSupabaseConfigured } from '@/services/supabase/client'
 
 const KEY = 'nasek.state.v1'
 
@@ -518,8 +519,40 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       remoteCampaigns: _c,
       remoteProfiles: _u,
       reviews: _v,
-      ...persistable
+      ...rest
     } = state
+
+    /*
+     * `bookings` and `notifications` are server-owned too, and were being kept.
+     *
+     * Both are written wholesale by `hydrateRemote` out of the snapshot, so
+     * they are rows row-level security handed to *one* account — the same
+     * property that got the six slices above stripped. They were missed because
+     * they predate the backend: in the prototype they were the platform, and
+     * nothing marked them as having changed hands.
+     *
+     * The reason it matters more for these two than for the others is what is
+     * in them. A `Booking` carries `contactName`, `contactPhone`,
+     * `contactEmail` and a `travellers` array — passport-holder details for
+     * people who are not even the account holder. Written to `localStorage` it
+     * outlives the tab, the session and the sign-out that never happened,
+     * sitting on disk on whatever device was used. On a shared or borrowed
+     * machine the next person gets it until the snapshot lands, and if the
+     * network is slow or absent, for as long as they are looking.
+     *
+     * Only when there is a backend to re-read them from. With none, these
+     * slices *are* the platform — dropping them would empty a prototype's
+     * dashboard on every reload — and there is no second account to leak them
+     * to, because there is no account system at all.
+     *
+     * `savedIds` deliberately stays either way: campaign ids are not personal
+     * data, and keeping them is what stops every heart on the page flickering
+     * off and back on during the first round trip.
+     */
+    const persistable = isSupabaseConfigured
+      ? { ...rest, bookings: [], notifications: [] }
+      : rest
+
     storage.write(KEY, persistable)
   }, [state, hydrated])
 

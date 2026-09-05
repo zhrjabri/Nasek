@@ -239,7 +239,10 @@ export function BookingPage() {
         })
         if ('error' in result) {
           setProcessing(false)
-          toast(result.error, 'warning')
+          // The server's own wording when it refused on purpose; ours when
+          // something broke. See `DELIBERATE_BOOKING_REFUSALS` in the data layer
+          // for why the two cannot be told apart by the message alone.
+          toast(result.fromServer ? result.error : t('state.errorBody'), 'warning')
           return
         }
         created = { ...result.booking, travellers }

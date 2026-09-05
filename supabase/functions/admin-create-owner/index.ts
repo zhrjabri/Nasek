@@ -134,16 +134,49 @@ Deno.serve(async (request) => {
    */
   let ownerId = ''
   let invited = false
+  /*
+   * Why the message did not go, when it did not.
+   *
+   * Only ever set on the already-registered path below, where the account
+   * exists independently of this request and is recoverable by ordinary means.
+   * A new address whose invitation cannot be delivered is a failure, not a
+   * half-success — see the final branch.
+   */
+  let deliveryError = ''
 
   const invite = await admin.auth.admin.inviteUserByEmail(email, {
     redirectTo: OWNER_PORTAL_URL || undefined,
   })
 
+  /*
+   * Why did it fail? Asked of the error, not inferred from the absence of
+   * success — and that distinction is the bug this replaces.
+   *
+   * The previous version treated *every* invite failure as "already
+   * registered", looked the address up in `profiles`, found nothing for a
+   * genuinely new one, and returned `invite_failed` before the company row was
+   * ever written. So an invitation the mail provider refused took the whole
+   * owner down with it: no account, no company, no audit entry, and an error
+   * message that named none of it.
+   *
+   * That is not a rare edge. A sender domain still in test mode, a rate limit,
+   * SMTP not yet configured — every one of them lands here, and none of them is
+   * a reason to refuse to take a company on.
+   */
+  const alreadyRegistered =
+    (invite.error as { code?: string } | null)?.code === 'email_exists' ||
+    /already (been )?registered|already exists/i.test(invite.error?.message ?? '')
+
   if (invite.data?.user?.id) {
     ownerId = invite.data.user.id
     invited = true
-  } else {
-    // Already registered. Find them, and send a link that sets a password.
+  } else if (alreadyRegistered) {
+    /*
+     * The same person, met before — a company owner may well have booked an
+     * Umrah trip as a pilgrim last year. Reusing that account is right, and the
+     * invitation falls back to a recovery link that lands on the same portal
+     * screen and sets a password just the same.
+     */
     const { data: existing, error: lookupError } = await admin
       .from('profiles')
       .select('id, role')
@@ -151,7 +184,19 @@ Deno.serve(async (request) => {
       .maybeSingle()
 
     if (lookupError || !existing) {
-      return json(request, { ok: false, error: 'invite_failed' }, 500)
+      // Registered in `auth.users` but absent from `profiles`. That is a broken
+      // invariant rather than an ordinary refusal, and it needs saying so.
+      return json(
+        request,
+        {
+          ok: false,
+          error: 'invite_failed',
+          detail:
+            lookupError?.message ??
+            'that address has an auth account but no profile row',
+        },
+        500,
+      )
     }
     if (existing.role === 'admin') {
       // An administrator promoted to `provider` would be locked out of the
@@ -166,6 +211,36 @@ Deno.serve(async (request) => {
       options: { redirectTo: OWNER_PORTAL_URL || undefined },
     })
     invited = !recovery.error
+    if (recovery.error) deliveryError = recovery.error.message
+  } else {
+    /*
+     * The invitation failed for some reason other than the address being taken.
+     * Nothing is created, and that is a deliberate retreat from an earlier
+     * draft of this branch.
+     *
+     * That draft created the account anyway, so a mail outage could not destroy
+     * an owner. The instinct is right and the trade was wrong to make blind: an
+     * account with no password and an unconfirmed address is recoverable only
+     * if GoTrue will issue a recovery mail for it, and that has not been
+     * demonstrated against this project. Creating one on an assumption risks an
+     * owner who exists, cannot be emailed and cannot sign in — strictly worse
+     * than failing here, because nothing would tell anybody it had happened.
+     *
+     * So: fail, and say exactly why. The provider's own words go back to the
+     * dashboard, which is the whole improvement — a sender domain still in test
+     * mode, an Auth rate limit and unconfigured SMTP all reach this line, and
+     * until now all three arrived as a bare `invite_failed` with the cause
+     * thrown away.
+     */
+    return json(
+      request,
+      {
+        ok: false,
+        error: 'invite_failed',
+        detail: invite.error?.message ?? 'the invitation could not be delivered',
+      },
+      500,
+    )
   }
 
   // ------------------------------------------------------------ the company
@@ -206,5 +281,16 @@ Deno.serve(async (request) => {
     return json(request, { ok: false, error: 'create_failed', detail: createError.message }, 400)
   }
 
-  return json(request, { ok: true, providerId: provider?.id ?? null, invited }, 200)
+  return json(
+    request,
+    {
+      ok: true,
+      providerId: provider?.id ?? null,
+      invited,
+      // Present only when the company was created but the message was not sent.
+      // The administrator needs to know which of the two happened.
+      deliveryError: deliveryError || undefined,
+    },
+    200,
+  )
 })

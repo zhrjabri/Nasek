@@ -151,7 +151,20 @@ export function NewOwnerDialog({ open, onClose }: { open: boolean; onClose: () =
       return
     }
 
-    toast(t('admin.newOwnerCreated', { name: form.companyName }), 'success')
+    /*
+     * Created, but say which kind of created.
+     *
+     * The company and the account exist either way — that is the point of the
+     * fallback in `admin-create-owner`. What differs is whether the owner has
+     * been told, and an administrator who is not told the message failed will
+     * sit waiting for somebody who never heard from us.
+     */
+    toast(
+      outcome.invited
+        ? t('admin.newOwnerCreated', { name: form.companyName })
+        : t('admin.newOwnerCreatedNoEmail', { name: form.companyName }),
+      outcome.invited ? 'success' : 'warning',
+    )
     reset()
     onClose()
     await reload()

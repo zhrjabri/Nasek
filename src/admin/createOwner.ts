@@ -57,14 +57,36 @@ export type CreateOwnerError =
 
 export async function createOwnerAccount(
   input: NewOwnerInput,
-): Promise<{ ok: true; invited: boolean } | { ok: false; error: CreateOwnerError; detail?: string }> {
+): Promise<
+  | {
+      ok: true
+      /**
+       * Whether the invitation actually went.
+       *
+       * False means the company exists and the account exists, but the message
+       * did not — a sender domain in test mode, a rate limit, SMTP unset. The
+       * owner is real and can be let in once delivery works; the dashboard says
+       * so rather than reporting a plain success.
+       */
+      invited: boolean
+      /** The mail provider's own words, when there are any. */
+      deliveryError?: string
+    }
+  | { ok: false; error: CreateOwnerError; detail?: string }
+> {
   if (!supabase || !supabaseUrl) return { ok: false, error: 'offline' }
 
   const { data: auth } = await supabase.auth.getSession()
   const token = auth.session?.access_token
   if (!token) return { ok: false, error: 'forbidden' }
 
-  let payload: { ok?: boolean; error?: string; detail?: string; invited?: boolean }
+  let payload: {
+    ok?: boolean
+    error?: string
+    detail?: string
+    invited?: boolean
+    deliveryError?: string
+  }
   try {
     const response = await fetch(
       `${supabaseUrl.replace(/\/$/, '')}/functions/v1/admin-create-owner`,
@@ -88,7 +110,13 @@ export async function createOwnerAccount(
     return { ok: false, error: 'failed' }
   }
 
-  if (payload?.ok) return { ok: true, invited: payload.invited === true }
+  if (payload?.ok) {
+    return {
+      ok: true,
+      invited: payload.invited === true,
+      deliveryError: payload.deliveryError,
+    }
+  }
 
   const detail = payload?.detail ?? ''
   const known: Record<string, CreateOwnerError> = {

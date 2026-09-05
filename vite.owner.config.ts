@@ -31,6 +31,20 @@ const OUT_DIR = 'dist-owner'
  */
 export default defineConfig({
   ...shared,
+  /*
+   * Its own `public/`, and this is not cosmetic.
+   *
+   * Without it Vite falls back to the default directory — `public/`, the
+   * *customer site's* — and the portal shipped that site's `robots.txt`, which
+   * reads "The public NASEK site. Crawl it freely. Allow: /". The entry HTML
+   * has carried `noindex, nofollow, noarchive` all along, but a crawler has to
+   * fetch the page to read a meta tag and reads `robots.txt` first, so the two
+   * disagreed and the wrong one was consulted first.
+   *
+   * `vite.admin.config.ts` has always had `public-admin` for exactly this
+   * reason. The owner portal is no less private than the dashboard.
+   */
+  publicDir: 'public-owner',
   plugins: [
     ...shared.plugins,
     // Fails the build rather than shipping a sign-in with no backend behind it.

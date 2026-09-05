@@ -299,6 +299,8 @@ export const adminAr: Record<AdminMessageKey, string> = {
     'أدخل بيانات الشركة كما وردت في التصريح، وارفع التصريح نفسه، وسترسل ناسِك دعوة بالبريد. يعيّن صاحب الحملة كلمة مروره ويدخل من بوابة أصحاب الحملات. لا يوجد تسجيل عام.',
   'admin.newOwnerCreate': 'إنشاء وإرسال الدعوة',
   'admin.newOwnerCreated': 'تمت إضافة {name} وإرسال الدعوة',
+  'admin.newOwnerCreatedNoEmail':
+    'تمت إضافة {name}، لكن تعذّر إرسال الدعوة. الحساب موجود — تحقّق من إعدادات البريد، ثم اطلب منهم استخدام «نسيت كلمة المرور» في بوابة أصحاب الحملات.',
   'admin.newOwnerEmailHint': 'إليه تُرسل الدعوة، وبه يسجّل الدخول.',
   'admin.newOwnerStatus': 'التوثيق',
   'admin.newOwnerStatusHint':

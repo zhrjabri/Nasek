@@ -1,0 +1,8 @@
+# The NASEK Campaign Owner Portal. Private tooling — not for indexing.
+#
+# The portal's own HTML already carries `noindex, nofollow, noarchive`, but a
+# crawler has to fetch the page to read that. This is the half that is read
+# first, and until this file existed the portal inherited `public/robots.txt`
+# from the customer site — which says "crawl it freely".
+User-agent: *
+Disallow: /
