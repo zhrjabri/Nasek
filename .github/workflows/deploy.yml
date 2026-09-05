@@ -1,4 +1,17 @@
-name: Verify and deploy
+name: Verify
+
+# This workflow checks. It does not publish.
+#
+# NASEK deploys through Vercel, which builds from the repository itself, so a
+# second pipeline pushing a second copy of the site to GitHub Pages was two
+# deployments of the same commit to two addresses — and only one of them was
+# the one anybody was given. The Pages jobs are gone; Vercel is the only thing
+# that ships.
+#
+# What is left is the half that was always worth having: a build of all three
+# applications and the verification suite, run on every pull request and on
+# every push to main, so a change that breaks one of them says so here rather
+# than in a deployment.
 
 on:
   push:
@@ -6,25 +19,31 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Read-only. The `pages: write` and `id-token: write` grants went with the
+# Pages deployment that needed them; nothing here writes anything.
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
+# Per-branch rather than the single global `pages` group this used to share
+# with the deployment. Two branches verifying at once is fine and normal; a
+# superseded run of the same branch is just waste.
 concurrency:
-  group: pages
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   # ---------------------------------------------------------------------------
-  # Everything that can fail, before anything is published.
+  # Everything that can fail.
   #
-  # `verify` includes `verify:isolation`, which reads the built public bundle
-  # and fails if a single administration string reached it. That check is the
-  # reason this job builds before it verifies rather than after: the separation
-  # between the two applications is exactly the sort of property that stays
-  # true until someone imports a helper across it, and nothing else in the
-  # pipeline would notice.
+  # `npm run build` builds all three applications — the customer website, the
+  # Campaign Owner Portal and the administration dashboard — and `npm run
+  # verify` ends with `verify:isolation`, which reads the *built* bundles and
+  # fails if an administration or owner string reached the public one.
+  #
+  # That is the reason this job builds before it verifies rather than after.
+  # The separation between the three applications is exactly the sort of
+  # property that stays true until someone imports a helper across it, and
+  # nothing else in the pipeline would notice.
   # ---------------------------------------------------------------------------
   verify:
     runs-on: ubuntu-latest
@@ -36,69 +55,38 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
-      - name: Build both applications
+
+      - name: Build all three applications
         run: npm run build
         env:
+          # Required. `assertBackendConfigured()` refuses to produce a
+          # production bundle without these, because a bundle built without
+          # them has no Supabase client and would fall back to a sign-in code
+          # generated in the visitor's own browser — a deployment that
+          # authenticates nobody while looking like it works.
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          # The deployed addresses, baked in so a sign-in email points at the
-          # site rather than at whatever origin the browser happened to use.
-          # Unset here means the old behaviour, which is wrong in an inbox.
+          # The deployed address of each application, baked in so that a
+          # sign-in or invitation email points at the right one rather than at
+          # whatever origin the browser happened to be on. Unset is a warning,
+          # not a failure — which is right for a job that only verifies.
           VITE_SITE_URL: ${{ secrets.VITE_SITE_URL }}
+          VITE_OWNER_URL: ${{ secrets.VITE_OWNER_URL }}
           VITE_ADMIN_URL: ${{ secrets.VITE_ADMIN_URL }}
-          # Which account the administration dashboard signs in as. It asks for
-          # a password and nothing else, so it has to be told whose. Public, and
-          # it grants nothing — `is_admin()` in Postgres decides that. Unset
-          # here means the login screen asks for the address too.
-          VITE_ADMIN_EMAIL: ${{ secrets.VITE_ADMIN_EMAIL }}
+
       - run: npm run verify
 
-      # Kept so a failed deployment can be inspected without a local rebuild.
-      # The administration build is uploaded but never published from here.
+      # Kept so a build can be inspected without reproducing it locally.
+      #
+      # All three now, where this used to upload the administration bundle
+      # alone. That asymmetry only existed because the other two had a
+      # publishing path and this one did not; with nothing published from here,
+      # the three are equally worth being able to look at.
       - uses: actions/upload-artifact@v4
         with:
-          name: dist-admin
-          path: dist-admin
+          name: dist
+          path: |
+            dist
+            dist-owner
+            dist-admin
           retention-days: 7
-
-  # ---------------------------------------------------------------------------
-  # Publish the public site.
-  #
-  # GitHub Pages serves one site per repository, and the administration
-  # dashboard has no business on a subpath of a public one — it belongs on its
-  # own host, with its own domain and its own cookies. See docs/DEPLOYMENT.md.
-  # ---------------------------------------------------------------------------
-  build:
-    needs: verify
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-      - run: npm ci
-      - name: Build the public site
-        run: npm run build:web
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          # The deployed addresses, baked in so a sign-in email points at the
-          # site rather than at whatever origin the browser happened to use.
-          # Unset here means the old behaviour, which is wrong in an inbox.
-          VITE_SITE_URL: ${{ secrets.VITE_SITE_URL }}
-          VITE_ADMIN_URL: ${{ secrets.VITE_ADMIN_URL }}
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
