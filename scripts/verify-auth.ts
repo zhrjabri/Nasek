@@ -16,6 +16,7 @@ import {
   EMAIL_OTP_TYPES,
   MAX_OTP_ATTEMPTS,
   cancelOtp,
+  ALLOW_LOCAL_OTP_FALLBACK,
   isDemoOtp,
   normaliseTarget,
   startOtp,
@@ -25,8 +26,8 @@ import { formatPhone, isValidPhone, maskEmail, maskPhone, toE164 } from '@/servi
 import { MIN_PASSWORD_LENGTH, passwordProblem } from '@/services/auth/password'
 import { fallbackName, profileToUser } from '@/services/auth/session'
 import { contactDetailsToKeep } from '@/services/auth/profileGaps'
-import { ADMIN_EMAIL, hasFixedAdminIdentity, parseAdminEmail } from '@/admin/identity'
-import { landingFor, providerLanding } from '@/hooks/useSignIn'
+import { redeemAccessCode } from '@/admin/accessCode'
+import { landingFor } from '@/hooks/useSignIn'
 import type { ProfileRow } from '@/services/supabase/schema'
 import type { User, VerificationStatus } from '@/types'
 
@@ -139,6 +140,26 @@ async function main() {
     EMAIL_OTP_TYPES[0] === 'email',
   )
 
+  /*
+   * The fallback is a development and test affordance, and the gate that keeps
+   * it that way is checked here rather than trusted.
+   *
+   * It used to be gated on nothing but "is there a Supabase client", which is
+   * also true of a production build whose `VITE_SUPABASE_*` variables never
+   * reached the build environment — and that is exactly what shipped to
+   * `nasek.vercel.app`. The deployed sign-in screen generated its own code and
+   * printed it on the page.
+   *
+   * `MODE` rather than `DEV` because Vite sets `DEV` false for every build,
+   * including this harness's — which would take the fallback away from the
+   * checks below that exist to cover it. This harness runs as `harness`, the
+   * dev server as `development`, and only a real `vite build` as `production`.
+   */
+  check(
+    'the local fallback is confined to development and test builds',
+    ALLOW_LOCAL_OTP_FALLBACK && import.meta.env.MODE !== 'production',
+    `MODE = ${import.meta.env.MODE}`,
+  )
   check('this harness is exercising the local fallback', isDemoOtp)
 
   const target = { channel: 'email' as const, value: 'zahra@nasek.om' }
@@ -312,42 +333,42 @@ async function main() {
     ),
   )
 
-  console.log('\n--- the administration account ------------------------------\n')
+  console.log('\n--- the administration access code --------------------------\n')
 
   /*
-   * The dashboard asks for a password and nothing else, so it has to be told
-   * which account that password belongs to. Unset here by `.env.harness`, which
-   * is the fallback branch: the login screen asks for the address as well
-   * rather than being unopenable.
+   * The dashboard now opens on one access code, and the whole point of the
+   * design is that this bundle knows nothing about it: no hash, no salt, no
+   * comparison. There is correspondingly little to assert on the client, and
+   * that scarcity is the property worth checking rather than a gap in the
+   * harness.
+   *
+   * What *is* assertable is that the client refuses before it reaches the
+   * network. Both of these ran against a real deployment would be a round trip
+   * to an Edge Function; here they must be answered locally, which is what
+   * makes them checkable at all with `--mode harness` blanking the connection.
    */
+  const empty = await redeemAccessCode('   ')
   check(
-    'with VITE_ADMIN_EMAIL unset there is no fixed identity',
-    hasFixedAdminIdentity === false && ADMIN_EMAIL === '',
-    ADMIN_EMAIL || '(empty)',
+    'an empty code is refused without a request',
+    !empty.ok && empty.error === 'empty',
+    empty.ok ? 'accepted' : empty.error,
   )
 
-  const cases: [string, string | undefined, string, boolean][] = [
-    // raw value, address it resolves to, whether to complain about it
-    ['unset', undefined, '', false],
-    ['empty', '', '', false],
-    ['whitespace only', '   ', '', false],
-    ['a plain address', 'ops@nasek.om', 'ops@nasek.om', false],
-    ['padded and shouted', '  OPS@Nasek.OM  ', 'ops@nasek.om', false],
-    // The one that must not pass silently: it would reach Supabase as a
-    // credential nobody holds and come back as "invalid login", sending an
-    // administrator to reset a password that was never the problem.
-    ['a name, not an address', 'the admin', '', true],
-    ['half an address', 'ops@', '', true],
-    ['a domain with no dot', 'ops@nasek', '', true],
-  ]
-  for (const [label, raw, email, misconfigured] of cases) {
-    const parsed = parseAdminEmail(raw)
-    check(
-      `${label} -> ${email || 'no fixed identity'}${misconfigured ? ', and says so' : ''}`,
-      parsed.email === email && parsed.misconfigured === misconfigured,
-      `${parsed.email || '(empty)'} misconfigured=${parsed.misconfigured}`,
-    )
-  }
+  /*
+   * No Supabase configured is `offline`, and specifically not `invalid_code`.
+   *
+   * The distinction is the one this whole error union exists for. "Your code is
+   * wrong" sends somebody hunting for a typo in a correct secret; "the access
+   * service could not be reached" sends them to check whether the function is
+   * deployed, which is the actual problem. Collapsing the two is how a
+   * five-minute deployment mistake becomes an afternoon.
+   */
+  const offline = await redeemAccessCode('any-code-at-all')
+  check(
+    'with no backend the code path reports offline, not a wrong code',
+    !offline.ok && offline.error === 'offline',
+    offline.ok ? 'accepted' : offline.error,
+  )
 
   console.log('\n--- where each account lands after signing in ----------------\n')
 
@@ -362,33 +383,25 @@ async function main() {
     createdAt: '2026-01-01',
   })
 
-  check('a pilgrim lands on their dashboard', landingFor(as('customer')) === '/dashboard')
-  check('a campaign owner lands on theirs', landingFor(as('provider')) === '/provider')
   /*
-   * An administrator signing in on the *public* site is signing in as a person.
-   * Administration is a separate application on a separate host; this one has no
-   * dashboard for them and no code to build one from. Sending them to
-   * `/dashboard` and then refusing them there — which the route guard used to do
-   * — is the one genuinely absurd outcome available here, and it happened.
+   * One destination now, for everybody, and that is the three-application split
+   * rather than a guard being dropped.
+   *
+   * The customer website has no owner dashboard and no administration screens
+   * to send anyone to — they are separate builds on separate hosts, and this
+   * bundle deliberately does not know their addresses. So a campaign owner who
+   * signs in here, which they may perfectly well do to book an Umrah trip for
+   * their own family, is a customer while they are here.
+   *
+   * `providerLanding` used to be asserted below and is gone with the routes it
+   * named: the portal has no router, and `src/owner/OwnerApp.tsx` picks a
+   * screen from the company's verification status directly.
    */
-  check('an administrator lands where any pilgrim would', landingFor(as('admin')) === '/dashboard')
-
-  const landings: [VerificationStatus, string | null][] = [
-    ['verified', '/provider'],
-    ['pending', '/provider/pending'],
-    // Legacy, and still on rows. Nothing writes it any more; everything has to
-    // keep reading it as "not looked at yet".
-    ['unverified', '/provider/pending'],
-    ['rejected', '/provider/review'],
-    // No route at all: there is nowhere for a suspended owner to go, and
-    // inventing one would send them round a redirect loop.
-    ['suspended', null],
-  ]
-  for (const [status, expected] of landings) {
+  for (const role of ['customer', 'provider', 'admin'] as const) {
     check(
-      `a ${status} company goes to ${expected ?? 'no route, just a message'}`,
-      providerLanding(status) === expected,
-      String(providerLanding(status)),
+      `a signed-in ${role} lands on the customer dashboard`,
+      landingFor(as(role)) === '/dashboard',
+      landingFor(as(role)),
     )
   }
 

@@ -56,8 +56,31 @@ export type BookingStatus =
   | 'completed'
   | 'cancelled'
 
+/**
+ * Where a campaign stands with NASEK.
+ *
+ * The counterpart of `VerificationStatus`, and it exists for the same reason:
+ * approving the *company* was never the same question as approving the trip.
+ * An approved owner can still put a price, a hotel and a departure date in
+ * front of the public, and until this existed nothing stood between the form
+ * and the catalogue.
+ *
+ *   pending_approval  submitted, invisible to customers, in the admin queue
+ *   active            approved; in the public catalogue
+ *   rejected          refused, with a reason the owner can read and answer
+ *
+ * Not the owner's to set. `guard_campaign_moderation` reverts it on insert and
+ * update alike, and a material edit to a live trip returns it to the queue —
+ * so this field describes what the database decided, never what a form asked
+ * for.
+ */
+export type CampaignStatus = 'pending_approval' | 'active' | 'rejected'
+
+/** Awaiting a decision — the campaign queue, exactly. */
+export const isPendingCampaign = (status: CampaignStatus) => status === 'pending_approval'
+
 /** Service tags a campaign can include. Kept as a closed union so filters,
- *  comparison rows and the AI layer all speak the same vocabulary. */
+ *  campaign detail and the AI layer all speak the same vocabulary. */
 export type ServiceKey =
   | 'hotel_makkah'
   | 'hotel_madinah'
@@ -95,6 +118,30 @@ export interface User {
   /** Set for role === 'provider' */
   providerId?: string
   createdAt: string
+  /**
+   * Moderation, as the database records it.
+   *
+   * Optional because the offline prototype has no row to read them from and
+   * keeps the same decisions in its own store instead. Where a row does exist
+   * these are the authority: an account suspended from another browser, or by
+   * another administrator, is suspended here too — which the local-only lists
+   * could never say.
+   *
+   * Nobody is signed in while either is true; `loadSession` refuses the session
+   * outright. They are carried so the administration directory can *show* a
+   * barred account and offer to restore it.
+   */
+  suspended?: boolean
+  removed?: boolean
+  /**
+   * The account holder's own nationality.
+   *
+   * On the profile because a returning pilgrim should not retype it on every
+   * booking; *also* on each `Traveller` because a booking may be for family of
+   * another nationality, and the booking is the record that has to be right.
+   * The profile prefills the form; it never overrides it.
+   */
+  nationality?: string
 }
 
 export interface Provider {
@@ -134,10 +181,41 @@ export interface Provider {
    * URL would mean storing one that stops working.
    */
   licencePath?: string
+  /**
+   * The MIME type of the uploaded permit.
+   *
+   * Carried because the review dialog has to choose between an `<img>` and an
+   * embedded PDF viewer. Guessing from the file extension is how an official
+   * licence submitted as a PDF renders as a broken image icon on the one screen
+   * where somebody has to read it.
+   */
+  licenceMime?: string
   /** An administrator's reason for refusing or suspending. Shown to the owner. */
   rejectionReason?: string
   /** When the current application entered the queue. Resets on resubmission. */
   submittedAt?: string
+
+  // ------------------------------------------------ the rest of the application
+  /*
+   * Everything below is what an administrator actually verifies *with*, and
+   * none of it reaches the public catalogue. `providers_public` carries the
+   * governorate and stops there: the address, the registration number, the
+   * permit number and its expiry are how NASEK checked the company, and
+   * publishing them would hand a forger the whole template.
+   *
+   * All optional, because companies registered before these fields existed have
+   * none of them. The registration form is what makes them required going
+   * forward; the admin queue is what shows an older row as incomplete.
+   */
+  /** Governorate, as chosen on the registration form. Derivable from the wilayah,
+   *  stored so the queue and any export need no join. */
+  governorate?: string
+  address?: string
+  commercialRegistration?: string
+  /** The number printed on the operating permit, to check against the scan. */
+  permitNumber?: string
+  /** ISO date. An expired permit is flagged in the queue, never auto-refused. */
+  permitExpiry?: string
 }
 
 export interface Campaign {
@@ -164,17 +242,102 @@ export interface Campaign {
   reviewCount: number
   featured: boolean
   bookingsCount: number
+  /**
+   * Taken down by an administrator.
+   *
+   * A real column, and it has to reach the client: the screen holding the
+   * "restore" button cannot draw a takedown it was never told about. It used to
+   * be absent from this type entirely, so the admin dashboard read moderation
+   * out of a local override map instead — which meant a trip suspended from
+   * another browser, or in a previous session, showed as live here and the
+   * suspended count never left zero.
+   *
+   * Distinct from `deleted`, which is the owner withdrawing their own trip. An
+   * owner must not be able to undo a takedown by republishing.
+   */
+  suspended: boolean
+  /** Withdrawn by its owner. Filtered out of every list, kept for the bookings. */
+  deleted: boolean
+
+  /**
+   * Where this trip stands with NASEK.
+   *
+   * Distinct from `suspended` in the way "not yet published" is distinct from
+   * "taken down": a pending campaign has never been public, and a suspended one
+   * was. Both are invisible to a pilgrim; only one of them is the owner's cue
+   * to wait rather than to ask what went wrong.
+   */
+  status: CampaignStatus
+  /** Why an administrator refused it. Shown to the owner, word for word. */
+  rejectionReason?: string
+  /** When it last entered the review queue. Reset by a material edit. */
+  submittedAt?: string
+  /** When an administrator last decided. Absent until one has. */
+  reviewedAt?: string
+
+  // --------------------------------------------------------- what is on offer
+  /** Last day a pilgrim may register. Never after `departureDate`. */
+  registrationDeadline?: string
+  /**
+   * What the price does *not* cover.
+   *
+   * A separate list rather than the inverse of `services`, because they are not
+   * complements: a service that appears in neither is simply not mentioned,
+   * which is honest, while listing every unticked service as "excluded" would
+   * publish a wall of things nobody claimed in the first place.
+   */
+  excludedServices: ServiceKey[]
+  /**
+   * Object paths in the public `campaign-images` bucket — never URLs.
+   *
+   * A path is the durable thing: it survives a project moving domain, and it is
+   * what a storage policy is written about. `campaignImageUrl()` turns one into
+   * a URL at the moment of rendering.
+   */
+  images: string[]
+  /** Who a pilgrim contacts about this specific trip. Falls back to the company. */
+  contactName?: string
+  contactPhone?: string
+  contactEmail?: string
+  /** Terms and conditions, as the owner wrote them. */
+  terms: Bilingual
 }
 
 export interface Review {
   id: string
   userId: string
+  /**
+   * Whoever wrote it, as they are shown.
+   *
+   * Empty when the reviewer never gave a name; the interface substitutes a
+   * neutral label rather than showing a blank byline or inventing one from
+   * their email address.
+   */
   userName: string
   campaignId: string
   providerId: string
   rating: number
   comment: Bilingual
   date: string
+  /**
+   * The campaign owner's public answer, where they have given one.
+   *
+   * Written only by the owner of the campaign under review — enforced by
+   * `guard_review_columns`, which also stops them touching the rating or the
+   * comment. Empty means unanswered, which is the ordinary case.
+   */
+  reply: Bilingual
+  /** When the reply was written. Absent until there is one. */
+  repliedAt?: string
+  /**
+   * Taken down by an administrator.
+   *
+   * A real column, carried for the same reason `Campaign.suspended` is: the
+   * screen with the "show again" button cannot draw a takedown it was never
+   * told about, and reading it out of a local list meant only the browser that
+   * made the decision honoured it.
+   */
+  hidden: boolean
 }
 
 export interface Traveller {

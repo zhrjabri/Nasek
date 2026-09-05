@@ -10,9 +10,9 @@ import {
   Eye,
   HeartHandshake,
   MapPinned,
-  MessageCircle,
   Quote,
   Search,
+  ShieldCheck,
   Sparkles,
   Ticket,
 } from 'lucide-react'
@@ -26,8 +26,27 @@ import { useStore } from '@/store/AppStore'
 import { CampaignCard, CampaignCardSkeleton } from '@/components/campaign/CampaignCard'
 import { SmartSearch } from '@/components/search/SmartSearch'
 import { OmanMap } from '@/components/map/OmanMap'
-import { LogoMark } from '@/components/brand/Logo'
 import { Badge, LinkButton, Ornament, Rating, SectionHeading } from '@/components/ui'
+
+import heroWide from '@/assets/hero/kaaba-wide.jpg'
+import heroWideWebp from '@/assets/hero/kaaba-wide.webp'
+import heroWideAvif from '@/assets/hero/kaaba-wide.avif'
+import heroWideSm from '@/assets/hero/kaaba-wide-sm.jpg'
+import heroWideSmWebp from '@/assets/hero/kaaba-wide-sm.webp'
+import heroWideSmAvif from '@/assets/hero/kaaba-wide-sm.avif'
+import heroTall from '@/assets/hero/kaaba-tall.jpg'
+import heroTallWebp from '@/assets/hero/kaaba-tall.webp'
+import heroTallAvif from '@/assets/hero/kaaba-tall.avif'
+
+/**
+ * A 32×21 blur of the hero photograph, inlined as a data URI.
+ *
+ * Roughly 1.5 KB, which buys the hero its ground from the first frame instead
+ * of a white flash under white type. Recut whenever the photograph changes —
+ * a blur of the wrong picture is worse than none, because it resolves into
+ * something else.
+ */
+const LQIP = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABMNDhEODBMRDxEVFBMXHTAfHRoaHToqLCMwRT1JR0Q9Q0FMVm1dTFFoUkFDX4JgaHF1e3x7SlyGkIV3j214e3b/2wBDARQVFR0ZHTgfHzh2T0NPdnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnb/wAARCAAVACADASIAAhEBAxEB/8QAGQAAAgMBAAAAAAAAAAAAAAAAAAMBAgQF/8QAJBAAAgIBAwQCAwAAAAAAAAAAAQIDEQAEEiETIjFBUWFxoeH/xAAWAQEBAQAAAAAAAAAAAAAAAAACAQP/xAAYEQEAAwEAAAAAAAAAAAAAAAAAAQIREv/aAAwDAQACEQMRAD8AgwqQSOfxizGp4AYEfIxS69OnThw3s81mPX69kAET7Qb7vJ/mCt7ac1htkTZGzVdC8SvdCrGhY95zF1k7yLHJPYPoiv3mkAA2zg1fAs8Zp3jPlfTxGSNXLUDIy0B6F5WTSJMz9Qsdj7Rz8gYYYcg1ItHE08jDcDE5Uc+aGMddrRCyd4N/XF4YZchH/9k='
 
 export function HomePage() {
   const { t, lang, isRtl, n, bl } = useI18n()
@@ -67,7 +86,7 @@ export function HomePage() {
 
   /** The three five-star quotes the home page pulls out, if there are any. */
   const testimonials = reviews.filter(
-    (r) => r.rating === 5 && !hiddenReviewIds.includes(r.id),
+    (r) => r.rating === 5 && !r.hidden && !hiddenReviewIds.includes(r.id),
   ).slice(0, 3)
 
   const mapCampaigns = mapWilayah
@@ -78,63 +97,84 @@ export function HomePage() {
     <main>
       {/* ===================================================== hero ===== */}
       {/*
-        A framed title page on parchment rather than a dark gradient banner:
-        double gold rule, the mark centred above the title, ornaments instead
-        of glow. The composition is symmetrical, which is what reads as
-        classical more than any single decorative element.
+        The photograph carries the page, and the type sits in the corner of it.
+
+        This is bottom-anchored rather than centred, and that is the decision
+        the rest follows from. A centred plate has to darken whatever is behind
+        it, because type lands wherever the picture is busiest; type gathered
+        into the bottom-start corner only needs the bottom of the frame dimmed,
+        which leaves the arcade, the courtyard and the Kaaba themselves in open
+        light. The gold rule that used to box this content in is gone with the
+        plate — a border around everything is not an accent.
+
+        `-mt-17` pulls the section up under the navigation bar, which goes
+        transparent here, so the picture starts at the top of the window. The
+        matching `pt-17` inside keeps the content clear of it.
       */}
-      <section className="relative overflow-hidden border-b border-ivory-300">
-        <div className="absolute inset-0 -z-10">
-          <div className="absolute inset-0 bg-ivory-100" />
-          <div className="girih absolute inset-0 opacity-[0.05]" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_50%_0%,rgba(255,255,255,0.95),transparent)]" />
-        </div>
+      <section className="on-dark relative isolate -mt-17 flex min-h-[88dvh] items-end overflow-hidden sm:min-h-[80dvh]">
+        <HeroBackdrop alt={t('hero.imageAlt')} />
 
-        <div className="mx-auto max-w-7xl px-4 pt-10 pb-12 sm:px-6 sm:pt-14 lg:px-8">
-          <div className="framed mx-auto max-w-4xl bg-ivory-50/70 px-6 py-12 text-center sm:px-12 sm:py-16">
-            <p className="eyebrow">{t('hero.eyebrow')}</p>
+        <div className="mx-auto w-full max-w-7xl px-4 pt-17 pb-20 sm:px-6 sm:pb-24 lg:px-8">
+          <div className="max-w-2xl">
+            <p className="eyebrow text-gold-300">{t('hero.eyebrow')}</p>
 
-            <LogoMark className="mx-auto mt-7 h-24 w-auto sm:h-32" tone="green" />
-
-            <Ornament className="mt-7" />
-
-            <h1 className="display mt-6 text-4xl leading-[1.15] text-nasek-900 sm:text-6xl">
+            <h1 className="display on-photo mt-4 text-balance text-[clamp(2.5rem,6vw,4.5rem)] leading-[1.1] text-ivory-50">
               {t('hero.title')}
             </h1>
 
-            <p className="mx-auto mt-5 max-w-xl text-md leading-relaxed text-ink-500 sm:text-lg">
+            <p className="on-photo mt-5 max-w-xl text-md leading-relaxed text-ivory-100/90 sm:text-lg">
               {t('hero.subtitle')}
             </p>
 
-            <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <LinkButton to="/smart-match" size="lg">
-                <Compass className="size-4" />
-                {t('hero.ctaPrimary')}
-              </LinkButton>
-              <LinkButton to="/campaigns" variant="outline" size="lg">
+            {/* A rule, not a box. `border-s` is the start edge, so this sits on
+                the right of the text in Arabic and the left in English without
+                being told which. */}
+            <p className="mt-7 flex items-center gap-2.5 border-s-2 border-gold-400 ps-3.5 text-xs font-semibold text-gold-200">
+              <BadgeCheck className="size-4 shrink-0" strokeWidth={1.9} />
+              {t('hero.trust')}
+            </p>
+
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <LinkButton to="/campaigns" variant="gold" size="lg">
                 {t('hero.ctaSecondary')}
                 <Arrow className="size-4" />
               </LinkButton>
+              <LinkButton
+                to="/smart-match"
+                size="lg"
+                className="border-ivory-50/35 bg-ivory-50/10 text-ivory-50 backdrop-blur-sm hover:bg-ivory-50/20 active:bg-ivory-50/25"
+              >
+                <Compass className="size-4" />
+                {t('hero.ctaPrimary')}
+              </LinkButton>
             </div>
           </div>
-
-          {/* the search box sits directly under the title block */}
-          <div className="relative z-10 mx-auto mt-8 max-w-4xl">
-            <SmartSearch />
-          </div>
-
-          {/* stats, ruled into four columns like a printed table */}
-          <ul className="mx-auto mt-10 grid max-w-3xl grid-cols-2 divide-x divide-ivory-300 rtl:divide-x-reverse sm:grid-cols-4">
-            {stats.map((stat) => (
-              <li key={stat.label} className="px-3 py-2 text-center">
-                <p className="nums display text-4xl text-nasek-700">{n(stat.value)}</p>
-                <p className="mt-1 text-2xs font-medium tracking-wide text-ink-500">
-                  {stat.label}
-                </p>
-              </li>
-            ))}
-          </ul>
         </div>
+      </section>
+
+      {/* ================================================== the search === */}
+      {/*
+        Lifted off the photograph and onto the seam between the hero and the
+        page, half on each. It was floating in the middle of a picture before,
+        which is a decorative place for the one control most people came to
+        use; straddling the edge makes it the hinge between looking and doing.
+      */}
+      <div className="relative z-20 mx-auto -mt-12 max-w-5xl px-4 sm:px-6 lg:px-8">
+        <SmartSearch />
+      </div>
+
+      {/* ==================================================== the count === */}
+      {/* Ruled into four columns like a printed table, and back on parchment:
+          numbers this small are unreadable over a photograph. */}
+      <section className="mt-14 border-y border-ivory-300 bg-ivory-100">
+        <ul className="mx-auto grid max-w-3xl grid-cols-2 divide-x divide-ivory-300 px-4 py-6 rtl:divide-x-reverse sm:grid-cols-4 sm:px-6">
+          {stats.map((stat) => (
+            <li key={stat.label} className="px-3 py-2 text-center">
+              <p className="nums display text-4xl text-nasek-700">{n(stat.value)}</p>
+              <p className="mt-1 text-2xs font-medium tracking-wide text-ink-500">{stat.label}</p>
+            </li>
+          ))}
+        </ul>
       </section>
 
       {/* ================================================= how it works == */}
@@ -206,7 +246,7 @@ export function HomePage() {
                 { icon: Ticket, n: 3 },
                 { icon: Quote, n: 4 },
                 { icon: Compass, n: 5 },
-                { icon: MessageCircle, n: 6 },
+                { icon: ShieldCheck, n: 6 },
               ] as const
             ).map((item) => (
               <li key={item.n} className="flex gap-4">
@@ -325,7 +365,9 @@ export function HomePage() {
                   {bl(review.comment)}
                 </p>
                 <div className="flex items-center justify-between border-t border-ivory-300 pt-4">
-                  <span className="text-sm font-bold text-ink-800">{review.userName}</span>
+                  <span className="text-sm font-bold text-ink-800">
+                    {review.userName || t('review.anonymous')}
+                  </span>
                   <Rating value={review.rating} size="sm" />
                 </div>
               </li>
@@ -334,66 +376,17 @@ export function HomePage() {
         </section>
       )}
 
-      {/* =================================================== provider ==== */}
-      <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
-        <div className="framed-dark girih-gold relative overflow-hidden bg-nasek-900 p-8 sm:p-12">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_80%_at_100%_0%,rgba(201,169,97,0.12),transparent)]" />
-          <div className="relative grid gap-8 lg:grid-cols-[1.3fr_1fr] lg:items-center">
-            <div>
-              <Badge tone="gold" className="mb-4">
-                {t('nav.forProviders')}
-              </Badge>
-              <h2 className="display text-4xl text-ivory-50 sm:text-5xl">
-                {t('home.providerCta.title')}
-              </h2>
-              <p className="mt-4 max-w-xl text-md leading-relaxed text-ivory-200/70">
-                {t('home.providerCta.body')}
-              </p>
-              <ul className="mt-6 space-y-2.5">
-                {(['home.providerCta.point1', 'home.providerCta.point2', 'home.providerCta.point3'] as MessageKey[]).map(
-                  (key) => (
-                    <li key={key} className="flex items-center gap-2.5 text-base text-ivory-200/80">
-                      <BadgeCheck className="size-4 shrink-0 text-gold-400" />
-                      {t(key)}
-                    </li>
-                  ),
-                )}
-              </ul>
-              <LinkButton to="/signup/provider" variant="gold" size="lg" className="mt-7">
-                {t('home.providerCta.button')}
-                <Arrow className="size-4" />
-              </LinkButton>
-            </div>
+      {/*
+        The campaign-owner band used to sit here.
 
-            {/* a glimpse of the owner dashboard, as a static preview */}
-            <div className="border border-gold-400/25 bg-nasek-950/30 p-5">
-              <p className="text-2xs font-bold uppercase tracking-[0.2em] text-gold-300/80">
-                {t('prov.overview')}
-              </p>
-              <div className="mt-4 grid grid-cols-2 divide-x divide-y divide-gold-400/15 rtl:divide-x-reverse">
-                {[
-                  { label: t('prov.kpiBookings'), value: '184' },
-                  { label: t('prov.kpiActive'), value: '4' },
-                  { label: t('prov.kpiSeats'), value: '63' },
-                  { label: t('prov.kpiRating'), value: '4.8' },
-                ].map((kpi) => (
-                  <div key={kpi.label} className="p-3.5">
-                    <p className="nums text-3xl font-bold leading-none text-ivory-50">
-                      {kpi.value}
-                    </p>
-                    <p className="mt-1.5 text-2xs text-ivory-200/50">{kpi.label}</p>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-5 flex items-end gap-1.5 border-t border-gold-400/20 pt-4" aria-hidden>
-                {[38, 52, 44, 67, 58, 74, 62, 88].map((h, i) => (
-                  <div key={i} className="flex-1 bg-gold-400/45" style={{ height: `${h * 0.6}px` }} />
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+        It was owner marketing on a customer website: a headline, three
+        selling points, a mock dashboard and a button to "list your
+        campaign". All of it is gone, and not only the button — NASEK has
+        three separate applications now, and a pilgrim reading the home
+        page has no reason to be sold a portal they cannot use or told it
+        exists. Campaign owners are taken on by the NASEK team, who give
+        them the portal address directly.
+      */}
 
       {/* ===================================================== giving ==== */}
       <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
@@ -432,5 +425,112 @@ export function HomePage() {
         </div>
       </section>
     </main>
+  )
+}
+
+/**
+ * The Makkah photograph behind the hero, and everything that makes text
+ * survive on top of it.
+ *
+ * Three sources rather than one. A 16:9 crop is the wrong shape for a phone
+ * held upright — `object-cover` on a wide file throws away the courtyard and
+ * leaves a band of sky — so a 3:4 crop of the same frame is served below
+ * 640px, where the Kaaba sits in the middle of the frame at any height the
+ * plate grows to. WebP is offered first and a JPEG follows for anything that
+ * cannot take it.
+ *
+ * The blurred thumbnail underneath is inlined rather than fetched: it is the
+ * ground the headline is read against for the few hundred milliseconds before
+ * a 300 KB photograph arrives, and a request for it would land in the same
+ * queue as the photograph itself.
+ */
+function HeroBackdrop({ alt }: { alt: string }) {
+  return (
+    <div className="absolute inset-0 -z-10" style={{ backgroundColor: '#0d0c0b' }}>
+      <div
+        aria-hidden
+        className="absolute inset-0 bg-cover bg-center"
+        style={{ backgroundImage: `url("${LQIP}")` }}
+      />
+
+      {/* `<picture>` is an inline wrapper with no box of its own, so it has to
+          be stretched explicitly — the `<img>` inside it fills this, not the
+          positioned parent. */}
+      <picture className="absolute inset-0 block size-full">
+        <source media="(max-width: 640px)" type="image/avif" srcSet={heroTallAvif} />
+        <source media="(max-width: 640px)" type="image/webp" srcSet={heroTallWebp} />
+        <source media="(max-width: 640px)" srcSet={heroTall} />
+        <source
+          type="image/avif"
+          srcSet={`${heroWideSmAvif} 1100w, ${heroWideAvif} 1536w`}
+          sizes="100vw"
+        />
+        <source
+          type="image/webp"
+          srcSet={`${heroWideSmWebp} 1100w, ${heroWideWebp} 1536w`}
+          sizes="100vw"
+        />
+        <img
+          src={heroWide}
+          srcSet={`${heroWideSm} 1100w, ${heroWide} 1536w`}
+          sizes="100vw"
+          alt={alt}
+          // The hero image is the largest paint on the page; letting it load
+          // lazily would be optimising away the one image worth waiting for.
+          loading="eager"
+          fetchPriority="high"
+          decoding="async"
+          // 65% down rather than centred. The Kaaba sits low in this frame —
+          // its base is at 88% of the height — and a centred crop lifts that
+          // base out of shot on a wide, short window. Biasing down holds the
+          // whole cube and the courtyard; there is sky enough to spare.
+          className="size-full object-cover object-[50%_65%]"
+        />
+      </picture>
+
+      {/*
+        One gradient, where the type is — and nothing anywhere else.
+
+        There used to be a flat 45% green wash across the whole frame with a
+        second gradient over it, and between them and the text plate roughly a
+        quarter of the photograph was reaching the eye. The wash is gone.
+
+        The values below carry over unchanged from the previous photograph,
+        and they still fit this one — worth stating, because the two frames are
+        lit in opposite directions. Measured off the source: the bottom fifth,
+        where the type sits, averages 65/255. The crowd there is backlit and
+        already dark, so 0.82 at the very edge is comfortable rather than
+        necessary; it thins to a third of that by a third of the way up and is
+        gone by 60%. The Kaaba, its door and the calligraphy all sit above that
+        line, untouched.
+
+        The bright end of this frame is the top, not the bottom — a sunset sky
+        at 103/255 where the old picture had black cloth. That is what the 0.42
+        scrim over the first 160px is for: it is the transparent navigation's
+        ground, and without it the ivory wordmark would sit on open sky.
+
+        Near-black rather than green, because the photograph has no green in it
+        and multiplying green over gold only dulls the gold. NASEK's green
+        resumes immediately below, in the search card's ground and in the
+        navigation the moment it leaves the picture.
+      */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            'linear-gradient(to top, rgb(9 12 11 / 0.82) 0%, rgb(9 12 11 / 0.26) 34%, transparent 60%)',
+        }}
+        aria-hidden
+      />
+      <div
+        className="absolute inset-x-0 top-0 h-40"
+        style={{ background: 'linear-gradient(to bottom, rgb(9 12 11 / 0.42), transparent)' }}
+        aria-hidden
+      />
+      {/* Brand grain rather than a pattern — at 3% you feel it and never see it.
+          Lower than before: this frame carries its own gold, and the lattice
+          has nothing to add on top of the kiswah's. */}
+      <div className="girih-gold absolute inset-0 opacity-[0.03]" aria-hidden />
+    </div>
   )
 }

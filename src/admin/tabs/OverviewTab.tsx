@@ -32,6 +32,7 @@ import { useI18n } from '@/i18n'
 
 import { NASEK_FEE_RATE } from '@/services/api/bookings'
 import { setProviderVerification } from '@/services/data/catalogue'
+import { useSnapshotLoader } from '@/hooks/useRemoteData'
 import { useStore } from '@/store/AppStore'
 import { Button, Card, cx } from '@/components/ui'
 import { Kpi } from './shared'
@@ -66,6 +67,7 @@ export function OverviewTab({
   // generated demo history over an empty catalogue, which made every figure on
   // this page zero.
   const { dispatch, toast, bookings } = useStore()
+  const { reload } = useSnapshotLoader()
   // Each section is an address now rather than a tab index, so the work queue
   // can hand out real links: an admin can open the verification queue in a new
   // tab, bookmark it, or send it to a colleague.
@@ -174,6 +176,10 @@ export function OverviewTab({
                     }
                     dispatch({ type: 'setVerification', providerId: p.id, status: 'verified' })
                     toast(t('admin.verifiedToast', { name: bl(p.name) }))
+                    // The dispatch above is the offline path; once a snapshot
+                    // has landed the table reads the server's providers, so the
+                    // queue only empties if it is re-read.
+                    await reload()
                   }}
                 >
                   <BadgeCheck className="size-3.5" />

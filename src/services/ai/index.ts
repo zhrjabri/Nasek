@@ -1,14 +1,7 @@
 import type { Campaign, Lang, Provider } from '@/types'
-import { answer } from './assistant'
 import { parseNaturalQuery } from './nlSearch'
 import { scoreCampaigns } from './smartMatch'
-import type {
-  AIProvider,
-  AssistantMessage,
-  NLSearchResult,
-  MatchResult,
-  SmartMatchInput,
-} from './types'
+import type { AIProvider, NLSearchResult, MatchResult, SmartMatchInput } from './types'
 
 /** Simulated latency so the UI's thinking states are real, not decorative. */
 const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
@@ -17,6 +10,11 @@ const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
  * The default provider: everything runs on-device, deterministically.
  * No API key, no network, no per-request cost — and identical output for the
  * same input, which is what a demo in front of stakeholders needs.
+ *
+ * Two capabilities, not three. There was a conversational assistant here as
+ * well; it is gone, along with the chat window it fed. Both remaining methods
+ * end in a list of campaigns the pilgrim can open, which is the only thing
+ * this layer is for.
  */
 export const LocalAIProvider: AIProvider = {
   id: 'local',
@@ -34,11 +32,6 @@ export const LocalAIProvider: AIProvider = {
   ): Promise<MatchResult[]> {
     await delay(1400)
     return scoreCampaigns(input, lang, pool, providers)
-  },
-
-  async ask(message: string, _history: AssistantMessage[], lang: Lang, pool: Campaign[]) {
-    await delay(600 + Math.min(900, message.length * 12))
-    return answer(message, lang, pool)
   },
 }
 
@@ -78,15 +71,6 @@ export class RemoteAIProvider implements AIProvider {
       providerIds: providers.map((p) => p.id),
     })
   }
-
-  ask(message: string, history: AssistantMessage[], lang: Lang, pool: Campaign[]) {
-    return this.post<Pick<AssistantMessage, 'text' | 'campaignIds' | 'suggestions'>>('/ask', {
-      message,
-      lang,
-      history: history.slice(-8).map(({ role, text }) => ({ role, text })),
-      campaignIds: pool.map((c) => c.id),
-    })
-  }
 }
 
 let active: AIProvider = LocalAIProvider
@@ -99,7 +83,6 @@ export const setAI = (provider: AIProvider) => {
   active = provider
 }
 
-export type { AIProvider, MatchResult, SmartMatchInput, AssistantMessage, NLSearchResult }
+export type { AIProvider, MatchResult, SmartMatchInput, NLSearchResult }
 export { EXAMPLE_QUERIES } from './nlSearch'
 export { SEASON_WINDOWS } from './smartMatch'
-export { defaultSuggestions } from './assistant'

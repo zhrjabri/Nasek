@@ -111,6 +111,51 @@ async function main() {
   // of dependency that broke the catalogue for signed-out visitors.
   await readable('reviews', 'published reviews are readable without signing in')
 
+  /*
+   * The view that puts a name under a review.
+   *
+   * Every byline on the site reads `user_name`, which lives on `profiles` and
+   * is unreachable from a client query — so without this view they are all
+   * blank. The application falls back to the bare table when it is missing, so
+   * a failure here is cosmetic rather than fatal; it still means
+   * 20260903000100_reviews_public.sql has not been applied.
+   */
+  {
+    const res = await rest('reviews_public?select=user_name&limit=1')
+    check(
+      "reviews carry their author's name (reviews_public)",
+      res.status === 200,
+      res.status === 404 || res.status === 400
+        ? 'not found — apply 20260903000100_reviews_public.sql'
+        : `HTTP ${res.status}`,
+    )
+  }
+
+  /*
+   * A hidden review must not escape through the view.
+   *
+   * `reviews_public` is a definer view, so it does not consult `reviews_read`
+   * and has to reproduce that policy's predicate itself. If it ever stopped
+   * doing so, every review an administrator had taken down would be published
+   * to anonymous visitors — which is precisely what a definer view makes
+   * possible, and why this is asserted rather than assumed.
+   */
+  {
+    const res = await rest('reviews_public?select=id&hidden=is.true&limit=1')
+    const body = await res.text()
+    let rows = []
+    try {
+      rows = JSON.parse(body)
+    } catch {
+      rows = []
+    }
+    check(
+      'hidden reviews stay hidden in the public view',
+      res.status !== 200 || (Array.isArray(rows) && rows.length === 0),
+      `HTTP ${res.status}, ${Array.isArray(rows) ? rows.length : '?'} row(s)`,
+    )
+  }
+
   console.log('\n--- what a stranger with the public key can NOT read ---------\n')
 
   await hidden('profiles', 'the account directory is closed')
@@ -143,6 +188,31 @@ async function main() {
     permit.status === 401 || permit.status === 403,
     `HTTP ${permit.status} ${permitBody.slice(0, 90)}`,
   )
+
+  /*
+   * And the queue of proposed changes to that evidence.
+   *
+   * `provider_profile_changes` holds a company's next legal name and the path
+   * to its next permit, so an anonymous read would leak both — and would leak
+   * them *before* an administrator has agreed the change is legitimate. The
+   * policy is owner-or-admin and SELECT is granted only to `authenticated`, so
+   * 401 is the expected answer here too.
+   */
+  const proposals = await rest('provider_profile_changes?select=proposed&limit=1')
+  const proposalsBody = await proposals.text()
+  if (proposals.status === 404) {
+    // PostgREST answers 404 for a table it cannot see in its schema cache, which
+    // on this project means the migration has not been applied rather than that
+    // the table is open. Reported as its own failure so the message names the
+    // actual fix.
+    check('provider_profile_changes exists', false, 'not found — apply 20260906000100')
+  } else {
+    check(
+      'proposed owner profile changes are closed to the public key',
+      proposals.status === 401 || proposals.status === 403,
+      `HTTP ${proposals.status} ${proposalsBody.slice(0, 90)}`,
+    )
+  }
 
   // ...and the view that replaces it must not carry the columns either. Asked
   // for by name, so this reports the truth even on a project with no owners
@@ -255,6 +325,43 @@ async function main() {
     ],
     ['register_provider', { p_name_ar: 'probe', p_name_en: 'probe' }],
     ['resubmit_provider', { p_name_ar: 'probe', p_name_en: 'probe' }],
+    /*
+     * Approving a campaign, which is the decision this whole release exists
+     * around. Reachable with the public key, it would let anyone publish a trip
+     * to the catalogue with no company verified and nobody having read it —
+     * which is precisely the state 20260904000300 was written to end.
+     */
+    [
+      'set_campaign_status',
+      {
+        p_campaign_id: '00000000-0000-0000-0000-000000000000',
+        p_status: 'active',
+        p_reason: null,
+      },
+    ],
+    /*
+     * Profile editing, both halves.
+     *
+     * `submit_provider_profile` decides for itself which of a company's fields
+     * are marketing and which are the evidence NASEK verified them on — so an
+     * anonymous caller reaching it would be a caller proposing changes to
+     * somebody else's licence. `review_provider_changes` is the other end:
+     * reachable, it would let anyone approve their own proposal, which is the
+     * exact bypass the review queue exists to prevent.
+     *
+     * Both are granted to `authenticated` and check authorisation in their own
+     * bodies — `auth.uid()` for the owner, `is_admin()` for the reviewer — so a
+     * 401 here is the grant doing its job before either body runs.
+     */
+    ['submit_provider_profile', { p_phone: '+96890000000' }],
+    [
+      'review_provider_changes',
+      {
+        p_change_id: '00000000-0000-0000-0000-000000000000',
+        p_approve: true,
+        p_reason: null,
+      },
+    ],
   ]) {
     const res = await fetch(`${url}/rest/v1/rpc/${fn}`, {
       method: 'POST',
@@ -262,6 +369,15 @@ async function main() {
       body: JSON.stringify(body),
     })
     if (res.status === 404) {
+      /*
+       * A 404 is "this signature is not deployed", not "this is open".
+       *
+       * Reported rather than passed over, because on a project that has not yet
+       * had the 2026-09-04 migrations applied that is exactly what you want to
+       * be told — and reported as a failure rather than a skip, because a
+       * privileged function the client half of this release calls, missing from
+       * the database, is a broken deployment and not a configuration choice.
+       */
       check(`${fn}() exists`, false, 'not found — a migration has not been applied')
     } else {
       check(`${fn}() is unreachable with the public key`, res.status !== 200, `HTTP ${res.status}`)

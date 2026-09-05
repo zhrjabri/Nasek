@@ -30,13 +30,22 @@ const url = import.meta.env.VITE_SUPABASE_URL?.trim()
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim()
 
 /**
- * The two values, re-exported for the one thing the client cannot answer.
+ * The two values, re-exported for the things supabase-js cannot do.
  *
- * `GET /auth/v1/settings` reports which sign-in methods a project actually has
- * configured, and supabase-js has no method for it — see
- * `services/auth/oauth.ts`, which uses it to decide whether "Continue with
- * Google" is a button that would work or a button that would fail. Both are
- * public: the key is compiled into every visitor's bundle by design.
+ * Both are public: the key is compiled into every visitor's bundle by design,
+ * and grants nothing on its own because row-level security decides what the
+ * person behind it may read.
+ *
+ * They exist as exports because the client has no method for calling an Edge
+ * Function with a chosen `Authorization` header, and NASEK has two that need
+ * one: `admin/accessCode.ts` posts the administration access code with the anon
+ * key, and `admin/createOwner.ts` posts a new campaign owner with the
+ * administrator's own session token — which is what the function checks
+ * `is_admin()` against.
+ *
+ * They also used to serve `services/auth/oauth.ts`, which asked the project's
+ * `/auth/v1/settings` whether Google was enabled before drawing a button. That
+ * module is gone: the customer site has one door and it is a one-time code.
  */
 export const supabaseUrl = url ?? ''
 export const supabaseAnonKey = anonKey ?? ''
@@ -51,7 +60,11 @@ export const supabaseAnonKey = anonKey ?? ''
  * checks impossible to test.
  */
 const storageKey =
-  import.meta.env.VITE_NASEK_APP === 'admin' ? 'nasek.auth.admin' : 'nasek.auth.web'
+  import.meta.env.VITE_NASEK_APP === 'admin'
+    ? 'nasek.auth.admin'
+    : import.meta.env.VITE_NASEK_APP === 'owner'
+      ? 'nasek.auth.owner'
+      : 'nasek.auth.web'
 
 export const supabase: SupabaseClient<Database> | null =
   url && anonKey

@@ -3,6 +3,15 @@ import { Mail, MapPin, Phone, ShieldCheck } from 'lucide-react'
 import { useI18n, type MessageKey } from '@/i18n'
 import { Logo } from '@/components/brand/Logo'
 
+/*
+ * The footer's link columns — customers only.
+ *
+ * There used to be a third, "For campaign owners", carrying the portal, its
+ * registration and its sign-in. All three are gone from this bundle: the portal
+ * is a separate application on a separate host, and a pilgrim reading this
+ * footer should not learn that it exists. An owner reaches it at the address
+ * NASEK gave them when their account was created.
+ */
 const COLUMNS: { title: MessageKey; links: { to: string; key: MessageKey }[] }[] = [
   {
     title: 'footer.explore',
@@ -10,14 +19,6 @@ const COLUMNS: { title: MessageKey; links: { to: string; key: MessageKey }[] }[]
       { to: '/campaigns', key: 'nav.campaigns' },
       { to: '/smart-match', key: 'nav.smartMatch' },
       { to: '/map', key: 'nav.map' },
-    ],
-  },
-  {
-    title: 'footer.forProviders',
-    links: [
-      { to: '/signup/provider', key: 'footer.listCampaign' },
-      { to: '/signin', key: 'footer.providerLogin' },
-      { to: '/about#pricing', key: 'footer.pricing' },
     ],
   },
   {
@@ -37,7 +38,7 @@ export function Footer() {
   return (
     <footer className="mt-24 border-t-2 border-gold-500/50 bg-nasek-950 text-ivory-200">
       <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
-        <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-4">
           <div className="lg:col-span-2">
             <Logo tone="ivory" />
             <p className="mt-4 max-w-sm text-sm leading-relaxed text-ivory-200/60">

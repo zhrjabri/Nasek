@@ -42,7 +42,15 @@ import { CODE_LENGTH, CodeInput } from './CodeInput'
 const ERROR_KEY: Record<string, MessageKey> = {
   invalid: 'auth.errInvalidTarget',
   send_failed: 'auth.errSendFailed',
+  // Only reachable in a deployed build that was compiled without a Supabase
+  // connection. There is nothing the person can do about it, so the message
+  // says so plainly instead of inviting them to try again for ever.
+  not_configured: 'auth.errNotConfigured',
   rate_limited: 'auth.errRateLimited',
+  // Not the same thing as the line above, and the difference matters: this one
+  // is the project's mail quota for the hour, which waiting a moment does not
+  // fix. See `startOtp`.
+  quota_exhausted: 'auth.errMailQuota',
   wrong_code: 'auth.errWrongCode',
   expired: 'auth.errExpired',
   too_many: 'auth.errTooMany',
@@ -141,6 +149,10 @@ export function OtpFlow({
 
       if (!result.ok) {
         setError(ERROR_KEY[result.error ?? 'send_failed'] ?? 'auth.errSendFailed')
+        // Supabase says how long its own cooldown has left; showing that on the
+        // resend button beats a generic "wait a moment" the person has to guess
+        // the length of, and stops them spending the next attempt early.
+        if (result.cooldownSeconds > 0) setCooldown(result.cooldownSeconds)
         return
       }
       setDemoCode(result.demoCode ?? null)

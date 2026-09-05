@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
-import { KeyRound, ShieldCheck, ShieldOff, Smartphone } from 'lucide-react'
+import { KeyRound, Mail, ShieldCheck, ShieldOff, Smartphone } from 'lucide-react'
 import { useI18n } from '@/i18n'
 import { useStore } from '@/store/AppStore'
 import { isSupabaseConfigured } from '@/services/supabase/client'
+import { fetchEmailOutbox } from '@/services/data/catalogue'
+import type { EmailOutboxRow } from '@/services/supabase/schema'
 import {
   MIN_PASSWORD_LENGTH,
   confirmMfa,
@@ -92,7 +94,104 @@ export function SecurityTab() {
       )}
 
       <PasswordPanel notify={toast} />
+
+      <MailPanel />
     </section>
+  )
+}
+
+// ------------------------------------------------------------ mail delivery
+
+/**
+ * Did the approval email actually go out?
+ *
+ * A question with no answer anywhere before this panel, and one worth being
+ * able to answer, because NASEK's messages are deliberately sent in two steps.
+ * A decision writes a row into `email_outbox` inside its own transaction; the
+ * `send-emails` Edge Function drains that queue later. So "approved" and "the
+ * owner was told" are genuinely two facts, and on a project with no mail
+ * provider configured the second one is permanently `queued`.
+ *
+ * That is a supported state — every decision also writes an in-app
+ * notification, which is what the owner's portal shows — but an administrator
+ * should be able to see it rather than assume an email went somewhere. A row
+ * stuck at `queued` here means the function has not run; a row at `failed`
+ * carries the provider's own error.
+ *
+ * Read-only, and it could not be otherwise: `email_outbox` has no write policy
+ * at all, so even an administrator's session cannot insert into it.
+ */
+function MailPanel() {
+  const { t, date } = useI18n()
+  const [rows, setRows] = useState<EmailOutboxRow[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const load = async () => {
+    setLoading(true)
+    setRows(await fetchEmailOutbox(15))
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    void load()
+  }, [])
+
+  const LABEL: Record<EmailOutboxRow['status'], string> = {
+    queued: t('admin.mailQueued'),
+    sending: t('admin.mailSending'),
+    sent: t('admin.mailSent'),
+    failed: t('admin.mailFailed'),
+  }
+
+  return (
+    <Panel
+      icon={<Mail className="size-4" />}
+      title={t('admin.mailTitle')}
+      body={t('admin.mailBody')}
+    >
+      {loading ? (
+        <div className="flex justify-center py-6">
+          <Spinner className="size-5 text-nasek-600" />
+        </div>
+      ) : rows.length === 0 ? (
+        <p className="text-sm text-ink-400">{t('admin.mailEmpty')}</p>
+      ) : (
+        <ul className="space-y-2">
+          {rows.map((row) => (
+            <li
+              key={row.id}
+              className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[3px] border border-ivory-300 bg-ivory-50 px-3 py-2 text-xs"
+            >
+              <span
+                className={
+                  row.status === 'sent'
+                    ? 'font-bold text-nasek-700'
+                    : row.status === 'failed'
+                      ? 'font-bold text-red-700'
+                      : 'font-bold text-gold-700'
+                }
+              >
+                {LABEL[row.status]}
+              </span>
+              <span className="font-semibold text-ink-700">{row.template}</span>
+              <span className="min-w-0 flex-1 truncate text-ink-500" dir="ltr">
+                {row.to_email}
+              </span>
+              <span className="text-ink-400">{date(row.created_at)}</span>
+              {row.last_error && (
+                <span className="w-full truncate text-2xs text-red-600" dir="ltr">
+                  {row.last_error}
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <Button variant="secondary" size="sm" className="mt-4" onClick={() => void load()}>
+        {t('admin.mailRefresh')}
+      </Button>
+    </Panel>
   )
 }
 

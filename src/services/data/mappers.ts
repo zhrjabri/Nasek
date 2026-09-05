@@ -53,8 +53,16 @@ export function toProvider(row: ProviderRow | ProviderPublicRow): Provider {
     licenceImage: full.licence_image ?? undefined,
     licenceFileName: full.licence_file_name ?? undefined,
     licencePath: full.licence_path ?? undefined,
+    licenceMime: full.licence_mime ?? undefined,
     rejectionReason: full.rejection_reason ?? undefined,
     submittedAt: full.submitted_at ?? undefined,
+    // `governorate` is on both the table and the public view; the rest is only
+    // ever on the table, so `full` is doing real work for four of these five.
+    governorate: row.governorate ?? undefined,
+    address: full.address ?? undefined,
+    commercialRegistration: full.commercial_registration ?? undefined,
+    permitNumber: full.permit_number ?? undefined,
+    permitExpiry: full.permit_expiry ?? undefined,
   }
 }
 
@@ -83,6 +91,33 @@ export function toCampaign(row: CampaignRow): Campaign {
     reviewCount: row.review_count,
     featured: row.featured,
     bookingsCount: row.bookings_count,
+    // Moderation state, carried through rather than dropped. `campaigns_read`
+    // sends these rows to the owner and to an administrator precisely so both
+    // can see what has been taken down; discarding the columns here is what
+    // left the admin dashboard reading takedowns out of local state instead.
+    suspended: row.suspended,
+    deleted: row.deleted,
+    /*
+     * Approval state, defaulted rather than assumed.
+     *
+     * `?? 'active'` matters during the window between deploying this build and
+     * applying `20260904000300`: the column does not exist yet, PostgREST omits
+     * it, and a campaign whose status read `undefined` would vanish from the
+     * public catalogue the moment `deriveCatalogue` filtered on it. Treating a
+     * missing column as "live" keeps the site exactly as it was until the
+     * migration lands, which is the direction this has to fail in.
+     */
+    status: row.status ?? 'active',
+    rejectionReason: row.rejection_reason ?? undefined,
+    submittedAt: row.submitted_at ?? undefined,
+    reviewedAt: row.reviewed_at ?? undefined,
+    registrationDeadline: row.registration_deadline ?? undefined,
+    excludedServices: (row.excluded_services ?? []) as ServiceKey[],
+    images: row.images ?? [],
+    contactName: row.contact_name ?? undefined,
+    contactPhone: row.contact_phone ?? undefined,
+    contactEmail: row.contact_email ?? undefined,
+    terms: { ar: row.terms_ar ?? '', en: row.terms_en ?? '' },
   }
 }
 
@@ -108,9 +143,23 @@ export function fromCampaign(campaign: Campaign) {
     hotel_madinah_ar: campaign.hotelMadinah.ar,
     hotel_madinah_en: campaign.hotelMadinah.en,
     haram_distance_m: campaign.haramDistanceM,
+    registration_deadline: campaign.registrationDeadline || null,
+    excluded_services: campaign.excludedServices,
+    images: campaign.images,
+    contact_name: campaign.contactName || null,
+    contact_phone: campaign.contactPhone || null,
+    contact_email: campaign.contactEmail || null,
+    terms_ar: campaign.terms.ar,
+    terms_en: campaign.terms.en,
     // `featured` and `suspended` are absent on purpose: both are the
     // administrator's to set, and the trigger in the RLS migration would revert
     // an owner's attempt anyway. Sending them would be a lie about who decides.
+    //
+    // `status` is absent for the same reason and it is the important one.
+    // `guard_campaign_moderation` forces every insert to `pending_approval` and
+    // reverts every owner update of it, so sending a status here could never
+    // work — but sending one would suggest to the next reader that it might,
+    // and that is the misreading this whole migration exists to prevent.
   }
 }
 
@@ -144,6 +193,14 @@ export function toBooking(row: BookingRow, travellers: TravellerRow[] = []): Boo
   }
 }
 
+/**
+ * `user_name` comes from `reviews_public`, which joins the author's profile.
+ *
+ * The parameter has always accepted it; nothing ever supplied it, because the
+ * snapshot read the `reviews` table and no such column is on it. Every byline
+ * on the site was therefore an empty string. See
+ * `20260903000100_reviews_public.sql`.
+ */
 export function toReview(row: ReviewRow & { user_name?: string | null }): Review {
   return {
     id: row.id,
@@ -154,6 +211,9 @@ export function toReview(row: ReviewRow & { user_name?: string | null }): Review
     rating: row.rating,
     comment: { ar: row.comment_ar, en: row.comment_en },
     date: row.created_at.slice(0, 10),
+    reply: { ar: row.reply_ar ?? '', en: row.reply_en ?? '' },
+    repliedAt: row.replied_at ?? undefined,
+    hidden: row.hidden,
   }
 }
 

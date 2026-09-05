@@ -1,6 +1,7 @@
 import type { Provider, User } from '@/types'
 import { supabase } from '@/services/supabase/client'
 import type { ProviderRow } from '@/services/supabase/schema'
+import { toProvider } from '@/services/data/mappers'
 import { authApi, type ProviderSignUpInput } from '@/services/api/auth'
 import { loadSessionSettled } from './session'
 
@@ -25,31 +26,15 @@ export interface RegisterProviderResult {
   provider: Provider
 }
 
-/** Postgres row → the bilingual domain shape the rest of the app reads. */
-function rowToProvider(row: ProviderRow): Provider {
-  return {
-    id: row.id,
-    name: { ar: row.name_ar, en: row.name_en },
-    tagline: { ar: row.tagline_ar, en: row.tagline_en },
-    description: { ar: row.description_ar, en: row.description_en },
-    wilayahId: row.wilayah_id ?? 'muscat',
-    verification: row.verification,
-    experienceYears: row.experience_years,
-    rating: row.rating,
-    reviewCount: row.review_count,
-    phone: row.phone ?? '',
-    email: row.email ?? '',
-    initials: row.initials,
-    brandColor: row.brand_color,
-    plan: row.plan,
-    joinedAt: row.joined_at,
-    licenceImage: row.licence_image ?? undefined,
-    licenceFileName: row.licence_file_name ?? undefined,
-    licencePath: row.licence_path ?? undefined,
-    rejectionReason: row.rejection_reason ?? undefined,
-    submittedAt: row.submitted_at ?? undefined,
-  }
-}
+/*
+ * Rows are mapped by `toProvider`, not by a copy of it.
+ *
+ * There was a second mapper here, and it had drifted: `rating` came straight
+ * off the row, where `numeric(2,1)` arrives from PostgREST as the *string*
+ * "4.6". The type said `number`, so nothing complained, and a company
+ * registered in this session carried a rating that would have concatenated
+ * rather than added anywhere it met arithmetic. The shared mapper coerces it.
+ */
 
 export async function registerProviderAccount(
   input: ProviderSignUpInput,
@@ -62,11 +47,25 @@ export async function registerProviderAccount(
     p_name_ar: input.companyName,
     p_name_en: input.companyName,
     p_tagline: input.tagline,
+    p_description: input.description ?? '',
     p_wilayah_id: input.wilayahId,
+    p_governorate: input.governorate ?? null,
+    p_address: input.address ?? null,
     p_experience_years: input.experienceYears,
     p_phone: input.phone,
     p_email: input.email,
     p_initials: input.companyName.trim().charAt(0) || '?',
+    p_commercial_registration: input.commercialRegistration ?? null,
+    p_permit_number: input.permitNumber ?? null,
+    /*
+     * An empty date field is null, not ''.
+     *
+     * Postgres will not coerce the empty string to `date` and answers with a
+     * type error, so a permit with no expiry — which is a real thing, some are
+     * open-ended — would fail the whole registration on the last step.
+     */
+    p_permit_expiry: input.permitExpiry || null,
+    p_licence_mime: input.licenceMime ?? null,
     /*
      * The permit now travels as a Storage path, and `licence_image` goes only
      * when there is no path to send.
@@ -92,7 +91,7 @@ export async function registerProviderAccount(
   const session = await loadSessionSettled()
   if (!session.user) throw new Error('Registered, but the session could not be read back')
 
-  return { user: session.user, provider: rowToProvider(data as ProviderRow) }
+  return { user: session.user, provider: toProvider(data as ProviderRow) }
 }
 
 /**
@@ -116,15 +115,22 @@ export async function resubmitProviderAccount(
     p_name_ar: input.companyName,
     p_name_en: input.companyName,
     p_tagline: input.tagline,
+    p_description: input.description ?? '',
     p_wilayah_id: input.wilayahId,
+    p_governorate: input.governorate ?? null,
+    p_address: input.address ?? null,
     p_experience_years: input.experienceYears,
     p_phone: input.phone,
     p_email: input.email,
+    p_commercial_registration: input.commercialRegistration ?? null,
+    p_permit_number: input.permitNumber ?? null,
+    p_permit_expiry: input.permitExpiry || null,
     p_licence_image: input.licencePath ? null : (input.licenceImage || null),
     p_licence_file_name: input.licenceFileName || null,
     p_licence_path: input.licencePath ?? null,
+    p_licence_mime: input.licenceMime ?? null,
   })
 
   if (error || !data) throw new Error(error?.message ?? 'Resubmission failed')
-  return rowToProvider(data as ProviderRow)
+  return toProvider(data as ProviderRow)
 }

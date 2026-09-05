@@ -1,22 +1,28 @@
 import type {
   Booking,
   Campaign,
+  CampaignStatus,
   Notification,
   Provider,
   Review,
   Traveller,
+  User,
   VerificationStatus,
 } from '@/types'
 import { supabase } from '@/services/supabase/client'
 import type {
   BookingRow,
   CampaignRow,
+  EmailOutboxRow,
   NotificationRow,
+  ProfileRow,
   ProviderPublicRow,
   ProviderRow,
+  ReviewPublicRow,
   ReviewRow,
   TravellerRow,
 } from '@/services/supabase/schema'
+import { profileToUser } from '@/services/auth/session'
 import { LICENCE_BUCKET } from '@/services/storage/licence'
 import {
   fromCampaign,
@@ -56,6 +62,19 @@ export interface RemoteSnapshot {
   reviews: Review[]
   notifications: Notification[]
   savedIds: string[]
+  /**
+   * Every account the caller may read.
+   *
+   * One row for an ordinary pilgrim — their own — and the whole directory for
+   * an administrator, because `profiles_read_self` says
+   * `id = auth.uid() or is_admin()`. That is the difference between an
+   * administration screen that manages the platform's accounts and one that
+   * manages a list assembled from bookings and guesswork, which is what the
+   * dashboard had: `profiles` was never queried at all, so campaign owners
+   * appeared under invented ids and every moderation button aimed at one
+   * missed.
+   */
+  profiles: User[]
 }
 
 export const EMPTY_SNAPSHOT: RemoteSnapshot = {
@@ -65,9 +84,35 @@ export const EMPTY_SNAPSHOT: RemoteSnapshot = {
   reviews: [],
   notifications: [],
   savedIds: [],
+  profiles: [],
 }
 
 // ------------------------------------------------------------------- reading
+
+/**
+ * Reviews, with their authors' names where the database can supply them.
+ *
+ * `reviews_public` is the view added by `20260903000100_reviews_public.sql`.
+ * Until that migration is applied it does not exist, and PostgREST answers
+ * `42P01`/404 rather than an empty set — so the table is read instead and every
+ * byline falls back to the neutral label, exactly as it did before the view
+ * existed. Once the migration is in, this costs one failed request on the first
+ * load and nothing after it.
+ */
+let reviewsViewMissing = false
+
+async function readReviews() {
+  if (!supabase) return { data: null }
+  if (reviewsViewMissing) return supabase.from('reviews').select('*')
+
+  const view = await supabase.from('reviews_public').select('*')
+  if (!view.error) return view
+  // Remembered, so the second request is not paid on every reload for the life
+  // of the tab. Reset by a page load, which is when a migration applied in the
+  // meantime would be picked up anyway.
+  reviewsViewMissing = true
+  return supabase.from('reviews').select('*')
+}
 
 /**
  * Everything the signed-in (or anonymous) visitor is allowed to see, in one go.
@@ -84,8 +129,16 @@ export const EMPTY_SNAPSHOT: RemoteSnapshot = {
 export async function fetchSnapshot(): Promise<RemoteSnapshot | null> {
   if (!supabase) return null
 
-  const [publicProviders, ownProviders, campaigns, bookings, reviews, notifications, saved] =
-    await Promise.all([
+  const [
+    publicProviders,
+    ownProviders,
+    campaigns,
+    bookings,
+    reviews,
+    notifications,
+    saved,
+    profiles,
+  ] = await Promise.all([
     /*
      * The catalogue's view of a campaign owner: name, badge, rating, plan.
      *
@@ -120,9 +173,26 @@ export async function fetchSnapshot(): Promise<RemoteSnapshot | null> {
      * the caller may already read.
      */
     supabase.from('bookings').select('*'),
-    supabase.from('reviews').select('*'),
+    /*
+     * The view, not the table: it carries the author's display name, which
+     * `profiles` will not hand over for anybody but the caller. Row visibility
+     * is identical — the view reproduces the `reviews_read` predicate.
+     *
+     * Falls back to the table when the view is not there, and that fallback is
+     * about deployment order rather than taste. Migrations are applied by hand
+     * through the SQL editor, so there is a window in which this build is live
+     * and `20260903000100_reviews_public.sql` has not been run — and a missing
+     * view must cost the site its review *bylines*, not its reviews.
+     */
+    readReviews(),
     supabase.from('notifications').select('*').order('created_at', { ascending: false }),
     supabase.from('saved_campaigns').select('campaign_id'),
+    /*
+     * The account directory, scoped by policy to exactly what the caller may
+     * see. A signed-out visitor gets 401 and an empty slice; a pilgrim gets one
+     * row; an administrator gets everyone.
+     */
+    supabase.from('profiles').select('*'),
   ])
 
   const bookingRows = (bookings.data ?? []) as BookingRow[]
@@ -159,9 +229,10 @@ export async function fetchSnapshot(): Promise<RemoteSnapshot | null> {
     providers: [...providerRows.values()].map(toProvider),
     campaigns: ((campaigns.data ?? []) as CampaignRow[]).map(toCampaign),
     bookings: bookingRows.map((r) => toBooking(r, travellersByBooking.get(r.id) ?? [])),
-    reviews: ((reviews.data ?? []) as ReviewRow[]).map(toReview),
+    reviews: ((reviews.data ?? []) as ReviewPublicRow[]).map(toReview),
     notifications: ((notifications.data ?? []) as NotificationRow[]).map(toNotification),
     savedIds: ((saved.data ?? []) as { campaign_id: string }[]).map((r) => r.campaign_id),
+    profiles: ((profiles.data ?? []) as ProfileRow[]).map(profileToUser),
   }
 }
 
@@ -208,6 +279,42 @@ export async function setCampaignModeration(
   if (!supabase) return false
   const { error } = await supabase.from('campaigns').update(patch).eq('id', id)
   return !error
+}
+
+/**
+ * Approve or refuse a campaign.
+ *
+ * An RPC rather than an update, for the reason `setProviderVerification` is
+ * one: the status, the reason, the audit entry, the owner's notification and
+ * the queued email have to land in one transaction. An approval that commits
+ * while the notification fails leaves an owner watching a queue they have
+ * already left; the reverse tells them about a decision that was rolled back.
+ *
+ * The database's own message is passed through rather than flattened. "A
+ * refusal needs a reason the owner can act on" and "This campaign belongs to a
+ * company that is not approved" are two different mistakes, and only the
+ * administrator reading them can tell which one they made.
+ *
+ * With no backend this succeeds and lets the store be the whole truth — the
+ * same trade `setProviderVerification` documents. There is no database to have
+ * disagreed, and a local dashboard that reported failure on every decision
+ * would record none of them.
+ */
+export async function setCampaignStatus(
+  id: string,
+  status: CampaignStatus,
+  reason?: string,
+): Promise<{ ok: true; campaign?: Campaign } | { ok: false; error: string }> {
+  if (!supabase) return { ok: true }
+
+  const { data, error } = await supabase.rpc('set_campaign_status', {
+    p_campaign_id: id,
+    p_status: status,
+    p_reason: reason ?? null,
+  })
+
+  if (error || !data) return { ok: false, error: error?.message ?? 'Update failed' }
+  return { ok: true, campaign: toCampaign(data as CampaignRow) }
 }
 
 /**
@@ -271,6 +378,29 @@ export async function licenceUrl(path: string): Promise<string | null> {
   return error || !data ? null : data.signedUrl
 }
 
+/**
+ * What NASEK has tried to send, most recent first.
+ *
+ * Admin-only by policy, and read for one question that had no answer before:
+ * did the approval email actually go out. The queue is written inside the
+ * decision's transaction and drained by an Edge Function, so "approved" and
+ * "the owner was told" are genuinely two facts — and on a project with no mail
+ * provider configured the second one is permanently `queued`, which the
+ * dashboard should say rather than imply.
+ *
+ * An error yields an empty list, not a rejection. This is a diagnostic panel;
+ * it must not be able to break the screen it sits on.
+ */
+export async function fetchEmailOutbox(limit = 25): Promise<EmailOutboxRow[]> {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('email_outbox')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  return error ? [] : ((data ?? []) as EmailOutboxRow[])
+}
+
 /** Suspend, restore or remove an account. Admin-only, enforced by policy. */
 export async function setProfileModeration(
   userId: string,
@@ -279,6 +409,95 @@ export async function setProfileModeration(
   if (!supabase) return false
   const { error } = await supabase.from('profiles').update(patch).eq('id', userId)
   return !error
+}
+
+// --------------------------------------------------------------- reviews
+
+/**
+ * Leave a review.
+ *
+ * The whole subsystem existed and nothing could create a row for it: there was
+ * no insert anywhere in the client, and the database gate demanded a booking
+ * status nothing ever wrote. Both ends are fixed — see
+ * `20260903000300_reviews_chain.sql` — and this is the middle.
+ *
+ * `provider_id` is sent because the column is `not null` and the policies join
+ * through it; it is the campaign's own owner and not something the caller gets
+ * to choose, since `reviews_insert_own` pins `user_id` to `auth.uid()` and the
+ * trigger checks that this person actually travelled on *this* campaign.
+ *
+ * The database's own message is passed through. "You can review a trip once you
+ * have travelled on it" and "duplicate key" mean different things to the person
+ * reading them, and flattening both into "failed" throws that away.
+ */
+export async function createReview(input: {
+  campaignId: string
+  providerId: string
+  rating: number
+  comment: string
+}): Promise<{ review: Review } | { error: string }> {
+  if (!supabase) return { error: 'offline' }
+
+  const { data: auth } = await supabase.auth.getSession()
+  const userId = auth.session?.user?.id
+  if (!userId) return { error: 'not signed in' }
+
+  const comment = input.comment.trim()
+  const { data, error } = await supabase
+    .from('reviews')
+    .insert({
+      user_id: userId,
+      campaign_id: input.campaignId,
+      provider_id: input.providerId,
+      rating: input.rating,
+      // One box, both languages. The prototype does not ask a traveller to
+      // write their opinion twice, and storing it under one language only
+      // would blank the review for readers of the other.
+      comment_ar: comment,
+      comment_en: comment,
+    })
+    .select('*')
+    .maybeSingle()
+
+  if (error || !data) return { error: error?.message ?? 'Review failed' }
+  return { review: toReview(data as ReviewRow) }
+}
+
+/**
+ * The campaign owner's public answer to a review.
+ *
+ * The owner's dashboard has drawn this control since the prototype and kept the
+ * text in component state, so a reply survived until the next tab change and
+ * was never seen by the traveller it answered. `guard_review_columns` is what
+ * makes it safe to let an owner update a row they did not write: they may set
+ * these two columns and nothing else.
+ *
+ * An empty reply clears it, which is how a reply is withdrawn.
+ */
+export async function replyToReview(id: string, reply: string): Promise<boolean> {
+  if (!supabase) return false
+  const text = reply.trim()
+  const { error } = await supabase
+    .from('reviews')
+    .update({ reply_ar: text || null, reply_en: text || null })
+    .eq('id', id)
+  return !error
+}
+
+/**
+ * Advance bookings whose trip has come back.
+ *
+ * Idempotent, scoped by the database to the caller's own bookings and the trips
+ * they run, and cheap when there is nothing to do. Called when a dashboard
+ * opens rather than on a schedule, because there is no scheduler here and a
+ * status nobody ever writes is exactly how this subsystem got stuck.
+ *
+ * Returns how many rows moved, so a caller can skip re-reading when none did.
+ */
+export async function completePastBookings(): Promise<number> {
+  if (!supabase) return 0
+  const { data, error } = await supabase.rpc('complete_past_bookings')
+  return error || typeof data !== 'number' ? 0 : data
 }
 
 /** Take a review down, or put it back. */
@@ -334,6 +553,36 @@ export async function cancelBooking(id: string): Promise<boolean> {
   if (!supabase) return false
   const { error } = await supabase.rpc('cancel_booking', { p_booking_id: id })
   return !error
+}
+
+// -------------------------------------------------------- giving interest
+
+/**
+ * Record an expression of interest in NASEK Giving.
+ *
+ * The page collected an address, thanked the person and discarded it. The
+ * programme genuinely is planned rather than running — the page says so — but
+ * "we will tell you when it opens" is a promise that needs somewhere to keep
+ * the address, and there wasn't one.
+ *
+ * A duplicate is success, not an error. Somebody signing up twice has expressed
+ * the same intent twice, and reporting failure would be both untrue and a way
+ * of finding out whether an address is already on the list.
+ */
+export async function registerGivingInterest(email: string): Promise<boolean> {
+  if (!supabase) return true
+
+  const { data: auth } = await supabase.auth.getSession()
+  const { error } = await supabase.from('giving_interest').insert({
+    email: email.trim().toLowerCase(),
+    // Null for a signed-out visitor, which is the ordinary case: the form is
+    // offered to everybody, and the policy allows exactly these two values.
+    user_id: auth.session?.user?.id ?? null,
+  })
+
+  if (!error) return true
+  // 23505 is the unique violation on `email`.
+  return error.code === '23505'
 }
 
 // -------------------------------------------------------------------- saved

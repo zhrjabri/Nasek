@@ -1,5 +1,5 @@
 import { defineConfig } from 'vite'
-import { hashedChunks, shared } from './vite.shared'
+import { assertBackendConfigured, hashedChunks, shared } from './vite.shared'
 
 /**
  * The public NASEK site.
@@ -16,6 +16,8 @@ import { hashedChunks, shared } from './vite.shared'
 export default defineConfig({
   ...shared,
   publicDir: 'public',
+  // Fails the build rather than shipping a sign-in with no backend behind it.
+  plugins: [...shared.plugins, assertBackendConfigured('web')],
   build: {
     outDir: 'dist',
     emptyOutDir: true,

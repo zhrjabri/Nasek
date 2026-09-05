@@ -42,6 +42,26 @@ export interface ProviderSignUpInput {
   licenceFileName: string
   /** Object path in the private `provider-licences` bucket, when there is one. */
   licencePath?: string
+  /** What the permit is — an image or a PDF. Decides how the reviewer sees it. */
+  licenceMime?: string
+
+  // ------------------------------------------------ the rest of the application
+  /*
+   * Everything an administrator needs in order to actually verify the company,
+   * rather than merely look at a photograph of a licence. Optional on this type
+   * because the resubmission form may legitimately send a subset; the
+   * registration form requires all of them.
+   */
+  /** Governorate, chosen first — it is what narrows the wilayah list. */
+  governorate?: string
+  address?: string
+  commercialRegistration?: string
+  /** The number printed on the permit, to check against the uploaded scan. */
+  permitNumber?: string
+  /** ISO date. */
+  permitExpiry?: string
+  /** The company profile, in the owner's own words. */
+  description?: string
 }
 
 /** Registration hands back both records: the login and the company it owns. */

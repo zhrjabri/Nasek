@@ -78,23 +78,29 @@ const PUBLIC_ROUTES: [string, string][] = [
   ['giving', '/giving'],
   ['about', '/about'],
   ['sign in', '/signin'],
-  ['sign up chooser', '/signup'],
-  ['customer registration', '/signup/customer'],
-  ['owner registration', '/signup/provider'],
   ['an address that does not exist', '/nothing-here'],
-  // Signed out, so these redirect rather than render — which is itself the
+
+  // Signed out, so this redirects rather than renders — which is itself the
   // behaviour worth checking, since the redirect is the guard.
   ['customer dashboard, signed out', '/dashboard'],
-  ['owner dashboard, signed out', '/provider'],
-  // The retired per-role sign-in addresses still have to resolve.
+
+  /*
+   * Addresses this site used to answer on and no longer owns.
+   *
+   * Two registrations, a role chooser, two per-role sign-ins and the whole
+   * owner portal. Every one has to resolve to *something* — a bookmark that
+   * returns "not found" is indistinguishable from a broken site — and none may
+   * throw, which is what a route pointing at a deleted module would do.
+   */
   ['retired /signin/customer', '/signin/customer'],
   ['retired /signin/owner', '/signin/owner'],
-  // The three states a campaign owner's company can be in. Signed out they all
-  // resolve to the sign-in redirect, which is the point: the guard has to draw
-  // *something* rather than throw on `user.providerId` being undefined, which
-  // is exactly what a status route added without a null check would do.
-  ['owner awaiting verification, signed out', '/provider/pending'],
-  ['owner application refused, signed out', '/provider/review'],
+  ['retired /signup', '/signup'],
+  ['retired /signup/customer', '/signup/customer'],
+  ['retired /signup/provider', '/signup/provider'],
+  ['retired /provider', '/provider'],
+  ['retired /provider/pending', '/provider/pending'],
+  ['the owner portal is not on this host', '/owner'],
+  ['nor any address under it', '/owner/signin'],
 ]
 
 for (const [label, path] of PUBLIC_ROUTES) render(label, path, publicTree)
@@ -131,35 +137,82 @@ check(
 )
 
 /*
- * What customer registration must NOT ask for.
+ * The one door, and everything it must not offer.
  *
- * The screen collects an address and nothing else, and that is a promise about
- * the product rather than a detail of one form: a pilgrim should reach a
- * campaign without filling anything in first. It is the kind of promise that
- * erodes one well-meant field at a time — a name here, a wilayah there, each
- * defensible on its own — so it is asserted rather than trusted.
+ * `/signin` *is* customer registration now — verifying a code on an unknown
+ * address creates the account — so the promises that used to be made about a
+ * separate sign-up screen are made about this one. It collects an address and
+ * nothing else, which is a promise about the product rather than a detail of
+ * one form: a pilgrim should reach a campaign without filling anything in
+ * first. It is the kind of promise that erodes one well-meant field at a time —
+ * a name here, a wilayah there, each defensible on its own — so it is asserted
+ * rather than trusted.
  *
  * Read off the rendered markup, which is where a reinstated field would
  * actually appear. `type="tel"`, `autocomplete="name"` and a password input are
  * the three shapes the removed fields had.
  */
-const customerHtml = renderToStaticMarkup(publicTree('/signup/customer'))
 for (const [label, needle] of [
-  ['customer registration asks for no phone number', 'type="tel"'],
-  ['customer registration asks for no name', 'autocomplete="name"'],
-  ['customer registration asks for no password', 'type="password"'],
+  ['the sign-in page asks for no phone number', 'type="tel"'],
+  ['the sign-in page asks for no name', 'autocomplete="name"'],
+  ['the sign-in page asks for no password', 'type="password"'],
 ] as const) {
-  const found = customerHtml.includes(needle)
+  const found = signInHtml.includes(needle)
   check(label, !found, found ? `found ${needle}` : '')
 }
 check(
-  'customer registration asks for exactly one thing',
-  (customerHtml.match(/<input/g) ?? []).length === 1,
-  `${(customerHtml.match(/<input/g) ?? []).length} input(s)`,
+  'the sign-in page asks for exactly one thing',
+  (signInHtml.match(/<input/g) ?? []).length === 1,
+  `${(signInHtml.match(/<input/g) ?? []).length} input(s)`,
 )
 check(
   'and that one thing is an email address',
-  customerHtml.includes('type="email"'),
+  signInHtml.includes('type="email"'),
+)
+
+/*
+ * ------------------------------------------------ the three doors, separated
+ *
+ * NASEK is three applications and the customer website must carry no trace of
+ * the other two — no link, no button, no wording. `verify:isolation` proves
+ * that against the built bundle; this proves it against the rendered page,
+ * which is the sharper question of the two: not "was the code shipped" but
+ * "did any of it reach the screen".
+ *
+ * The home page and the sign-in page are checked because they are where such a
+ * link would go back: a "for campaign owners" band on the home page and an
+ * "are you a campaign owner?" line under the sign-in form are exactly the two
+ * things that were removed, and exactly the two a well-meaning change would
+ * restore.
+ */
+const OFF_LIMITS: [string, string][] = [
+  ['owner portal link', '/owner'],
+  ['provider route', '/provider'],
+  ['account-creation link', '/signup'],
+  ['mention of a campaign owner', 'campaign owner'],
+  ['Arabic mention of the owner portal', 'أصحاب الحملات'],
+]
+
+for (const [what, needle] of OFF_LIMITS) {
+  for (const [page, html] of [
+    ['home', homeHtml],
+    ['sign-in', signInHtml],
+  ] as const) {
+    const found = html.toLowerCase().includes(needle.toLowerCase())
+    check(`the ${page} page carries no ${what}`, !found, found ? `found "${needle}"` : '')
+  }
+}
+
+/*
+ * And the footer, which every page carries.
+ *
+ * It had a whole "For campaign owners" column — the portal, its registration
+ * and its sign-in. Checking the home page covers it, since the footer renders
+ * there too; naming it separately is what makes a failure legible.
+ */
+check(
+  'the footer offers no campaign owner column',
+  !homeHtml.includes('footer.forProviders') && !homeHtml.toLowerCase().includes('list your campaign'),
 )
 
 console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} CHECK(S) FAILED`)

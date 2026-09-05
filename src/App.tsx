@@ -1,16 +1,13 @@
-import { Suspense, lazy, useEffect } from 'react'
+import { useEffect } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { useI18n } from '@/i18n'
 import { useStore } from '@/store/AppStore'
 import { useSessionSync } from '@/hooks/useSessionSync'
 import { useAuthRedirect } from '@/hooks/useAuthRedirect'
 import { useRemoteData } from '@/hooks/useRemoteData'
-import { useCatalogue } from '@/hooks/useCatalogue'
-import { landingFor, providerLanding } from '@/hooks/useSignIn'
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
 import { ToastHost } from '@/components/layout/ToastHost'
-import { AssistantWidget } from '@/components/assistant/AssistantWidget'
 import { EmptyState, LinkButton, Spinner } from '@/components/ui'
 
 import { HomePage } from '@/pages/HomePage'
@@ -19,83 +16,79 @@ import { CampaignDetailPage } from '@/pages/CampaignDetailPage'
 import { SmartMatchPage } from '@/pages/SmartMatchPage'
 import { MapPage } from '@/pages/MapPage'
 import { BookingPage } from '@/pages/BookingPage'
-import {
-  CustomerSignInPage,
-  CustomerSignUpPage,
-  OwnerSignInPage,
-  SignInPage,
-  SignUpPage,
-} from '@/pages/AuthPages'
-import { ProviderSignUpPage } from '@/pages/ProviderSignUpPage'
-import {
-  ProviderPendingPage,
-  ProviderReviewPage,
-  ProviderSuspendedPage,
-} from '@/pages/ProviderStatusPages'
+import { SignInPage, SignInRedirect } from '@/pages/AuthPages'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { GivingPage } from '@/pages/GivingPage'
 import { AboutPage } from '@/pages/AboutPage'
 
 /**
- * The two chart-heavy dashboards pull in the whole charting library, which no
- * pilgrim browsing campaigns ever needs. Splitting them keeps the public
- * bundle — the one that decides first-paint on a phone — roughly a third
- * smaller.
+ * The NASEK customer website.
+ *
+ * This application is for pilgrims and nobody else, and that is now true of the
+ * *bundle* rather than only of the navigation. There are three NASEK
+ * applications — this one, the Campaign Owner Portal (`src/owner/`) and the
+ * administration dashboard (`src/admin/`) — built by three Vite configs, output
+ * to three directories, deployed to three hosts.
+ *
+ * What that buys, stated plainly: a pilgrim's browser downloads no route, no
+ * component and no string belonging to the other two. Not a hidden link, not a
+ * lazily-loaded chunk, not a dictionary entry. Someone reading this bundle
+ * learns that NASEK lists campaigns and takes bookings, and nothing else.
+ * `npm run verify:isolation` walks the import graph *and* greps the built
+ * output, because the graph is a claim about the source and the output is the
+ * thing that actually ships.
+ *
+ * The routes below are the whole of it: browse, search, read a campaign, sign
+ * in with a one-time code, book, and look at your own bookings.
  */
-const ProviderDashboardPage = lazy(() =>
-  import('@/pages/ProviderDashboardPage').then((m) => ({ default: m.ProviderDashboardPage })),
-)
 
-function RouteFallback() {
-  return (
-    <div className="flex min-h-[60dvh] items-center justify-center">
-      <Spinner className="size-7 text-nasek-600" />
-    </div>
-  )
-}
-
-/** Restore scroll on navigation — a router default that surprises people. */
+/**
+ * Restore scroll on navigation — a router default that surprises people — and
+ * honour a fragment when the link carried one.
+ *
+ * The fragment half is not a nicety. Links in the footer point at sections of
+ * the About page — `/about#privacy`, `#terms`, `#contact` — and every one of
+ * them landed at the top of the page with no indication that anything had been
+ * asked for. Two things conspired: under a hash router the document's own
+ * fragment is `#/about#privacy`, which matches no element, so the browser's
+ * native scrolling has nothing to act on; and the effect below then scrolled to
+ * the top regardless.
+ *
+ * `useLocation().hash` is the router's parse of the part after the *second*
+ * hash, which is the piece that names the section. Where it names something on
+ * the page, that is where to go.
+ */
 function ScrollToTop() {
-  const { pathname } = useLocation()
+  const { pathname, hash } = useLocation()
   useEffect(() => {
+    const target = hash ? document.getElementById(hash.slice(1)) : null
+    if (target) {
+      target.scrollIntoView({ behavior: 'instant' as ScrollBehavior, block: 'start' })
+      return
+    }
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
-  }, [pathname])
+  }, [pathname, hash])
   return null
 }
 
 /**
- * Gate a route behind a signed-in account of a given role.
+ * Gate a route behind a signed-in account.
  *
- * There used to be a second mode here — `unlisted` — which answered "not
- * found" rather than "wrong account", so that the administration route would
- * not admit to existing. It is gone because the route is gone: administration
- * is a separate application on a separate host, and the only thing this file
- * now guards is which of a pilgrim's own pages they are looking at.
+ * There is one such route — `/dashboard`, a pilgrim's own bookings — and no
+ * role check on it any more. That is a simplification the three-application
+ * split earned rather than a guard being dropped: this bundle has no owner
+ * screens and no administration screens to protect, so the only question left
+ * is "are you signed in", and every signed-in person on this site is a person
+ * with bookings to look at. A campaign owner who books a trip for their own
+ * family is a customer while they do it.
  *
  * Worth being precise about what this does and does not do. It decides what to
  * render. It does not decide what data anyone may read — that is settled by
  * row-level security in Postgres, before a row is returned, and would still be
- * settled there if every line of this function were deleted. Typing
- * `/provider` as a pilgrim gets you a message; it never got you anyone's
- * bookings, because the bookings were never sent.
- *
- * An administrator is admitted to `/dashboard` alongside customers, and that is
- * a fix rather than a loophole. Administration lives on another host entirely;
- * on *this* site an administrator is a person with an account like anyone
- * else's, and `landingFor` has always sent them here. Refusing them produced
- * the one genuinely absurd outcome the old guard could manage — signed in
- * successfully, redirected to `/dashboard`, and told the dashboard was for a
- * different kind of account.
+ * settled there if every line of this function were deleted.
  */
-function Protected({
-  role,
-  children,
-}: {
-  role?: 'customer' | 'provider'
-  children: React.ReactNode
-}) {
+function Protected({ children }: { children: React.ReactNode }) {
   const { user, authSettled } = useStore()
-  const { t } = useI18n()
   const location = useLocation()
 
   /*
@@ -111,82 +104,13 @@ function Protected({
 
   if (!user) {
     return (
-      <Navigate to={`/signin?next=${encodeURIComponent(location.pathname + location.search)}`} replace />
-    )
-  }
-
-  const allowed = !role || user.role === role || (role === 'customer' && user.role === 'admin')
-  if (!allowed) {
-    return (
-      <main className="mx-auto max-w-3xl px-4 py-20 sm:px-6">
-        <EmptyState
-          title={t('state.wrongRole')}
-          body={t('state.wrongRoleBody')}
-          action={<LinkButton to={landingFor(user)}>{t('state.wrongRoleCta')}</LinkButton>}
-        />
-      </main>
+      <Navigate
+        to={`/signin?next=${encodeURIComponent(location.pathname + location.search)}`}
+        replace
+      />
     )
   }
   return <>{children}</>
-}
-
-/**
- * The three doors behind `/provider`, and which one is open.
- *
- * A campaign owner's account exists from the moment they register, but their
- * *company* moves through review — pending, approved, refused, suspended — and
- * each of those is a genuinely different screen rather than a different message
- * on the same one. Splitting them into addresses (`/provider`,
- * `/provider/pending`, `/provider/review`) is what lets the owner's own
- * navigation, a bookmark and a link in an email all land somewhere that makes
- * sense.
- *
- * This decides only which of those to *show*. What an unapproved company can
- * actually do is decided in Postgres: `campaigns_read` withholds their trips
- * from the public catalogue, so an owner who bypasses this component entirely
- * still cannot publish. The screen and the policy agree, and the policy is the
- * one that holds.
- */
-function ProviderGate({
-  expect,
-  children,
-}: {
-  /** Which state this route is *for*. Any other state redirects to its own. */
-  expect: 'approved' | 'pending' | 'rejected'
-  children: React.ReactNode
-}) {
-  const { user } = useStore()
-  const { getProvider } = useCatalogue()
-
-  const provider = user?.providerId ? getProvider(user.providerId) : undefined
-
-  /*
-   * An owner whose company row has not arrived yet is treated as approved and
-   * shown the dashboard.
-   *
-   * The alternative — assume the worst and show "awaiting verification" — is
-   * wrong far more often: the snapshot lands a beat after the session on every
-   * single page load, so every approved owner would see a queue-shaped screen
-   * flash before their own dashboard. There is nothing to protect by guessing,
-   * because the dashboard an unapproved owner would briefly see is empty by
-   * policy — `campaigns_read` withholds their trips from the public catalogue
-   * whatever this component draws.
-   */
-  const destination = provider ? providerLanding(provider.verification) : '/provider'
-
-  // No destination means suspended: the one state with no route, because there
-  // is nowhere for a suspended owner to go and pretending otherwise would send
-  // them round a redirect loop.
-  if (!destination) return <ProviderSuspendedPage provider={provider} />
-  if (destination === EXPECTED_ROUTE[expect]) return <>{children}</>
-  return <Navigate to={destination} replace />
-}
-
-/** Which address each of this component's three modes owns. */
-const EXPECTED_ROUTE: Record<'approved' | 'pending' | 'rejected', string> = {
-  approved: '/provider',
-  pending: '/provider/pending',
-  rejected: '/provider/review',
 }
 
 /**
@@ -240,9 +164,7 @@ export function App() {
   // Finishes a sign-in that began in an email. Does nothing on an ordinary
   // page load, which is almost all of them.
   const redirect = useAuthRedirect(navigate)
-  // Fills the store from Postgres, and refills it whenever the session
-  // changes — the policies return a different catalogue to a signed-out
-  // visitor than to an owner.
+  // Fills the store from Postgres, and refills it whenever the session changes.
   useRemoteData()
 
   if (redirect.phase === 'working') return <AuthRedirectScreen />
@@ -272,63 +194,44 @@ export function App() {
           <Route path="/giving" element={<GivingPage />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/signin" element={<SignInPage />} />
-          <Route path="/signin/customer" element={<CustomerSignInPage />} />
-          <Route path="/signin/owner" element={<OwnerSignInPage />} />
-          <Route path="/signup" element={<SignUpPage />} />
-          <Route path="/signup/customer" element={<CustomerSignUpPage />} />
-          <Route path="/signup/provider" element={<ProviderSignUpPage />} />
           <Route path="/booking/:id" element={<BookingPage />} />
           <Route
             path="/dashboard"
             element={
-              <Protected role="customer">
+              <Protected>
                 <DashboardPage />
               </Protected>
             }
           />
-          <Route
-            path="/provider"
-            element={
-              <Protected role="provider">
-                <ProviderGate expect="approved">
-                  <Suspense fallback={<RouteFallback />}>
-                    <ProviderDashboardPage />
-                  </Suspense>
-                </ProviderGate>
-              </Protected>
-            }
-          />
-          {/* Registered, in the queue, nothing to do but wait — and a screen
-              that says exactly that beats a dashboard with every control
-              disabled and no explanation of why. */}
-          <Route
-            path="/provider/pending"
-            element={
-              <Protected role="provider">
-                <ProviderGate expect="pending">
-                  <ProviderPendingPage />
-                </ProviderGate>
-              </Protected>
-            }
-          />
-          {/* Refused. Shows the reason and the form to correct it, because a
-              refusal an owner cannot act on is just a dead end with wording. */}
-          <Route
-            path="/provider/review"
-            element={
-              <Protected role="provider">
-                <ProviderGate expect="rejected">
-                  <ProviderReviewPage />
-                </ProviderGate>
-              </Protected>
-            }
-          />
+
+          {/*
+            Addresses this site used to answer on.
+
+            Every one of them was a way to register — as a pilgrim, or as a
+            campaign owner. There is no registration on this site any more:
+            verifying a code on an unknown address creates the account, so
+            "sign in" and "sign up" were always the same operation with two
+            names, and campaign owners are created by NASEK rather than by a
+            form. They forward to the one door this application has, because a
+            bookmark that answers "not found" is indistinguishable from a
+            broken site.
+          */}
+          <Route path="/signin/customer" element={<SignInRedirect />} />
+          <Route path="/signin/owner" element={<SignInRedirect />} />
+          <Route path="/signup" element={<SignInRedirect />} />
+          <Route path="/signup/customer" element={<SignInRedirect />} />
+          <Route path="/signup/provider" element={<SignInRedirect />} />
+          {/* The owner portal used to live under these. It is a separate
+              application on a separate host now, and this site does not know
+              its address — so these lead home rather than anywhere. */}
+          <Route path="/provider/*" element={<Navigate to="/" replace />} />
+          <Route path="/owner/*" element={<Navigate to="/" replace />} />
+
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </div>
 
       <Footer />
-      <AssistantWidget />
       <ToastHost />
     </div>
   )

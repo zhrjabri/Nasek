@@ -116,6 +116,10 @@ export const adminAr: Record<AdminMessageKey, string> = {
   'admin.noUsersBody': 'جرّب بحثًا آخر، أو أعد التصفية إلى «الكل».',
   'admin.userOwnerNote':
     'هذا الحساب يدير حملة. توثيق الحملة نفسها ومراجعة تصريحها يتمّان من تبويب «أصحاب الحملات».',
+  'admin.campaignModerationFailed': 'رُفض هذا التغيير ولم يُحفظ شيء. أعد التحميل وحاول مرة أخرى.',
+  'admin.reviewModerationFailed': 'رُفض هذا التغيير ولم يُحفظ شيء. أعد التحميل وحاول مرة أخرى.',
+  'admin.userNotAnAccount': 'لا يوجد حساب',
+  'admin.userModerationFailed': 'رُفض هذا التغيير ولم يُحفظ شيء. أعد التحميل وحاول مرة أخرى.',
   'admin.userNote':
     'يُستخرج العملاء من سجل الحجوزات، وهو ما تحتفظ به المنصّة عنهم. حذف الحساب يخفيه من هنا ويمكن التراجع عنه — وتبقى حجوزاته كما هي، فلا تتغيّر أرقام الإيرادات في بقية اللوحة دون أن تدري.',
   'admin.providers': 'أصحاب الحملات',
@@ -150,11 +154,11 @@ export const adminAr: Record<AdminMessageKey, string> = {
   'admin.groupPeople': 'الأشخاص',
   'admin.groupCatalogue': 'المحتوى',
   'admin.backToSite': 'فتح الموقع العام',
-  'admin.loginTitle': 'إدارة ناسِك',
-  'admin.loginSubtitle': 'هذه المنطقة مخصّصة لفريق ناسِك.',
-  'admin.loginNote':
-    'صلاحية الإدارة تُمنح من قاعدة البيانات، لا من هذه الشاشة. تسجيل الدخول بحساب لا يملكها سيُرفض.',
   'admin.checking': 'جارٍ التحقق من صلاحيتك…',
+  'admin.mfaTitle': 'مطلوب التحقّق بخطوتين',
+  'admin.mfaSubtitle': 'خطوة أخيرة',
+  'admin.mfaBody': 'هذا الحساب مرتبط بتطبيق مُصادقة. أدخل الرمز المكوّن من ستّة أرقام من التطبيق لإتمام تسجيل الدخول.',
+  'admin.mfaCodeLabel': 'رمز المُصادقة',
   'admin.deniedTitle': 'لا يمكنك فتح هذه اللوحة',
   'admin.deniedNotAdmin':
     'أنت مُسجّل الدخول، لكن هذا الحساب ليس حساب إدارة. تُمنح الصلاحية من قاعدة البيانات بواسطة من يملكها.',
@@ -162,8 +166,6 @@ export const adminAr: Record<AdminMessageKey, string> = {
   'admin.deniedUnavailable':
     'تعذّر الوصول إلى قاعدة البيانات للتحقق من صلاحيتك. تأكد من اتصالك وحاول مرة أخرى.',
   'admin.signOutAndRetry': 'تسجيل الخروج واستخدام حساب آخر',
-  'admin.identityMisconfigured':
-    'المتغيّر VITE_ADMIN_EMAIL مضبوط لكنه ليس بريداً إلكترونياً صحيحاً، لذا لا يعرف نموذج كلمة المرور أدناه أي حساب يسجّل الدخول به. صحّحه في بيئة النشر وأعد البناء.',
   'admin.localModeTitle': 'وضع محلي — لا توجد قاعدة بيانات مُهيّأة',
   'admin.localModeBody':
     'تعمل هذه اللوحة على بيانات محفوظة في هذا المتصفح فقط. عبارة المرور أدناه بوابة النموذج الأولي، وليست وسيلة حماية. هيّئ Supabase لإدارة حقيقية محميّة من الخادم.',
@@ -194,7 +196,6 @@ export const adminAr: Record<AdminMessageKey, string> = {
     'حساب الإشراف يستطيع إيقاف حملة وإخفاء تقييم وقراءة كل حجز. هو أثمن بيانات دخول في ناسِك — تعامل معه على هذا الأساس.',
   'admin.securityLocalMode':
     'كلمات المرور والتحقق بخطوتين تحتاج مشروع Supabase. هذه اللوحة تعمل الآن على بيانات هذا المتصفح فقط.',
-  'admin.useCodeInstead': 'سجّل الدخول برمز لمرة واحدة بدلاً من ذلك',
   'admin.mfaOnTitle': 'التحقق بخطوتين مفعّل',
   'admin.mfaOnBody':
     'تسجيل الدخول يحتاج كلمة المرور ورمزاً من تطبيق المصادقة. كلمة مرور مسروقة وحدها لا تُدخِل أحداً.',
@@ -218,4 +219,116 @@ export const adminAr: Record<AdminMessageKey, string> = {
   'admin.passwordSave': 'حفظ كلمة المرور',
   'admin.passwordSaved': 'حُفظت كلمة المرور',
   'admin.passwordFailed': 'لم تُقبل كلمة المرور. جرّب واحدة أطول.',
+
+  // ========================================================== رمز الدخول
+  'admin.codeTitle': 'إدارة ناسِك',
+  'admin.codeSubtitle': 'أدخل رمز الدخول إلى لوحة الإدارة',
+  'admin.codeLabel': 'رمز الدخول',
+  'admin.codeEnter': 'فتح لوحة الإدارة',
+  'admin.codeChecking': 'جارٍ التحقق…',
+  'admin.codeEmpty': 'أدخل رمز الدخول.',
+  'admin.codeWrong': 'لم يُقبل هذا الرمز.',
+  'admin.codeRateLimited': 'محاولات كثيرة من هذا الجهاز. انتظر بضع دقائق ثم أعد المحاولة.',
+  'admin.codeUnavailable':
+    'تعذّر الوصول إلى خدمة الدخول. تأكد من نشر دالة admin-access.',
+  'admin.codeNotConfigured':
+    'لم يُضبط رمز دخول على الخادم. انشر دالة admin-access واضبط ADMIN_ACCESS_CODE.',
+  'admin.codeNoAdmin':
+    'لا يوجد حساب إداري بعد. أنشئ حساباً ثم شغّل promote_to_admin() في SQL.',
+  'admin.codeAmbiguous':
+    'يوجد أكثر من حساب إداري. اضبط NASEK_ADMIN_EMAIL على دالة admin-access لتحديد الحساب الذي يفتحه هذا الرمز.',
+  'admin.codeSessionFailed': 'قُبل الرمز لكن تعذّر إنشاء الجلسة. أعد المحاولة.',
+  'admin.codeNote':
+    'يُتحقق من الرمز على الخادم. امتلاكه يمنح جلسة لا صلاحية؛ فما تقرأه هذه اللوحة تحدده is_admin() داخل قاعدة البيانات.',
+  'admin.codeSignOut': 'تسجيل الخروج',
+
+  // ======================================================== اعتماد الحملات
+  'admin.campaignQueue': 'بانتظار المراجعة',
+  'admin.campaignQueueBody': 'لا تظهر أي حملة للحجاج قبل اعتمادها من هنا.',
+  'admin.campaignApprove': 'اعتماد ونشر',
+  'admin.campaignReject': 'رفض',
+  'admin.campaignApproved': 'تم اعتماد «{name}» ونشرها',
+  'admin.campaignRejected': 'رُفضت «{name}» وأُبلغ صاحبها بالسبب',
+  'admin.campaignRejectTitle': 'رفض هذه الحملة',
+  'admin.campaignRejectBody':
+    'يقرأ صاحب الحملة هذا النص حرفياً ويصحّح الحملة بناءً عليه. اذكر الخطأ وما يصلحه.',
+  'admin.campaignRejectReason': 'السبب',
+  'admin.campaignRejectConfirm': 'رفض الحملة',
+  'admin.campaignReasonRequired': 'الرفض يحتاج سبباً يستطيع صاحب الحملة التصرف بناءً عليه.',
+  'admin.campaignStatusFailed': 'رُفض هذا القرار ولم يُحفظ شيء. {detail}',
+  'admin.campaignOwnerUnverified':
+    'هذه الحملة تتبع شركة غير معتمدة بعد. اعتمد الشركة أولاً.',
+  'admin.campaignBackToQueue': 'إعادة إلى المراجعة',
+  'admin.filterPending': 'بانتظار المراجعة',
+  'admin.filterActive': 'منشورة',
+  'admin.filterRejected': 'مرفوضة',
+  'admin.filterSuspended': 'موقوفة',
+  'admin.filterAll': 'الكل',
+  'admin.reviewDetail': 'مراجعة',
+  'admin.campaignSubmitted': 'أُرسلت',
+  'admin.campaignReviewed': 'تاريخ القرار',
+  'admin.campaignNoImages': 'لا توجد صور',
+  'admin.campaignDeadline': 'يُغلق التسجيل',
+  'admin.campaignExcluded': 'غير شامل',
+  'admin.campaignTerms': 'الشروط',
+  'admin.campaignContact': 'التواصل',
+
+  'admin.ownersPendingTitle': 'بانتظار المراجعة',
+  'admin.ownersApprovedTitle': 'معتمدة',
+  'admin.ownersRejectedTitle': 'مرفوضة',
+  'admin.ownerPermitNumber': 'رقم التصريح',
+  'admin.ownerPermitExpiry': 'انتهاء التصريح',
+  'admin.ownerPermitExpired': 'منتهٍ',
+  'admin.ownerCommercialRegistration': 'السجل التجاري',
+  'admin.ownerAddress': 'العنوان',
+  'admin.ownerGovernorate': 'المحافظة',
+  'admin.ownerIncomplete': 'سُجّلت قبل جمع هذه البيانات',
+
+  'admin.mailTitle': 'إرسال الرسائل',
+  'admin.mailBody':
+    'تُدرج رسائل الاعتماد والرفض ضمن القرار نفسه، ثم ترسلها دالة send-emails. تبقى في «قائمة الانتظار» حتى تُشغَّل تلك الدالة — ويُبلَّغ صاحب الحملة في بوابته في الحالتين.',
+  'admin.mailEmpty': 'لم تُدرج أي رسالة بعد.',
+  'admin.mailQueued': 'في الانتظار',
+  'admin.mailSending': 'جارٍ الإرسال',
+  'admin.mailSent': 'أُرسلت',
+  'admin.mailFailed': 'فشلت',
+  'admin.mailRefresh': 'تحديث',
+  // ==================================================== إضافة صاحب حملة
+  'admin.newOwnerTitle': 'إضافة صاحب حملة',
+  'admin.newOwnerBody':
+    'أدخل بيانات الشركة كما وردت في التصريح، وارفع التصريح نفسه، وسترسل ناسِك دعوة بالبريد. يعيّن صاحب الحملة كلمة مروره ويدخل من بوابة أصحاب الحملات. لا يوجد تسجيل عام.',
+  'admin.newOwnerCreate': 'إنشاء وإرسال الدعوة',
+  'admin.newOwnerCreated': 'تمت إضافة {name} وإرسال الدعوة',
+  'admin.newOwnerEmailHint': 'إليه تُرسل الدعوة، وبه يسجّل الدخول.',
+  'admin.newOwnerStatus': 'التوثيق',
+  'admin.newOwnerStatusHint':
+    'الاعتماد هو الخيار المعتاد ما دام التصريح بين يديك. ولا تختر قائمة المراجعة إلا إذا كنت تضيف شركة قبل اكتمال أوراقها.',
+  'admin.newOwnerButton': 'إضافة صاحب حملة',
+  'admin.newOwnerOffline': 'يحتاج ذلك إلى خادم مُهيّأ. لم يُنشأ شيء.',
+  'admin.newOwnerForbidden': 'رُفض الطلب. سجّل الدخول مجدداً ثم أعد المحاولة.',
+  'admin.newOwnerIsAdmin':
+    'هذا العنوان يخص حساباً إدارياً، ولا يمكن للحساب الإداري أن يدير حملة. استخدم عنواناً آخر.',
+  'admin.newOwnerInviteFailed':
+    'تعذّر إنشاء الشركة لأن الدعوة لم تُرسل. راجع إعدادات البريد ثم أعد المحاولة.',
+  'admin.newOwnerExists': 'هذا الحساب يدير حملة على ناسِك بالفعل.',
+  'admin.newOwnerFailed': 'تعذّر إتمام العملية. لم يُنشأ شيء.',
+  'admin.newOwnerNoneBody':
+    'لا يوجد أصحاب حملات بعد. أضف الأول — وسترسل ناسِك إليه دعوة إلى بوابة أصحاب الحملات.',
+
+  // =========================================== مراجعة تعديلات أصحاب الحملات
+  'admin.ownerChangesTitle': 'تحديث بيانات صاحب حملة بانتظار المراجعة',
+  'admin.ownerChangesBody':
+    'قدّمت شركة معتمدة تعديلاً على البيانات التي تحقّقت منها ناسِك. وتبقى بياناتها المعتمدة الحالية سارية حتى تصدر قرارك.',
+  'admin.ownerChangeField': 'الحقل',
+  'admin.ownerChangeNow': 'الحالي',
+  'admin.ownerChangeProposed': 'المقترح',
+  'admin.ownerChangePermit': 'التصريح الجديد',
+  'admin.ownerChangeApprove': 'اعتماد التعديل',
+  'admin.ownerChangeReject': 'رفض',
+  'admin.ownerChangeApproved': '{name} — طُبّق التعديل',
+  'admin.ownerChangeRejected': '{name} — رُفض التعديل وأُبلغ صاحبه بالسبب',
+  'admin.ownerChangeRejectTitle': 'رفض هذا التعديل',
+  'admin.ownerChangeRejectBody':
+    'يقرأ صاحب الحملة هذا النص حرفياً ويصحّح طلبه بناءً عليه. اذكر الخطأ وما يصلحه. وتبقى بياناته المعتمدة الحالية كما هي.',
+
 }

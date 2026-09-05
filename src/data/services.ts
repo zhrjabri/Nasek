@@ -1,7 +1,7 @@
 import type { Bilingual, ServiceKey } from '@/types'
 
 /** The closed vocabulary of campaign services, shared by filters,
- *  the comparison table, campaign detail and the AI layer. */
+ *  campaign detail and the AI layer. */
 export const SERVICES: Record<ServiceKey, { label: Bilingual; icon: string }> = {
   hotel_makkah: { label: { ar: 'سكن في مكة', en: 'Makkah accommodation' }, icon: 'BedDouble' },
   hotel_madinah: { label: { ar: 'سكن في المدينة', en: 'Madinah accommodation' }, icon: 'Building2' },

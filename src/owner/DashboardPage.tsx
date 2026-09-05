@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   Area,
@@ -18,6 +18,8 @@ import {
 import {
   BadgeCheck,
   BarChart3,
+  Bell,
+  Building2,
   Coins,
   LayoutGrid,
   MessageSquare,
@@ -36,10 +38,17 @@ import { useI18n, type MessageKey } from '@/i18n'
 import { WILAYAT, wilayahName } from '@/data/geo'
 import { SERVICE_KEYS, serviceLabel } from '@/data/services'
 
-import { removeCampaign, saveCampaign } from '@/services/data/catalogue'
+import {
+  completePastBookings,
+  removeCampaign,
+  replyToReview,
+  saveCampaign,
+} from '@/services/data/catalogue'
 import { NASEK_FEE_RATE } from '@/services/api/bookings'
+import { isSupabaseConfigured } from '@/services/supabase/client'
 import { useStore } from '@/store/AppStore'
 import { useCatalogue } from '@/hooks/useCatalogue'
+import { useSnapshotLoader } from '@/hooks/useRemoteData'
 import {
   Badge,
   Button,
@@ -50,6 +59,7 @@ import {
   Input,
   LinkButton,
   Modal,
+  Notice,
   ProgressBar,
   Rating,
   Segmented,
@@ -57,24 +67,72 @@ import {
   Textarea,
   cx,
 } from '@/components/ui'
+import { CampaignImagePicker } from './CampaignImagePicker'
+import { CampaignStatusBadge } from '@/components/campaign/CampaignStatusBadge'
+import { CompanyProfilePanel } from './panels/CompanyProfilePanel'
+import { NotificationsPanel } from './panels/NotificationsPanel'
 
-type Tab = 'overview' | 'campaigns' | 'customers' | 'reviews' | 'analytics'
+type Tab =
+  | 'overview'
+  | 'campaigns'
+  | 'customers'
+  | 'reviews'
+  | 'analytics'
+  | 'profile'
+  | 'notifications'
 
+/**
+ * The portal's sections.
+ *
+ * Company profile and notifications are new, and they are the two the brief
+ * named that this dashboard had no answer for at all. Both are placed at the
+ * end rather than the front on purpose: an owner opens this to look at seats
+ * and bookings, and the company's own record is something you go to
+ * deliberately, once, not something that should sit between them and the work.
+ */
 const TABS: { id: Tab; key: MessageKey; icon: typeof LayoutGrid }[] = [
   { id: 'overview', key: 'prov.overview', icon: LayoutGrid },
   { id: 'campaigns', key: 'prov.myCampaigns', icon: Ticket },
   { id: 'customers', key: 'prov.customers', icon: Users },
   { id: 'reviews', key: 'prov.reviews', icon: MessageSquare },
   { id: 'analytics', key: 'prov.analytics', icon: BarChart3 },
+  { id: 'profile', key: 'owner.tabProfile', icon: Building2 },
+  { id: 'notifications', key: 'owner.tabNotifications', icon: Bell },
 ]
 
 /** Monthly subscription tiers — the business model made concrete. */
 const PLAN_PRICE = { basic: 15, plus: 35, premium: 75 } as const
 
-export function ProviderDashboardPage() {
+export function DashboardPage() {
   const { t, lang, bl, money, n, date } = useI18n()
   const { user, dispatch, toast, bookings: allBookings, reviews: allReviews } = useStore()
   const { campaignsOf, getProvider } = useCatalogue()
+  /*
+   * Re-read after publishing, editing or withdrawing a trip.
+   *
+   * `upsertCampaign` and `deleteCampaign` write to `providerCampaigns` and
+   * `hiddenCampaignIds`, which are the offline prototype's store and which
+   * `useCatalogue` stops consulting the moment a snapshot has landed. So every
+   * one of those actions saved correctly to Postgres, said so, and left this
+   * list showing exactly what it showed before — a trip published and
+   * apparently not published.
+   */
+  const { reload } = useSnapshotLoader()
+
+  /*
+   * Bring finished trips up to date when the dashboard opens.
+   *
+   * The owner's booking table filters by status, and 'completed' was a status
+   * nothing ever wrote — so the filter matched nothing and a trip that came
+   * back last month still read as upcoming. `complete_past_bookings` advances
+   * the bookings on this owner's own campaigns; it is idempotent and does
+   * nothing when there is nothing due.
+   */
+  useEffect(() => {
+    void completePastBookings().then((moved) => {
+      if (moved > 0) void reload()
+    })
+  }, [reload])
   // The tab lives in the URL, as it does on the customer dashboard: a
   // refresh, a bookmark or a link from the low-seat warning all land where
   // they should instead of bouncing back to the overview.
@@ -87,8 +145,18 @@ export function ProviderDashboardPage() {
   const [customerQuery, setCustomerQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<BookingStatus | 'all'>('all')
   const [visibleRows, setVisibleRows] = useState(40)
-  const [replies, setReplies] = useState<Record<string, string>>({})
+  /*
+   * The reply in progress, and nothing else.
+   *
+   * There used to be a `replies` map here holding every answer this owner had
+   * written, in component state — so a reply survived until the next tab change
+   * and was never seen by the traveller it answered. The text now lives on the
+   * review row (`reply_ar` / `reply_en`), written by `replyToReview` and
+   * readable by everyone through `reviews_public`; this state is only the
+   * editor that is currently open.
+   */
   const [replyTo, setReplyTo] = useState<{ id: string; text: string } | null>(null)
+  const [savingReply, setSavingReply] = useState(false)
 
   const providerId = user?.providerId ?? 'p1'
   const provider = getProvider(providerId)
@@ -366,6 +434,7 @@ export function ProviderDashboardPage() {
                   <Card className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
+                        <CampaignStatusBadge campaign={c} />
                         <Badge tone={c.type === 'hajj' ? 'gold' : 'green'}>
                           {t(c.type === 'hajj' ? 'common.hajj' : 'common.umrah')}
                         </Badge>
@@ -378,12 +447,33 @@ export function ProviderDashboardPage() {
                         {wilayahName(c.wilayahId, lang)} · {date(c.departureDate)} ·{' '}
                         <span className="nums">{money(c.price)}</span>
                       </p>
+                      {/*
+                        The reason, on the row it belongs to.
+
+                        A refusal an owner cannot read is a dead end with
+                        wording, and the correction they need to make is
+                        usually one field of the form immediately to the right
+                        of this. Putting the two together is what turns a
+                        rejection into something actionable.
+                      */}
+                      {c.status === 'rejected' && (
+                        <p className="mt-2 rounded-[3px] border border-red-200 bg-red-50 px-3 py-2 text-xs leading-relaxed text-red-800">
+                          <span className="font-bold">{t('campaignStatus.reason')}: </span>
+                          {c.rejectionReason || t('prov.reasonMissing')}
+                        </p>
+                      )}
+                      {c.status === 'pending_approval' && (
+                        <p className="mt-2 text-xs leading-relaxed text-gold-800">
+                          {t('campaignStatus.pendingNote')}
+                        </p>
+                      )}
+
                       <div className="mt-2.5 max-w-xs">
                         <ProgressBar
                           value={c.seatsTotal - c.seatsAvailable}
                           max={c.seatsTotal}
                           tone={c.seatsAvailable <= 6 ? 'amber' : 'green'}
-                          label={t('compare.row.seats')}
+                          label={t('campaign.seatsLabel')}
                         />
                         <p className="mt-1.5 nums text-2xs text-ink-400">
                           {t('campaign.seatsBar', {
@@ -408,11 +498,18 @@ export function ProviderDashboardPage() {
                           <Button
                             variant="danger"
                             size="sm"
-                            onClick={() => {
-                              void removeCampaign(c.id)
+                            onClick={async () => {
+                              // Checked rather than fired and forgotten. A
+                              // withdrawal Postgres refused announced itself as
+                              // done and left the trip on the public site.
+                              if (isSupabaseConfigured && !(await removeCampaign(c.id))) {
+                                toast(t('prov.campaignSaveFailed'), 'warning')
+                                return
+                              }
                               dispatch({ type: 'deleteCampaign', id: c.id })
                               toast(t('prov.campaignDeleted'), 'info')
                               setConfirmDelete(null)
+                              await reload()
                             }}
                           >
                             <Trash2 className="size-3.5" />
@@ -425,10 +522,20 @@ export function ProviderDashboardPage() {
                       </div>
                     ) : (
                       <div className="flex items-center gap-2">
-                        <LinkButton to={`/campaigns/${c.id}`} variant="ghost" size="sm">
-                          <ExternalLink className="size-3.5" />
-                          {t('prov.viewPublic')}
-                        </LinkButton>
+                        {/* A link to a page that answers "not found" is worse
+                            than no link. An unapproved trip has no public
+                            address yet, so the control says that instead of
+                            offering to show it. */}
+                        {c.status === 'active' ? (
+                          <LinkButton to={`/campaigns/${c.id}`} variant="ghost" size="sm">
+                            <ExternalLink className="size-3.5" />
+                            {t('prov.viewPublic')}
+                          </LinkButton>
+                        ) : (
+                          <span className="px-2.5 text-xs font-semibold text-ink-400">
+                            {t('prov.viewPublicPending')}
+                          </span>
+                        )}
                         <Button variant="secondary" size="sm" onClick={() => setEditing(c)}>
                           <Pencil className="size-3.5" />
                           {t('common.edit')}
@@ -580,7 +687,9 @@ export function ProviderDashboardPage() {
                 <li key={review.id}>
                   <Card className="p-5">
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-base font-bold text-ink-900">{review.userName}</span>
+                      <span className="text-base font-bold text-ink-900">
+                        {review.userName || t('review.anonymous')}
+                      </span>
                       <Rating value={review.rating} size="sm" />
                     </div>
                     <p className="mt-2.5 text-base leading-relaxed text-ink-600">
@@ -591,7 +700,7 @@ export function ProviderDashboardPage() {
                       {/* The Reply button did nothing at all — the one thing an
                           owner comes to this tab to do. It now writes a reply
                           that shows under the review. */}
-                      {!replies[review.id] && replyTo?.id !== review.id && (
+                      {!bl(review.reply) && replyTo?.id !== review.id && (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -614,11 +723,22 @@ export function ProviderDashboardPage() {
                         <div className="mt-2.5 flex flex-wrap items-center gap-2">
                           <Button
                             size="sm"
+                            loading={savingReply}
                             disabled={!replyTo.text.trim()}
-                            onClick={() => {
-                              setReplies((r) => ({ ...r, [review.id]: replyTo.text.trim() }))
+                            onClick={async () => {
+                              // Written to the review row, then re-read. The
+                              // traveller who wrote the review is the person
+                              // this answers, and they were never shown it.
+                              setSavingReply(true)
+                              const ok = await replyToReview(review.id, replyTo.text)
+                              setSavingReply(false)
+                              if (!ok) {
+                                toast(t('prov.replyFailed'), 'warning')
+                                return
+                              }
                               setReplyTo(null)
                               toast(t('prov.replyPosted'))
+                              await reload()
                             }}
                           >
                             {t('prov.replySend')}
@@ -631,17 +751,17 @@ export function ProviderDashboardPage() {
                       </div>
                     )}
 
-                    {replies[review.id] && (
+                    {bl(review.reply) && replyTo?.id !== review.id && (
                       <div className="mt-3 rounded-[3px] border-s-2 border-nasek-600 bg-nasek-50/60 px-4 py-3">
                         <p className="text-2xs font-bold uppercase tracking-wider text-nasek-700">
                           {t('prov.replyYours')}
                         </p>
                         <p className="mt-1 text-sm leading-relaxed text-ink-700">
-                          {replies[review.id]}
+                          {bl(review.reply)}
                         </p>
                         <button
                           type="button"
-                          onClick={() => setReplyTo({ id: review.id, text: replies[review.id] })}
+                          onClick={() => setReplyTo({ id: review.id, text: bl(review.reply) })}
                           className="mt-2 text-xs font-semibold text-nasek-700 hover:underline"
                         >
                           {t('common.edit')}
@@ -722,6 +842,12 @@ export function ProviderDashboardPage() {
         </section>
       )}
 
+      {/* --------------------------------------------------- company profile */}
+      {tab === 'profile' && <CompanyProfilePanel provider={provider} />}
+
+      {/* ---------------------------------------------------- notifications */}
+      {tab === 'notifications' && <NotificationsPanel />}
+
       {/* ------------------------------------------------------ edit modal */}
       {editing && (
         <CampaignForm
@@ -733,9 +859,23 @@ export function ProviderDashboardPage() {
             // the database actually stored — an insert comes back with a real
             // id, and keeping the local one would orphan every later edit.
             const stored = await saveCampaign(campaign)
+            /*
+             * A null answer means Postgres refused, and it must not be reported
+             * as a save.
+             *
+             * `stored ?? campaign` quietly substituted the unsaved object and
+             * toasted success, so a trip rejected by a policy or a constraint
+             * sat in this browser's store looking published — until the next
+             * load, when it silently vanished.
+             */
+            if (isSupabaseConfigured && !stored) {
+              toast(t('prov.campaignSaveFailed'), 'warning')
+              return
+            }
             dispatch({ type: 'upsertCampaign', campaign: stored ?? campaign })
             toast(t('prov.campaignSaved'))
             setEditing(null)
+            await reload()
           }}
         />
       )}
@@ -882,12 +1022,47 @@ function CampaignForm({
     hotelMadinah: campaign?.hotelMadinah.ar ?? '',
     haramDistanceM: String(campaign?.haramDistanceM ?? 800),
     services: campaign?.services ?? (['hotel_makkah', 'transport', 'visa'] as ServiceKey[]),
+    registrationDeadline: campaign?.registrationDeadline ?? '',
+    excludedServices: campaign?.excludedServices ?? ([] as ServiceKey[]),
+    images: campaign?.images ?? ([] as string[]),
+    contactName: campaign?.contactName ?? '',
+    contactPhone: campaign?.contactPhone ?? '',
+    contactEmail: campaign?.contactEmail ?? '',
+    termsAr: campaign?.terms.ar ?? '',
+    termsEn: campaign?.terms.en ?? '',
   }))
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [confirmClose, setConfirmClose] = useState(false)
   const summaryRef = useRef<HTMLDivElement>(null)
   const initialForm = useRef(form)
   const dirty = JSON.stringify(form) !== JSON.stringify(initialForm.current)
+
+  /**
+   * Has this edit changed what the campaign *offers*?
+   *
+   * A mirror of the `material` expression in `guard_campaign_moderation`, and
+   * mirrors are a liability, so it is worth saying exactly why this one earns
+   * its place. Against a database it decides nothing: the trigger runs, the row
+   * comes back, and `onSave` reloads. Without one — a clone with no setup, which
+   * is a supported way to run NASEK — the store *is* the platform, and the
+   * alternative to this is a demo where approval visibly does nothing.
+   *
+   * The list is the offer: the price, the dates, the deadline, the hotels, the
+   * services, the photographs, the terms, the contact. What is deliberately
+   * absent is `seatsTotal` and `seatsAvailable` — capacity is operational
+   * rather than a claim about the trip, and sending a campaign back to review
+   * because somebody added five seats would teach owners to route around the
+   * queue.
+   */
+  const movesMaterially =
+    !campaign ||
+    (['titleAr', 'titleEn', 'descAr', 'descEn', 'type', 'price', 'wilayahId',
+      'travelMethod', 'departureDate', 'returnDate', 'registrationDeadline',
+      'hotelMakkah', 'hotelMadinah', 'haramDistanceM', 'services',
+      'excludedServices', 'images', 'contactName', 'contactPhone', 'contactEmail',
+      'termsAr', 'termsEn'] as const).some(
+      (key) => JSON.stringify(form[key]) !== JSON.stringify(initialForm.current[key]),
+    )
 
   const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) =>
     setForm((f) => ({ ...f, [key]: value }))
@@ -922,6 +1097,15 @@ function CampaignForm({
     if (Number(form.seatsAvailable) > Number(form.seatsTotal)) {
       next.seatsAvailable = t('prov.errSeatsExceed')
     }
+    // Mirrors `campaigns_deadline_before_departure` in Postgres. Checked here so
+    // the owner reads a sentence instead of a constraint name.
+    if (
+      form.registrationDeadline &&
+      form.departureDate &&
+      form.registrationDeadline > form.departureDate
+    ) {
+      next.registrationDeadline = t('prov.errDeadlineAfter')
+    }
     setErrors(next)
     if (Object.keys(next).length) {
       // The offending field can sit well below the fold in a form this long.
@@ -950,6 +1134,42 @@ function CampaignForm({
       reviewCount: campaign?.reviewCount ?? 0,
       featured: campaign?.featured ?? false,
       bookingsCount: campaign?.bookingsCount ?? 0,
+      registrationDeadline: form.registrationDeadline || undefined,
+      excludedServices: form.excludedServices,
+      images: form.images,
+      contactName: form.contactName.trim() || undefined,
+      contactPhone: form.contactPhone.trim() || undefined,
+      contactEmail: form.contactEmail.trim() || undefined,
+      terms: { ar: form.termsAr, en: form.termsEn || form.termsAr },
+      // Carried through from the row being edited, never invented here. All
+      // three are the platform's to set — `fromCampaign` does not send them,
+      // and `guard_campaign_moderation` would revert an owner who tried — so
+      // this only keeps the object the store holds honest about what the row
+      // says. `saveCampaign` returns the database's answer and that is what
+      // finally lands in the store.
+      suspended: campaign?.suspended ?? false,
+      deleted: campaign?.deleted ?? false,
+      /*
+       * The optimistic guess, not the decision.
+       *
+       * `guard_campaign_moderation` decides for real: a new trip is always
+       * `pending_approval`, and a material edit to one that is live or refused
+       * puts it back in the queue. `onSave` reloads and shows whatever the
+       * database returned, so online this value survives for one render.
+       *
+       * It is still worth getting right, because offline there is no database
+       * to correct it and the store is the whole platform. `movesMaterially`
+       * below is a deliberate mirror of the trigger's list — the server is the
+       * authority, this is only what the screen says while it waits.
+       */
+      status:
+        campaign && !movesMaterially ? campaign.status : ('pending_approval' as const),
+      // Cleared alongside the status for the same reason the trigger clears it:
+      // a refusal reason left on a campaign that has gone back into the queue
+      // reads as a fresh refusal nobody made.
+      rejectionReason: movesMaterially ? undefined : campaign?.rejectionReason,
+      submittedAt: campaign?.submittedAt,
+      reviewedAt: movesMaterially ? undefined : campaign?.reviewedAt,
     })
   }
 
@@ -1077,6 +1297,23 @@ function CampaignForm({
           </Field>
         </div>
 
+        <Field
+          label={t('prov.formDeadline')}
+          hint={t('prov.formDeadlineHint')}
+          error={errors.registrationDeadline}
+        >
+          {(p) => (
+            <Input
+              {...p}
+              type="date"
+              min={today}
+              max={form.departureDate || undefined}
+              value={form.registrationDeadline}
+              onChange={(e) => set('registrationDeadline', e.target.value)}
+            />
+          )}
+        </Field>
+
         <div className={cx('grid gap-4', isNew ? 'sm:grid-cols-2' : 'sm:grid-cols-3')}>
           {/* On a new trip the two seat fields were a trap: nothing is booked
               yet, so "seats still available" can only be the total. It follows
@@ -1169,6 +1406,141 @@ function CampaignForm({
           </p>
         </fieldset>
 
+        {/*
+          What the price does not cover.
+
+          A separate list rather than the inverse of the one above, and the
+          distinction is the whole reason it is worth a fieldset. Treating
+          everything unticked as "excluded" would publish a wall of things
+          nobody claimed — a campaign that never mentioned wheelchairs would
+          announce that it excludes them. Only what an owner deliberately ticks
+          here is stated outright; silence stays silence.
+
+          A service cannot be in both lists. Ticking it here unticks it above,
+          because "included and not included" is a contradiction a pilgrim would
+          have to ring someone about.
+        */}
+        <fieldset>
+          <legend className="mb-1 text-sm font-semibold text-ink-700">
+            {t('prov.formExcluded')}
+          </legend>
+          <p className="mb-2 text-xs leading-relaxed text-ink-400">
+            {t('prov.formExcludedHint')}
+          </p>
+          <div className="grid gap-x-4 sm:grid-cols-2">
+            {SERVICE_KEYS.map((s) => (
+              <Checkbox
+                key={s}
+                checked={form.excludedServices.includes(s)}
+                onChange={() =>
+                  setForm((f) => {
+                    const on = f.excludedServices.includes(s)
+                    return {
+                      ...f,
+                      excludedServices: on
+                        ? f.excludedServices.filter((x) => x !== s)
+                        : [...f.excludedServices, s],
+                      services: on ? f.services : f.services.filter((x) => x !== s),
+                    }
+                  })
+                }
+                label={serviceLabel(s, lang)}
+              />
+            ))}
+          </div>
+        </fieldset>
+
+        {/* ---------------------------------------------- photographs & terms */}
+        <p className="border-t border-ivory-300 pt-4 text-2xs font-bold uppercase tracking-[0.14em] text-ink-400">
+          {t('prov.sectionMedia')}
+        </p>
+
+        <CampaignImagePicker value={form.images} onChange={(images) => set('images', images)} />
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label={t('prov.formTerms')} hint={t('prov.formTermsHint')}>
+            {(p) => (
+              <Textarea
+                {...p}
+                dir="rtl"
+                rows={4}
+                value={form.termsAr}
+                onChange={(e) => set('termsAr', e.target.value)}
+              />
+            )}
+          </Field>
+          <Field label={`${t('prov.formTerms')} (EN)`}>
+            {(p) => (
+              <Textarea
+                {...p}
+                dir="ltr"
+                rows={4}
+                value={form.termsEn}
+                onChange={(e) => set('termsEn', e.target.value)}
+              />
+            )}
+          </Field>
+        </div>
+
+        {/* ------------------------------------------------------- contact */}
+        <p className="border-t border-ivory-300 pt-4 text-2xs font-bold uppercase tracking-[0.14em] text-ink-400">
+          {t('prov.formContact')}
+        </p>
+        <p className="-mt-2 text-xs leading-relaxed text-ink-400">{t('prov.formContactHint')}</p>
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Field label={t('prov.formContactName')}>
+            {(p) => (
+              <Input
+                {...p}
+                value={form.contactName}
+                onChange={(e) => set('contactName', e.target.value)}
+              />
+            )}
+          </Field>
+          <Field label={t('common.phone')}>
+            {(p) => (
+              <Input
+                {...p}
+                type="tel"
+                dir="ltr"
+                value={form.contactPhone}
+                onChange={(e) => set('contactPhone', e.target.value)}
+              />
+            )}
+          </Field>
+          <Field label={t('common.email')}>
+            {(p) => (
+              <Input
+                {...p}
+                type="email"
+                dir="ltr"
+                value={form.contactEmail}
+                onChange={(e) => set('contactEmail', e.target.value)}
+              />
+            )}
+          </Field>
+        </div>
+
+        {/*
+          What saving will actually do, said before the button rather than
+          discovered after it.
+
+          A live campaign returning to the queue because somebody corrected a
+          price is correct behaviour and an unpleasant surprise, so the form
+          says so. The sentence is deliberately specific about what does *not*
+          trigger it — seat counts — because that is the edit owners make most
+          often and the one they would otherwise avoid making.
+        */}
+        {campaign && campaign.status === 'active' && (
+          <Notice tone="info">{t('campaignStatus.resubmitNote')}</Notice>
+        )}
+        {campaign && campaign.status === 'rejected' && campaign.rejectionReason && (
+          <Notice tone="danger" title={t('campaignStatus.reason')}>
+            {campaign.rejectionReason}
+          </Notice>
+        )}
+
         {confirmClose ? (
           <div className="rounded-[3px] border border-amber-200 bg-amber-50 p-4">
             <p className="text-sm font-bold text-amber-900">{t('prov.discardAsk')}</p>
@@ -1188,8 +1560,13 @@ function CampaignForm({
           </div>
         ) : (
           <div className="flex gap-2.5 border-t border-ivory-300 pt-5">
+            {/* The label names the outcome. "Save" on a form whose effect is
+                "send this to NASEK and wait" is a small lie that costs an
+                owner a support message. */}
             <Button type="submit" size="lg" block>
-              {t('prov.saveCampaign')}
+              {isNew || campaign?.status !== 'active'
+                ? t('prov.submitForReview')
+                : t('prov.saveCampaign')}
             </Button>
             <Button type="button" variant="secondary" size="lg" onClick={requestClose}>
               {t('common.cancel')}

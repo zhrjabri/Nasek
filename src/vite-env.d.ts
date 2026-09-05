@@ -17,7 +17,7 @@ interface ImportMetaEnv {
   /** Supabase anon/publishable key. Public by design. */
   readonly VITE_SUPABASE_ANON_KEY?: string
   /** Which of the two applications this bundle is. Set by the Vite config, not the shell. */
-  readonly VITE_NASEK_APP?: 'web' | 'admin'
+  readonly VITE_NASEK_APP?: 'web' | 'owner' | 'admin'
   /**
    * The deployed address of the public site, e.g. `https://nasek.vercel.app/`.
    *
@@ -30,16 +30,31 @@ interface ImportMetaEnv {
   /** The same thing for the administration dashboard. Read only by the admin build. */
   readonly VITE_ADMIN_URL?: string
   /**
-   * The address of the administration account, e.g. `ops@nasek.om`.
+   * And for the Campaign Owner Portal. Read only by the owner build.
    *
-   * Read only by the admin build, and only to answer "which account is this
-   * password for?" — the dashboard asks for a password and nothing else, so the
-   * identifier has to come from somewhere. It is public like everything else
-   * here and that is fine: an address grants nothing, and `is_admin()` inside
-   * Postgres is what actually decides whether the dashboard opens. Leave it
-   * unset and the login screen asks for the address as well.
+   * This is where an invitation link points. An owner is created by an
+   * administrator and emailed a link; if this is unset the link is built from
+   * whatever origin the *administrator's* browser happened to be on, which is
+   * the administration host — and the owner lands on an application that will
+   * not let them in.
    */
-  readonly VITE_ADMIN_EMAIL?: string
+  readonly VITE_OWNER_URL?: string
+  /*
+   * There is deliberately nothing here about administration any more.
+   *
+   * `VITE_ADMIN_EMAIL` used to name the account the dashboard signed in as,
+   * because the dashboard asked for a password and had to be told whose. The
+   * dashboard now opens on a single access code checked by the `admin-access`
+   * Edge Function, and every value that decision needs — the code, and
+   * optionally `NASEK_ADMIN_EMAIL` to name the account it opens — is a secret
+   * of that function.
+   *
+   * That is the whole point of the change, so it is worth being blunt about the
+   * rule it establishes: no `VITE_` variable is a secret. Vite inlines every
+   * one of them into the JavaScript each visitor downloads. Anything that must
+   * not be readable belongs in an Edge Function's environment, and nowhere in
+   * this file.
+   */
 }
 
 interface ImportMeta {

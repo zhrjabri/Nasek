@@ -1,0 +1,301 @@
+/**
+ * Campaign owner strings.
+ *
+ * Held apart from `en.ts` for the same reason `adminEn.ts` is, and it is not
+ * tidiness: these values are imported only by the owner portal's entry and by
+ * the administration entry, so the **public site's bundle contains none of
+ * them**.
+ *
+ * That matters more than it sounds. NASEK has three audiences and three
+ * applications, and a pilgrim's browser should download no evidence that the
+ * other two exist — not a route, not a component, and not the phrase "Campaign
+ * Owner Portal" sitting in a dictionary object that nothing on the public site
+ * can render. Routes and components are the obvious half of a separation; the
+ * dictionary is the half that is easy to forget, and it is the half a curious
+ * reader of the bundle finds first.
+ *
+ * The administration application loads this file *as well as* its own, because
+ * an administrator legitimately manages campaign owners and their campaigns and
+ * needs the words for both. The public site loads neither.
+ *
+ * The *keys* still appear in `MessageKey`, because types are erased at build
+ * time and cost nothing at runtime — so `t('owner.portal')` stays type-checked
+ * everywhere, while the string it resolves to ships only where it is needed.
+ */
+export const ownerEn = {
+  // ------------------------------------------- the dashboard, as it was
+  'prov.title': 'Campaign owner dashboard',
+  'prov.overview': 'Overview',
+  'prov.myCampaigns': 'My campaigns',
+  'prov.customers': 'Customers',
+  'prov.reviews': 'Reviews',
+  'prov.analytics': 'Analytics',
+  'prov.kpiBookings': 'Total bookings',
+  'prov.kpiActive': 'Active campaigns',
+  'prov.kpiSeats': 'Seats still available',
+  'prov.kpiRevenue': 'Revenue',
+  'prov.kpiRating': 'Average rating',
+  'prov.kpiFill': 'Seat fill rate',
+  'prov.addCampaign': 'Add campaign',
+  'prov.editCampaign': 'Edit campaign',
+  'prov.newCampaign': 'New campaign',
+  'prov.formTitle': 'Trip title',
+  'prov.formTitleAr': 'Trip title (Arabic)',
+  'prov.formTitleEn': 'Trip title (English)',
+  'prov.formDescAr': 'Description (Arabic)',
+  'prov.formDescEn': 'Description (English)',
+  'prov.formType': 'Trip type',
+  'prov.formPrice': 'Price per traveller (OMR)',
+  'prov.formWilayah': 'Departure wilayah',
+  'prov.formMethod': 'Travel method',
+  'prov.formDeparture': 'Departure date',
+  'prov.formReturn': 'Return date',
+  'prov.formSeats': 'Total seats',
+  'prov.formSeatsAvailable': 'Seats still available',
+  'prov.formHotelMakkah': 'Makkah accommodation',
+  'prov.formHotelMadinah': 'Madinah accommodation',
+  'prov.formHaram': 'Distance from the Haram (metres)',
+  'prov.formServices': 'Included services',
+  'prov.saveCampaign': 'Save campaign',
+  'prov.campaignSaved': 'Campaign saved',
+  'prov.campaignDeleted': 'Campaign deleted',
+  'prov.deleteConfirm': 'Delete this campaign? Existing bookings are kept.',
+  'prov.noCampaigns': 'You haven’t published any trips yet',
+  'prov.noCampaignsHint': 'Add your first trip so pilgrims can find and book it.',
+  'prov.customerName': 'Customer',
+  'prov.customerPeople': 'People',
+  'prov.customerTrip': 'Trip',
+  'prov.customerDate': 'Booked on',
+  'prov.noCustomers': 'No bookings yet on this campaign',
+  'prov.chartBookings': 'Bookings over time',
+  'prov.chartRevenue': 'Revenue by month',
+  'prov.chartTrips': 'Most booked trips',
+  'prov.chartLocations': 'Where your customers come from',
+  'prov.plan': 'Your NASEK plan',
+  'prov.planNote':
+    'NASEK charges campaign owners a monthly subscription plus a 2% mediation fee on completed bookings.',
+  'prov.planMonthly': 'Monthly subscription',
+  'prov.planCommission': 'Mediation fee (2%)',
+  'prov.planThisMonth': 'Estimated this month',
+  'prov.lowSeats': '{n} trips are almost full',
+  'prov.respondReview': 'Reply',
+  'prov.viewPublic': 'View public page',
+  'prov.deleteAsk': 'Delete this trip?',
+  'prov.discardAsk': 'Discard your unsaved changes?',
+  'prov.discard': 'Discard',
+  'prov.keepEditing': 'Keep editing',
+  'prov.fixErrors': 'Check these fields before saving',
+  'prov.errReturnBefore': 'The return date must come after the departure date.',
+  'prov.errSeatsExceed': 'Cannot be more than the total number of seats.',
+  'prov.seatsNewNote': 'A new trip is published with every seat available.',
+  'prov.servicesCount': '{n} of {total} selected',
+  'prov.searchCustomers': 'Search by traveller, trip or reference',
+  'prov.statusAll': 'All statuses',
+  'prov.showingCount': 'Showing {shown} of {total}',
+  'prov.showMore': 'Show 40 more',
+  'prov.noMatch': 'No booking matches that search',
+  'prov.lowSeatsFix': 'Add seats or let the trip close — a full trip keeps taking bookings otherwise.',
+  'prov.replyPlaceholder': 'Write your reply…',
+  'prov.replySend': 'Post reply',
+  'prov.replyPosted': 'Reply posted',
+  'prov.replyYours': 'Your reply',
+  'prov.replyNote': 'Prototype — replies are kept for this session only.',
+
+  'prov.pendingTitle': 'Your campaign is being verified',
+  'prov.pendingSubtitle': 'We are checking your permit',
+  'prov.pendingBody':
+    'Your account has been submitted for verification. Our team will review your information before activating your campaign provider account.',
+  'prov.pendingMeanwhile':
+    'You will be able to publish trips as soon as your permit is approved. Until then your campaign is not visible to pilgrims.',
+  'prov.submittedOn': 'Submitted',
+  'prov.checkAgain': 'Check again',
+  'prov.suspendedTitle': 'This campaign is suspended',
+  'prov.suspendedSubtitle': 'Your trips are not visible on NASEK',
+  'prov.suspendedBody':
+    'A NASEK administrator has suspended this campaign. Your trips have been withdrawn from the site while it is in place.',
+  'prov.rejectedTitle': 'Your application was not approved',
+  'prov.rejectedSubtitle': 'Correct the details below and send it back',
+  'prov.reasonGiven': 'Why it was refused',
+  'prov.reasonMissing': 'No reason was recorded. Contact NASEK and we will explain.',
+  'prov.replaceLicence': 'Replace the permit (optional)',
+  'prov.replaceLicenceHint': 'Leave this empty to resubmit with the permit already on file.',
+  'prov.resubmit': 'Send it back for review',
+  'prov.resubmitted': 'Sent back — your campaign is in the queue again',
+  'prov.contactSupport': 'Contact NASEK',
+
+  // ============================================================== the portal
+  'owner.portal': 'Campaign Owner Portal',
+  'owner.portalShort': 'Owner Portal',
+  'owner.signInTitle': 'Campaign Owner Portal',
+  'owner.signInSubtitle': 'Sign in with your email and password',
+  'owner.signInCta': 'Sign in',
+  'owner.passwordOnly':
+    'Campaign owners sign in with a password. If you do not have one yet, NASEK will have sent you an invitation.',
+  'owner.wrongDoor':
+    'This account is not a campaign owner. If you believe it should be, contact NASEK.',
+  'owner.noAccount': 'Not a campaign owner yet?',
+  'owner.noAccountBody':
+    'Campaign owners are added by the NASEK team. Get in touch and we will take you through it.',
+  'owner.forgot': 'Forgotten your password?',
+  'owner.forgotTitle': 'Reset your password',
+  'owner.forgotBody':
+    'Enter the email address your company is registered under. We will send a link to set a new password.',
+  'owner.forgotSend': 'Send the reset link',
+  'owner.forgotSent': 'If that address has an owner account, a reset link is on its way.',
+  'owner.forgotBack': 'Back to sign in',
+  'owner.signOut': 'Sign out',
+
+  // ------------------------------------------------- setting the first password
+  'owner.setPasswordTitle': 'Choose your password',
+  'owner.setPasswordBody':
+    'NASEK has verified your company. Set a password and the portal is yours.',
+  'owner.setPasswordCta': 'Save and open the portal',
+  'owner.setPasswordDone': 'Password saved',
+  'owner.setPasswordFailed': 'That password was not accepted. Try a longer one.',
+  'owner.inviteExpired':
+    'That invitation link has expired or has already been used. Ask NASEK to send another.',
+
+  // ------------------------------------------------------------- portal tabs
+  'owner.tabProfile': 'Company profile',
+  'owner.tabNotifications': 'Notifications',
+
+  // ---------------------------------------------------------- company profile
+  'owner.profileTitle': 'Company profile',
+  'owner.profileBody': 'What pilgrims see about your company, and what NASEK verified you with.',
+  'owner.profilePublic': 'Shown on your campaigns',
+  'owner.profilePrivate': 'Held by NASEK only',
+  'owner.profilePrivateNote':
+    'These are what an administrator checked your company against. They are never published and never shown to pilgrims.',
+  'owner.profileNotSet': 'Not provided',
+  'owner.verificationTitle': 'Verification status',
+  'owner.verifiedBody':
+    'Your company is approved. Campaigns you create are reviewed before they go live.',
+  'owner.pendingBody':
+    'Your company is with the NASEK team. You will be told as soon as it is decided.',
+  'owner.rejectedBody': 'Your company was not approved. The reason is below.',
+  'owner.suspendedBody':
+    'Your company account is suspended. Your campaigns are not on the public site.',
+  'owner.permitOnFile': 'Permit on file',
+  'owner.permitView': 'View the permit',
+  'owner.permitNone': 'No permit on file',
+  'owner.permitOpening': 'Opening…',
+  'owner.permitFailed': 'That permit could not be opened. It may have been removed.',
+  'owner.governorate': 'Governorate',
+  'owner.address': 'Address',
+  'owner.addressHint': 'Street, building, and anything else a courier would need.',
+  'owner.commercialRegistration': 'Commercial registration number',
+  'owner.commercialRegistrationHint':
+    'From your Ministry of Commerce record, if the company has one.',
+  'owner.permitNumber': 'Permit / licence number',
+  'owner.permitNumberHint': 'The number printed on the operating permit.',
+  'owner.permitExpiry': 'Permit expiry date',
+  'owner.permitExpiryHint': 'Leave empty if the permit does not expire.',
+  'owner.description': 'About the company',
+  'owner.descriptionHint': 'A short profile pilgrims will read on your campaigns.',
+  'owner.permitExpired':
+    'That date has already passed. The NASEK team will ask for a current permit.',
+
+  // ------------------------------------------------------------ notifications
+  'owner.notificationsEmpty': 'Nothing yet',
+  'owner.notificationsEmptyBody':
+    'Approvals, refusals and booking activity appear here as they happen.',
+  'owner.markAllRead': 'Mark all as read',
+  'owner.markRead': 'Mark read',
+
+  // ============================================================ campaign status
+  'campaignStatus.pending_approval': 'Under review',
+  'campaignStatus.active': 'Live',
+  'campaignStatus.rejected': 'Not approved',
+  'campaignStatus.suspended': 'Suspended',
+  'campaignStatus.pendingNote': 'Under review by NASEK. It is not visible to pilgrims yet.',
+  'campaignStatus.activeNote': 'Live on NASEK and open for bookings.',
+  'campaignStatus.rejectedNote':
+    'Not approved. Correct it and save to send it back for review.',
+  'campaignStatus.suspendedNote':
+    'Suspended by a NASEK administrator. It is not on the public site.',
+  'campaignStatus.reason': 'Why it was not approved',
+  'campaignStatus.resubmitNote':
+    'Changing the price, dates, services, photographs or terms sends this campaign back to NASEK for review. Seat counts do not.',
+  'campaignStatus.submittedOn': 'Sent for review',
+  'campaignStatus.reviewedOn': 'Decided',
+
+  // ==================================================== campaign form additions
+  'prov.formDeadline': 'Registration deadline',
+  'prov.formDeadlineHint': 'The last day someone may book. Never after departure.',
+  'prov.errDeadlineAfter': 'The deadline cannot be after the departure date.',
+  'prov.formExcluded': 'Not included in the price',
+  'prov.formExcludedHint':
+    'Only tick what you want stated outright. Anything left unticked is simply not mentioned.',
+  'prov.formImages': 'Photographs',
+  'prov.formImagesHint': 'Up to {n}. The first one is used on the campaign card.',
+  'prov.imageAdd': 'Add a photograph',
+  'prov.imageRemove': 'Remove',
+  'prov.imageCover': 'Cover',
+  'prov.imageUploading': 'Uploading…',
+  'prov.imageTooMany': 'That is the maximum number of photographs.',
+  'prov.imageTypeError': 'Photographs must be JPEG, PNG or WebP.',
+  'prov.imageSizeError': 'That photograph is larger than 5 MB.',
+  'prov.imageFailed': 'That photograph could not be uploaded. Try again.',
+  'prov.formContact': 'Contact for this campaign',
+  'prov.formContactHint': 'Left empty, pilgrims are given the company details instead.',
+  'prov.formContactName': 'Contact name',
+  'prov.formTerms': 'Terms and conditions',
+  'prov.formTermsHint':
+    'Cancellation, payment, what a pilgrim is agreeing to. Shown on the campaign page.',
+  'prov.sectionMedia': 'Photographs and terms',
+  'prov.submitForReview': 'Send for review',
+  'prov.viewPublicPending': 'Not public yet',
+
+  // ------------------------------------------ recovered working-tree keys
+  // Entries that existed in the editor but had never been committed when the
+  // owner strings were split out of the public dictionary. Kept together so
+  // the next reader can see they belong with the sections above rather than
+  // being a separate concern.
+  'owner.haveAccount': 'Already approved?',
+  'owner.notOwner': 'Booking a trip instead?',
+  'owner.notOwnerLink': 'Go to the NASEK site',
+  'owner.portalBlurb': 'Publish Hajj and Umrah campaigns on NASEK, manage seats, and see every registration in one place.',
+  'owner.registerCta': 'Submit the application',
+  'owner.registerLink': 'Apply to join NASEK',
+  'owner.sectionAccess': 'Your sign-in',
+  'owner.sectionCompany': 'The company',
+  'owner.sectionContact': 'Who we speak to',
+  'owner.sectionLicensing': 'Licensing',
+  'owner.sectionLocation': 'Where you operate',
+  'owner.signInLink': 'Sign in to the portal',
+  'owner.tabAnalytics': 'Analytics',
+  'owner.tabBookings': 'Bookings',
+  'owner.tabCampaigns': 'My campaigns',
+  'owner.tabOverview': 'Overview',
+  'owner.tabReviews': 'Reviews',
+  'prov.campaignSaveFailed': 'That could not be saved. Nothing has changed — please check the details and try again.',
+  'prov.replyFailed': 'That reply could not be saved. Nothing has changed — please try again.',
+  'prov.sectionBasics': 'The trip',
+  'prov.sectionContact': 'Contact and terms',
+  'prov.sectionDates': 'Dates and seats',
+  'prov.sectionStay': 'Accommodation',
+  'prov.sentForReview': 'Sent to NASEK for review',
+
+  // ------------------------------------------------- editing the company
+  'owner.profileEdit': 'Edit company profile',
+  'owner.profileSaved': 'Company profile saved',
+  'owner.profileUnderReview': 'Sent to NASEK — your verified details are under review',
+  'owner.profileSubmit': 'Save and send for review',
+  'owner.profilePublicEditNote':
+    'Marketing and contact details. These save straight away.',
+  'owner.profileVerified': 'Verified details',
+  'owner.profileVerifiedNote':
+    'These are what NASEK checked your company on. Changing any of them sends the change for review — your company stays approved on the details already on file until an administrator agrees to the new ones.',
+  'owner.profileVerifiedFree':
+    'Your company is not approved yet, so these save straight away and an administrator reads them with the rest of your application.',
+  'owner.profileWillReview':
+    'This edit changes verified details, so it will be sent to NASEK for review. Everything else on this page saves immediately.',
+  'owner.profilePendingTitle': 'Changes awaiting review',
+  'owner.profilePendingBody':
+    'NASEK has these and will decide shortly. Your company keeps its current approved details until then.',
+  'owner.permitReplace': 'Replace the permit',
+  'owner.permitReplaceHint':
+    'PDF, JPEG, PNG or WebP. Leave empty to keep the permit already on file.',
+} as const
+
+export type OwnerMessageKey = keyof typeof ownerEn

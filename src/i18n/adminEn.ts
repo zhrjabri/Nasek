@@ -126,6 +126,10 @@ export const adminEn = {
   'admin.noUsersBody': 'Try a different search, or switch the filter back to All.',
   'admin.userOwnerNote':
     'This account runs a campaign. Verifying the campaign itself, and reviewing its permit, is done from the Campaign owners tab.',
+  'admin.campaignModerationFailed': 'That change was refused and nothing was saved. Reload and try again.',
+  'admin.reviewModerationFailed': 'That change was refused and nothing was saved. Reload and try again.',
+  'admin.userNotAnAccount': 'No account',
+  'admin.userModerationFailed': 'That change was refused and nothing was saved. Reload and try again.',
   'admin.userNote':
     'Customers are listed from the booking history, which is the record the platform keeps of them. Removing an account hides it here and can be undone — the bookings behind it stay, so revenue figures elsewhere in this dashboard do not silently change.',
   'admin.providers': 'Campaign owners',
@@ -160,11 +164,11 @@ export const adminEn = {
   'admin.groupPeople': 'People',
   'admin.groupCatalogue': 'Catalogue',
   'admin.backToSite': 'Open the public site',
-  'admin.loginTitle': 'NASEK Administration',
-  'admin.loginSubtitle': 'This area is restricted to NASEK staff.',
-  'admin.loginNote':
-    'Administrator access is granted in the database, never from this screen. Signing in with an account that does not hold it will be refused.',
   'admin.checking': 'Checking your access…',
+  'admin.mfaTitle': 'Two-factor required',
+  'admin.mfaSubtitle': 'One more step',
+  'admin.mfaBody': 'This account has an authenticator enrolled. Enter the current six-digit code from your authenticator app to finish signing in.',
+  'admin.mfaCodeLabel': 'Authenticator code',
   'admin.deniedTitle': 'You cannot open this dashboard',
   'admin.deniedNotAdmin':
     'You are signed in, but this account is not an administrator. Access is granted in the database by someone who already holds it.',
@@ -172,8 +176,6 @@ export const adminEn = {
   'admin.deniedUnavailable':
     'We could not reach the database to confirm your access. Check your connection and try again.',
   'admin.signOutAndRetry': 'Sign out and use another account',
-  'admin.identityMisconfigured':
-    'VITE_ADMIN_EMAIL is set but is not a valid email address, so the password form below cannot know which account to sign in as. Fix it in the deployment environment and rebuild.',
   'admin.localModeTitle': 'Local mode — no database configured',
   'admin.localModeBody':
     'This dashboard is running against data held in this browser only. The passphrase below is the prototype gate; it is not a security control. Configure Supabase for real, server-enforced administration.',
@@ -204,7 +206,6 @@ export const adminEn = {
     'An administration account can suspend a campaign, hide a review and read every booking. It is the most valuable credential on NASEK — treat it as one.',
   'admin.securityLocalMode':
     'Passwords and two-factor need a Supabase project. This dashboard is running against data held in this browser only.',
-  'admin.useCodeInstead': 'Sign in with a one-time code instead',
   'admin.mfaOnTitle': 'Two-factor is on',
   'admin.mfaOnBody':
     'Signing in needs your password and a code from your authenticator app. A stolen password on its own gets nobody in.',
@@ -228,6 +229,127 @@ export const adminEn = {
   'admin.passwordSave': 'Save password',
   'admin.passwordSaved': 'Password saved',
   'admin.passwordFailed': 'That password was not accepted. Try a longer one.',
+
+  // ======================================================== the access code
+  // The dashboard's only door. The code itself lives in the `admin-access`
+  // Edge Function's secrets and is never in this bundle, which is why none of
+  // these strings can say anything about what it is — only about what happened
+  // when one was tried.
+  'admin.codeTitle': 'NASEK administration',
+  'admin.codeSubtitle': 'Enter the administration access code',
+  'admin.codeLabel': 'Access code',
+  'admin.codeEnter': 'Open the dashboard',
+  'admin.codeChecking': 'Checking…',
+  'admin.codeEmpty': 'Enter the access code.',
+  'admin.codeWrong': 'That code was not accepted.',
+  'admin.codeRateLimited':
+    'Too many attempts from here. Wait a few minutes and try again.',
+  'admin.codeUnavailable':
+    'The access service could not be reached. Check that the admin-access function is deployed.',
+  'admin.codeNotConfigured':
+    'No access code has been set on the server. Deploy the admin-access function and set ADMIN_ACCESS_CODE.',
+  'admin.codeNoAdmin':
+    'No administrator account exists yet. Create one and run promote_to_admin() in SQL.',
+  'admin.codeAmbiguous':
+    'More than one administrator account exists. Set NASEK_ADMIN_EMAIL on the admin-access function to name the one this code opens.',
+  'admin.codeSessionFailed':
+    'The code was accepted but the session could not be established. Try again.',
+  'admin.codeNote':
+    'The code is checked on the server. Holding it grants a session, not authority — what this dashboard can read is still decided by is_admin() inside Postgres.',
+  'admin.codeSignOut': 'Sign out',
+
+  // ======================================================= campaign approval
+  'admin.campaignQueue': 'Awaiting review',
+  'admin.campaignQueueBody':
+    'No campaign is visible to pilgrims until it is approved here.',
+  'admin.campaignApprove': 'Approve and publish',
+  'admin.campaignReject': 'Refuse',
+  'admin.campaignApproved': '“{name}” is approved and live',
+  'admin.campaignRejected': '“{name}” was refused, and the owner has been told why',
+  'admin.campaignRejectTitle': 'Refuse this campaign',
+  'admin.campaignRejectBody':
+    'The owner sees this word for word, and corrects the campaign against it. Say what is wrong and what would fix it.',
+  'admin.campaignRejectReason': 'Reason',
+  'admin.campaignRejectConfirm': 'Refuse the campaign',
+  'admin.campaignReasonRequired': 'A refusal needs a reason the owner can act on.',
+  'admin.campaignStatusFailed': 'That decision was refused and nothing was saved. {detail}',
+  'admin.campaignOwnerUnverified':
+    'This campaign belongs to a company that is not approved yet. Approve the company first.',
+  'admin.campaignBackToQueue': 'Send back for review',
+  'admin.filterPending': 'Awaiting review',
+  'admin.filterActive': 'Live',
+  'admin.filterRejected': 'Refused',
+  'admin.filterSuspended': 'Suspended',
+  'admin.filterAll': 'All',
+  'admin.reviewDetail': 'Review',
+  'admin.campaignSubmitted': 'Submitted',
+  'admin.campaignReviewed': 'Decided',
+  'admin.campaignNoImages': 'No photographs',
+  'admin.campaignDeadline': 'Registration closes',
+  'admin.campaignExcluded': 'Not included',
+  'admin.campaignTerms': 'Terms',
+  'admin.campaignContact': 'Contact',
+
+  // ================================================== the owner queue, split
+  'admin.ownersPendingTitle': 'Awaiting review',
+  'admin.ownersApprovedTitle': 'Approved',
+  'admin.ownersRejectedTitle': 'Refused',
+  'admin.ownerPermitNumber': 'Permit number',
+  'admin.ownerPermitExpiry': 'Permit expires',
+  'admin.ownerPermitExpired': 'Expired',
+  'admin.ownerCommercialRegistration': 'Commercial registration',
+  'admin.ownerAddress': 'Address',
+  'admin.ownerGovernorate': 'Governorate',
+  'admin.ownerIncomplete': 'Registered before these details were collected',
+
+  // ======================================================= message delivery
+  'admin.mailTitle': 'Message delivery',
+  'admin.mailBody':
+    'Approvals and refusals are queued inside the decision itself, then sent by the send-emails function. Rows sit here as “queued” until that function runs — the owner is told in their portal either way.',
+  'admin.mailEmpty': 'Nothing has been queued yet.',
+  'admin.mailQueued': 'Queued',
+  'admin.mailSending': 'Sending',
+  'admin.mailSent': 'Sent',
+  'admin.mailFailed': 'Failed',
+  'admin.mailRefresh': 'Refresh',
+  // ==================================================== taking on an owner
+  'admin.newOwnerTitle': 'Add a campaign owner',
+  'admin.newOwnerBody':
+    'Enter the company as it appears on the permit, upload the permit itself, and NASEK emails an invitation. The owner sets their own password and signs in at the Campaign Owner Portal. There is no public registration.',
+  'admin.newOwnerCreate': 'Create and send the invitation',
+  'admin.newOwnerCreated': '{name} has been added and invited',
+  'admin.newOwnerEmailHint': 'Where the invitation goes, and the address they will sign in with.',
+  'admin.newOwnerStatus': 'Verification',
+  'admin.newOwnerStatusHint':
+    'Approved is the usual answer — you have the permit in front of you. Choose the queue only when you are taking a company on before the paperwork is complete.',
+  'admin.newOwnerButton': 'Add campaign owner',
+  'admin.newOwnerOffline': 'This needs a configured backend. Nothing has been created.',
+  'admin.newOwnerForbidden': 'That was refused. Sign in again and retry.',
+  'admin.newOwnerIsAdmin':
+    'That address belongs to an administrator account, which cannot also run a campaign. Use a different address.',
+  'admin.newOwnerInviteFailed':
+    'The company could not be created because the invitation could not be sent. Check the email settings and try again.',
+  'admin.newOwnerExists': 'That account already runs a campaign on NASEK.',
+  'admin.newOwnerFailed': 'That could not be completed. Nothing has been created.',
+  'admin.newOwnerNoneBody':
+    'No campaign owners yet. Add the first one — NASEK emails them an invitation to the Campaign Owner Portal.',
+
+  // =========================================== owner profile change review
+  'admin.ownerChangesTitle': 'A campaign owner profile update is awaiting review',
+  'admin.ownerChangesBody':
+    'An approved company has proposed a change to the details NASEK verified it on. It keeps its current approved information until you decide.',
+  'admin.ownerChangeField': 'Field',
+  'admin.ownerChangeNow': 'Now',
+  'admin.ownerChangeProposed': 'Proposed',
+  'admin.ownerChangePermit': 'New permit',
+  'admin.ownerChangeApprove': 'Approve the change',
+  'admin.ownerChangeReject': 'Refuse',
+  'admin.ownerChangeApproved': '{name} — the change has been applied',
+  'admin.ownerChangeRejected': '{name} — refused, and the owner has been told why',
+  'admin.ownerChangeRejectTitle': 'Refuse this change',
+  'admin.ownerChangeRejectBody':
+    'The owner reads this word for word and corrects their submission against it. Say what is wrong and what would fix it. Their current approved details are kept.',
+
 }
 
 export type AdminMessageKey = keyof typeof adminEn

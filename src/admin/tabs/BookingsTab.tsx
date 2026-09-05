@@ -55,7 +55,11 @@ export function BookingsTab({ campaigns }: { campaigns: Campaign[] }) {
         b.contactPhone.includes(needle)
       )
     })
-  }, [filter, query])
+    // `bookings` belongs here. It arrives from the snapshot a moment after this
+    // component mounts, and leaving it out meant the memo was computed once
+    // against an empty store and never again — so the ledger stayed blank until
+    // the administrator happened to type in the search box.
+  }, [bookings, filter, query])
 
   const stats = useMemo(() => {
     const live = bookings.filter((b) => b.status !== 'cancelled')
@@ -64,7 +68,10 @@ export function BookingsTab({ campaigns }: { campaigns: Campaign[] }) {
       travellers: live.reduce((s, b) => s + b.travellersCount, 0),
       value: live.reduce((s, b) => s + b.totalPrice, 0),
     }
-  }, [])
+    // Same omission, and here it was an empty dependency list: the three
+    // figures at the top of the ledger were frozen at zero for the life of the
+    // page, whatever the database held.
+  }, [bookings])
 
   return (
     <section className="space-y-5">

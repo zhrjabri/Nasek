@@ -43,12 +43,36 @@ export function useToggleSaved() {
       }
 
       const saved = isSaved(campaignId)
-      void setSaved(campaignId, !saved)
-      dispatch({ type: 'toggleSaved', id: campaignId })
-      toast(
-        saved ? t('campaign.unsavedToast') : t('campaign.savedToast'),
-        saved ? 'info' : 'success',
-      )
+
+      const announce = () =>
+        toast(
+          saved ? t('campaign.unsavedToast') : t('campaign.savedToast'),
+          saved ? 'info' : 'success',
+        )
+
+      if (!isSupabaseConfigured) {
+        dispatch({ type: 'toggleSaved', id: campaignId })
+        announce()
+        return
+      }
+
+      /*
+       * The store follows the write rather than racing it.
+       *
+       * The signed-out case above is the failure this hook was written for, and
+       * it is not the only one: a dropped request left the heart filled in and
+       * the toast saying "saved" over a row that was never written, which the
+       * next snapshot would quietly undo. Optimism is the right default for a
+       * toggle this small, but not optimism that cannot be corrected.
+       */
+      void setSaved(campaignId, !saved).then((ok) => {
+        if (ok) {
+          dispatch({ type: 'toggleSaved', id: campaignId })
+          announce()
+        } else {
+          toast(t('campaign.saveFailed'), 'warning')
+        }
+      })
     },
     [user, isSaved, dispatch, toast, t, navigate, location.pathname, location.search],
   )

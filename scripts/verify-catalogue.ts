@@ -10,7 +10,6 @@
 import type { Campaign, Provider } from '@/types'
 import type { SmartMatchInput } from '@/services/ai/types'
 import { applyFilters, applySort, defaultFilters } from '@/services/api/campaigns'
-import { getAI } from '@/services/ai'
 import { scoreCampaigns } from '@/services/ai/smartMatch'
 
 let failures = 0
@@ -60,6 +59,13 @@ const trip = (id: string, providerId: string, over: Partial<Campaign> = {}): Cam
     reviewCount: 10,
     featured: false,
     bookingsCount: 5,
+    // Approved. This harness is about search and ranking, where approval plays
+    // no part — but a fixture that quietly omits it would be one more place a
+    // campaign is constructed as though the state did not exist.
+    status: 'active',
+    excludedServices: [],
+    images: [],
+    terms: { ar: '', en: '' },
     ...over,
   }) as Campaign
 
@@ -110,28 +116,6 @@ const main = async () => {
   check('without the owner list the two are indistinguishable — the old behaviour',
     (blind.find((m) => m.campaign.id === 'c-verified')?.score ?? 0) ===
       (blind.find((m) => m.campaign.id === 'c-pending')?.score ?? 0))
-
-  // ------------------------------------------------------------- assistant
-  console.log('\n--- the assistant ---')
-  const ai = getAI()
-  const withTrips = await ai.ask('I want an umrah trip from Muscat', [], 'en', pool)
-  check('it finds trips that exist on the site',
-    (withTrips.campaignIds?.length ?? 0) > 0,
-    `${withTrips.campaignIds?.length ?? 0} suggested`)
-
-  const withNone = await ai.ask('I want an umrah trip from Muscat', [], 'en', [])
-  check('and says so honestly when the catalogue is empty',
-    (withNone.campaignIds?.length ?? 0) === 0)
-
-  // Math.min() over no trips is Infinity, and this answer quotes a price.
-  const landAir = await ai.ask('land or air', [], 'en', pool)
-  check('the land-vs-air answer never quotes Infinity',
-    !landAir.text.includes('Infinity'), landAir.text.slice(0, 60) + '…')
-  const landAirEmpty = await ai.ask('land or air', [], 'en', [])
-  check('and quotes no price at all when nothing is listed',
-    !landAirEmpty.text.includes('Infinity') && !/\d+ OMR/.test(landAirEmpty.text))
-  const landAirAr = await ai.ask('الفرق بين البري والجوي', [], 'ar', [])
-  check('the Arabic answer is safe too', !landAirAr.text.includes('Infinity'))
 
   console.log(failures === 0 ? '\nALL CATALOGUE CHECKS PASSED' : `\n${failures} CHECK(S) FAILED`)
   if (failures > 0) process.exitCode = 1

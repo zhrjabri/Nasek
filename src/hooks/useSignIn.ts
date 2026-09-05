@@ -1,5 +1,5 @@
 import { useCallback } from 'react'
-import type { Role, User, VerificationStatus } from '@/types'
+import type { User } from '@/types'
 import type { MessageKey } from '@/i18n'
 import { isSupabaseConfigured } from '@/services/supabase/client'
 import { loadSessionSettled, saveProfile } from '@/services/auth/session'
@@ -148,40 +148,21 @@ function defaultName(target: OtpTarget, identifier: string) {
   return target.channel === 'email' ? identifier.split('@')[0] : identifier
 }
 
-/** Where each role lands after signing in on the public site. */
-export const HOME_FOR: Record<Exclude<Role, 'admin'>, string> = {
-  customer: '/dashboard',
-  provider: '/provider',
-}
-
 /**
- * The page to open once someone is through.
+ * Where a signed-in person lands on the customer website.
  *
- * An administrator signing in *here* is signing in as a person, not as an
- * administrator: this application has no dashboard for them and no code to
- * build one from. They land where any pilgrim would.
+ * One answer, for everybody. This used to be a map keyed on `role`, sending a
+ * campaign owner to their dashboard and an administrator to a pilgrim's — which
+ * made sense while all three lived in one application. They do not: the owner
+ * portal and the administration dashboard are separate builds on separate
+ * hosts, and this bundle deliberately does not know their addresses.
+ *
+ * So on *this* site everybody signed in is a customer, including a campaign
+ * owner who has booked an Umrah trip for their own family, which is a perfectly
+ * ordinary thing for them to do.
+ *
+ * `providerLanding` used to live here too and has gone with the routes it named
+ * — `src/owner/OwnerApp.tsx` reads the company's verification status directly
+ * and picks a screen, because the portal has no router for a path to point at.
  */
-export const landingFor = (user: User) =>
-  user.role === 'admin' ? '/dashboard' : HOME_FOR[user.role]
-
-/**
- * Where a campaign owner belongs, given what NASEK has decided about their
- * company.
- *
- * Kept here — pure, with no React and no store — rather than inside the route
- * guard that uses it, because it is the one piece of the provider flow that is
- * worth asserting directly. `npm run verify:auth` walks every status through
- * it, including the legacy `unverified` that nothing writes any more and rows
- * still carry.
- *
- * `suspended` is absent from the return type on purpose: there is no route for
- * it. A suspended owner is shown a message in place of whichever page they
- * asked for, because sending them somewhere would imply there is somewhere to
- * go, and the only way out of a suspension is a person at NASEK.
- */
-export function providerLanding(status: VerificationStatus): string | null {
-  if (status === 'verified') return '/provider'
-  if (status === 'rejected') return '/provider/review'
-  if (status === 'suspended') return null
-  return '/provider/pending'
-}
+export const landingFor = (_user: User): string => '/dashboard'

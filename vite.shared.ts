@@ -107,3 +107,92 @@ export function renameEntry(from: string, outDir: string, to = 'index.html'): Pl
     },
   }
 }
+
+/**
+ * Refuse to build a deployable bundle that has no backend behind it.
+ *
+ * This is here because of a live production incident, and the shape of that
+ * incident is the argument for it. `nasek.vercel.app` was built without
+ * `VITE_SUPABASE_URL` or `VITE_SUPABASE_ANON_KEY` ever reaching the build
+ * environment. Vite inlines those at build time, so the deployed JavaScript
+ * constructed no Supabase client at all — and every fallback in
+ * `src/services/auth` did precisely what it was written to do, which was to
+ * carry on without one. The sign-in screen generated a six-digit code in the
+ * visitor's own browser and printed it on the page. Anyone could sign in as
+ * anyone, no email was ever requested from Supabase, and there was no error
+ * anywhere: the build passed, the typecheck passed, the harnesses passed, the
+ * deployment succeeded.
+ *
+ * That is the failure worth engineering against. A missing variable is a
+ * ten-second fix once you know, and undetectable until someone happens to look
+ * at the sign-in page — so the build is where it has to be caught, before there
+ * is anything to deploy.
+ *
+ * Only `mode === 'production'`, so the two things that legitimately run without
+ * a backend keep working: `npm run dev` on a fresh clone, and the `--mode
+ * harness` builds behind `npm run verify`, which exist to exercise the
+ * no-backend paths.
+ *
+ * The deployed-address variable is a warning rather than an error. Missing, the
+ * app falls back to the origin the page is served from, which is right for a
+ * production domain and wrong for a preview build — bad, but not the silent
+ * catastrophe above, and not worth failing a build someone is running for a
+ * host this repository has not been told about.
+ */
+export function assertBackendConfigured(app: 'web' | 'owner' | 'admin'): Plugin {
+  // Each application is deployed to its own host and each emails links back to
+  // its own address, so each has its own variable. Getting this wrong is
+  // invisible until somebody clicks a link in an email and lands on the wrong
+  // application, which is exactly the failure `npm run auth:urls` exists for.
+  const siteVar =
+    app === 'admin' ? 'VITE_ADMIN_URL' : app === 'owner' ? 'VITE_OWNER_URL' : 'VITE_SITE_URL'
+
+  return {
+    name: 'nasek-assert-backend-configured',
+    apply: 'build',
+    configResolved(config) {
+      if (config.mode !== 'production') return
+
+      const value = (key: string) => String(config.env[key] ?? '').trim()
+      const missing = ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY'].filter((k) => !value(k))
+
+      if (missing.length) {
+        throw new Error(
+          [
+            '',
+            `Refusing to build the ${app} application for production: ${missing.join(' and ')} ${
+              missing.length > 1 ? 'are' : 'is'
+            } not set.`,
+            '',
+            'Vite inlines these at BUILD time. A bundle built without them has no',
+            'Supabase client, so sign-in would fall back to a code generated in the',
+            "visitor's browser and shown on the page — a deployment that authenticates",
+            'nobody while looking like it works.',
+            '',
+            'Set them in the build environment of whatever is running this:',
+            '',
+            '  Vercel   Project -> Settings -> Environment Variables. Tick EVERY',
+            '           environment you deploy — a preview deployment is a public URL',
+            '           and builds in production mode, so Preview needs these too, not',
+            '           only Production. Then redeploy with the build cache OFF:',
+            '           setting a variable after a build changes nothing by itself.',
+            '  GitHub   Repository -> Settings -> Secrets and variables -> Actions',
+            '  Locally  cp .env.example .env, then fill both in',
+            '',
+            'Only the anon / publishable key belongs here. Never the service_role key.',
+            '',
+          ].join('\n'),
+        )
+      }
+
+      if (!value(siteVar)) {
+        config.logger.warn(
+          `\n[nasek] ${siteVar} is not set. Sign-in emails will point at whatever origin\n` +
+            '        the page happens to be served from — correct on the production domain,\n' +
+            '        wrong on a preview deployment, whose origin is never on the Supabase\n' +
+            '        redirect allow-list. See docs/DEPLOYMENT.md.\n',
+        )
+      }
+    },
+  }
+}

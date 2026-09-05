@@ -1,7 +1,6 @@
 /* Temporary verification harness for the NASEK intelligence layer. */
 import { parseNaturalQuery } from '@/services/ai/nlSearch'
 import { scoreCampaigns } from '@/services/ai/smartMatch'
-import { answer } from '@/services/ai/assistant'
 import { CAMPAIGNS } from '@/data/campaigns'
 import { applyFilters, defaultFilters } from '@/services/api/campaigns'
 
@@ -45,19 +44,4 @@ for (const r of results) {
   console.log(`\n${r.score}%  ${r.campaign.title.en}  (${r.campaign.price} OMR)`)
   r.reasons.forEach((x) => console.log(`   + ${x}`))
   r.tradeoffs.forEach((x) => console.log(`   - ${x}`))
-}
-
-console.log('\n=========== ASSISTANT ===========')
-const ASKS: [string, 'ar' | 'en'][] = [
-  ['cheapest umrah from muscat', 'en'],
-  ['هل يجوز أن أعتمر عن والدي المتوفى؟', 'ar'],
-  ['what does a hajj package include?', 'en'],
-  ['أبغى رحلة نسائية', 'ar'],
-  ['how do i book?', 'en'],
-]
-for (const [q, lang] of ASKS) {
-  const a = answer(q, lang)
-  console.log(`\nQ: ${q}`)
-  console.log(`A: ${a.text.split('\n')[0].slice(0, 140)}`)
-  if (a.campaignIds?.length) console.log(`   -> ${a.campaignIds.join(', ')}`)
 }

@@ -51,25 +51,18 @@ export interface MatchResult {
   breakdown: { key: string; label: string; weight: number; earned: number }[]
 }
 
-export interface AssistantMessage {
-  id: string
-  role: 'user' | 'assistant'
-  text: string
-  /** Campaigns the assistant is pointing at, rendered as mini cards. */
-  campaignIds?: string[]
-  /** Follow-up chips offered under the reply. */
-  suggestions?: string[]
-  pending?: boolean
-}
-
 /**
  * The seam between NASEK's UI and whatever produces its intelligence.
  *
- * `LocalAIProvider` (the default) implements all three methods with
- * deterministic on-device logic, so the prototype works with no API key and
- * no network. `RemoteAIProvider` implements the same interface against a
- * server route that calls a hosted model. Nothing in the UI knows which is
- * active — swap them in `services/ai/index.ts`.
+ * `LocalAIProvider` (the default) implements both methods with deterministic
+ * on-device logic, so the prototype works with no API key and no network.
+ * `RemoteAIProvider` implements the same interface against a server route that
+ * calls a hosted model. Nothing in the UI knows which is active — swap them in
+ * `services/ai/index.ts`.
+ *
+ * Both methods end in campaigns a pilgrim opens one at a time. There is no
+ * conversational method: the chat assistant that used to sit alongside these
+ * has been removed from the product rather than left unwired.
  */
 export interface AIProvider {
   readonly id: string
@@ -82,18 +75,4 @@ export interface AIProvider {
     pool: Campaign[],
     providers: Provider[],
   ): Promise<MatchResult[]>
-  /**
-   * Answer a question about the platform and its campaigns.
-   *
-   * `pool` is the catalogue as the session sees it. It has to be passed in:
-   * every trip on NASEK was published by an owner during a session, so an
-   * assistant reading the seed data would tell a pilgrim there are no trips
-   * while the campaigns page listed them.
-   */
-  ask(
-    message: string,
-    history: AssistantMessage[],
-    lang: Lang,
-    pool: Campaign[],
-  ): Promise<Pick<AssistantMessage, 'text' | 'campaignIds' | 'suggestions'>>
 }

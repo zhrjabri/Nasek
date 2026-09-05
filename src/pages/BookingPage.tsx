@@ -25,6 +25,7 @@ import { contactDetailsToKeep } from '@/services/auth/profileGaps'
 import { createBooking } from '@/services/data/catalogue'
 import { useStore } from '@/store/AppStore'
 import { useCatalogue } from '@/hooks/useCatalogue'
+import { useSnapshotLoader } from '@/hooks/useRemoteData'
 import { tripDays } from '@/lib/trip'
 import {
   Badge,
@@ -72,6 +73,9 @@ export function BookingPage() {
   const navigate = useNavigate()
   const { user, dispatch, toast } = useStore()
   const { getCampaign, getProvider } = useCatalogue()
+  // `book_campaign` decrements the trip's seats inside its own transaction, so
+  // every seat count this browser is holding is stale the moment it returns.
+  const { reload } = useSnapshotLoader()
 
   const campaign = id ? getCampaign(id) : undefined
   const [step, setStep] = useState(1)
@@ -122,7 +126,34 @@ export function BookingPage() {
         <EmptyState
           title={t('state.notFoundTitle')}
           body={t('state.notFoundBody')}
-          action={<LinkButton to="/campaigns">{t('compare.browse')}</LinkButton>}
+          action={<LinkButton to="/campaigns">{t('campaign.browse')}</LinkButton>}
+        />
+      </main>
+    )
+  }
+
+  /*
+   * Registration has closed.
+   *
+   * Checked before the sign-in gate rather than after it, which is the whole
+   * reason it is a separate branch: sending somebody through an email, a code
+   * and a verification only to tell them the trip stopped taking bookings last
+   * week is a cruelty the order of two `if`s can avoid.
+   *
+   * ISO strings on both sides, sliced to the day — the same comparison the
+   * campaign page makes, and for the same reason: `Date` comparison would put
+   * a deadline of "today" in the past for every clock east of Greenwich.
+   */
+  if (
+    campaign.registrationDeadline &&
+    campaign.registrationDeadline < new Date().toISOString().slice(0, 10)
+  ) {
+    return (
+      <main className="mx-auto max-w-lg px-4 py-20 sm:px-6">
+        <EmptyState
+          title={t('campaign.deadlinePassed')}
+          body={t('campaign.deadline') + ' · ' + date(campaign.registrationDeadline)}
+          action={<LinkButton to="/campaigns">{t('campaign.browse')}</LinkButton>}
         />
       </main>
     )
@@ -138,16 +169,22 @@ export function BookingPage() {
           </span>
           <h1 className="display text-2xl text-ink-900">{t('booking.signInFirst')}</h1>
           <p className="mt-2.5 text-base text-ink-500">{t('booking.signInNote')}</p>
-          <div className="mt-6 flex flex-col gap-2.5">
+          {/*
+            One button, because there is one door.
+
+            The second used to say "create account" and led to a registration
+            screen that did exactly what signing in does — verifying a code on
+            an unknown address creates the account. Two buttons for one
+            operation made a first-time pilgrim stop and choose, at the moment
+            they had already decided to book.
+          */}
+          <div className="mt-6">
             <LinkButton
               to={`/signin?next=${encodeURIComponent(`/booking/${campaign.id}`)}`}
               size="lg"
               block
             >
               {t('nav.signIn')}
-            </LinkButton>
-            <LinkButton to="/signup" variant="secondary" block>
-              {t('nav.signUp')}
             </LinkButton>
           </div>
         </Card>
@@ -251,6 +288,19 @@ export function BookingPage() {
       })
       setBooking(created)
       setStep(LAST_STEP + 1)
+
+      /*
+       * Re-read the catalogue, so the seats this booking just consumed are gone
+       * from every card that shows them.
+       *
+       * Deliberately after the confirmation is on screen and deliberately not
+       * awaited: the booking is already committed, and a slow refresh must not
+       * hold up the receipt. Without it the campaign page kept advertising the
+       * old count until something else happened to reload the snapshot — which
+       * on a nearly full trip is how two people are told the same last seat is
+       * still available.
+       */
+      void reload()
     } catch {
       toast(t('booking.notEnoughSeats', { n: n(campaign.seatsAvailable) }), 'warning')
     } finally {

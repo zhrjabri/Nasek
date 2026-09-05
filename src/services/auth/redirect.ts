@@ -106,7 +106,9 @@ export function resolveRedirectTarget(
 const configuredSiteUrl: string | undefined =
   import.meta.env.VITE_NASEK_APP === 'admin'
     ? import.meta.env.VITE_ADMIN_URL
-    : import.meta.env.VITE_SITE_URL
+    : import.meta.env.VITE_NASEK_APP === 'owner'
+      ? import.meta.env.VITE_OWNER_URL
+      : import.meta.env.VITE_SITE_URL
 
 export function authRedirectTarget(): string | undefined {
   if (typeof window === 'undefined') return undefined

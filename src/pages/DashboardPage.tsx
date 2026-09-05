@@ -1,33 +1,40 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
   Bell,
   Bookmark,
   CalendarClock,
   CheckCircle2,
+  Star,
   Ticket,
   UserRound,
   XCircle,
 } from 'lucide-react'
 import type { Booking, BookingStatus } from '@/types'
 import { useI18n, type MessageKey } from '@/i18n'
-import { WILAYAT, wilayahName } from '@/data/geo'
 import { bookingsApi } from '@/services/api/bookings'
-import { markNotificationRead } from '@/services/data/catalogue'
-import { saveProfile } from '@/services/auth/session'
+import { isSupabaseConfigured } from '@/services/supabase/client'
+import {
+  cancelBooking,
+  completePastBookings,
+  createReview,
+  markAllNotificationsRead,
+  markNotificationRead,
+} from '@/services/data/catalogue'
 import { useStore } from '@/store/AppStore'
 import { useCatalogue } from '@/hooks/useCatalogue'
+import { useSnapshotLoader } from '@/hooks/useRemoteData'
 import { CampaignCard } from '@/components/campaign/CampaignCard'
+import { AccountPanel } from '@/pages/account/AccountPanel'
 import {
   Badge,
   Button,
   Card,
   EmptyState,
   Field,
-  Input,
   LinkButton,
   Segmented,
-  Select,
+  Textarea,
   cx,
 } from '@/components/ui'
 
@@ -43,22 +50,35 @@ const TABS: { id: Tab; key: MessageKey; icon: typeof Ticket }[] = [
 export function DashboardPage() {
   const { t, lang, setLang, bl, money, n, date } = useI18n()
   const [params, setParams] = useSearchParams()
-  const { user, bookings, savedIds, notifications, unreadCount, dispatch, toast } =
+  const { user, bookings, reviews, savedIds, notifications, unreadCount, dispatch, toast } =
     useStore()
   const { getCampaign, getProvider } = useCatalogue()
+  // Re-read after a cancellation, so the seats the trip just got back are the
+  // ones shown. Subscribes to nothing until it is called.
+  const { reload } = useSnapshotLoader()
 
   const tab = (params.get('tab') as Tab) ?? 'bookings'
   const setTab = (next: Tab) => setParams({ tab: next }, { replace: true })
 
-  const [profile, setProfile] = useState({
-    // Empty, not the greeting. A pilgrim who registered with an address alone
-    // is shown the local part of it around the site; putting that into the
-    // editable name field would invite them to save it as their actual name.
-    name: user?.nameIsPlaceholder ? '' : (user?.name ?? ''),
-    email: user?.email ?? '',
-    phone: user?.phone ?? '',
-    wilayahId: user?.wilayahId ?? 'muscat',
-  })
+  /** The booking whose review form is open, and what has been typed into it. */
+  const [reviewing, setReviewing] = useState<string | null>(null)
+  const [draft, setDraft] = useState({ rating: 5, comment: '' })
+  const [posting, setPosting] = useState(false)
+
+  /*
+   * Bring past trips up to date the moment this page opens.
+   *
+   * `book_campaign` writes 'confirmed' and nothing ever wrote 'completed', so
+   * the status sat unreachable and the review gate behind it was shut against
+   * everybody. `complete_past_bookings` advances the caller's own past-dated
+   * bookings; it is idempotent, scoped by the database to bookings this account
+   * is party to, and cheap when there is nothing to move.
+   */
+  useEffect(() => {
+    void completePastBookings().then((moved) => {
+      if (moved > 0) void reload()
+    })
+  }, [reload])
 
   if (!user) return null
 
@@ -75,11 +95,71 @@ export function DashboardPage() {
     cancelled: bookings.filter((b) => b.status === 'cancelled'),
   }
 
+  /**
+   * Cancel a booking, and give the seats back.
+   *
+   * This called `bookingsApi.cancel` — a mock that resolves after 600ms and
+   * touches nothing — against a live database, so the whole operation was a
+   * toast. The row stayed `confirmed`, the seats were never returned to the
+   * trip, and the next snapshot put the booking back exactly as it was, with
+   * no error anywhere to explain why the cancellation had undone itself.
+   *
+   * `cancel_booking` is the transaction that actually does it: it checks the
+   * booking is the caller's to cancel, flips the status and returns the seats
+   * to the campaign in the same statement. It existed and was never called.
+   *
+   * The store is updated only once the database has agreed. Showing the
+   * cancellation first and discovering the refusal later is the failure this
+   * whole page had.
+   */
   const cancel = async (booking: Booking) => {
     if (!window.confirm(t('dash.cancelConfirm'))) return
+
+    if (isSupabaseConfigured) {
+      if (!(await cancelBooking(booking.id))) {
+        toast(t('dash.cancelFailed'), 'warning')
+        return
+      }
+      dispatch({ type: 'cancelBooking', id: booking.id })
+      toast(t('dash.bookingCancelled'), 'info')
+      // The seat count on every card of this trip is now wrong by one.
+      await reload()
+      return
+    }
+
     await bookingsApi.cancel(booking.id)
     dispatch({ type: 'cancelBooking', id: booking.id })
     toast(t('dash.bookingCancelled'), 'info')
+  }
+
+  /**
+   * Write the review, then re-read so it appears where it belongs.
+   *
+   * The reload is not cosmetic. The insert fires a trigger that recomputes this
+   * trip's rating, and its company's, from every visible review — so the stars
+   * on the campaign card have changed as a result of this action and are stale
+   * in the store until the snapshot is fetched again.
+   *
+   * The database's own refusal is surfaced rather than replaced. "You can
+   * review a trip once you have travelled on it" tells somebody what to do; a
+   * generic failure does not.
+   */
+  const postReview = async (campaignId: string, providerId: string) => {
+    setPosting(true)
+    const result = await createReview({
+      campaignId,
+      providerId,
+      rating: draft.rating,
+      comment: draft.comment,
+    })
+    setPosting(false)
+    if ('error' in result) {
+      toast(result.error, 'warning')
+      return
+    }
+    setReviewing(null)
+    toast(t('review.posted'))
+    await reload()
   }
 
   return (
@@ -146,7 +226,7 @@ export function DashboardPage() {
               icon={<Ticket className="size-5" />}
               title={t('dash.noBookings')}
               body={t('dash.noBookingsHint')}
-              action={<LinkButton to="/campaigns">{t('compare.browse')}</LinkButton>}
+              action={<LinkButton to="/campaigns">{t('campaign.browse')}</LinkButton>}
             />
           ) : (
             (
@@ -172,6 +252,14 @@ export function DashboardPage() {
                             (new Date(campaign.departureDate).getTime() - Date.now()) / 86_400_000,
                           )
                         : 0
+                      // One review per traveller per trip: the unique
+                      // constraint says so, and offering the form again would
+                      // only produce a duplicate-key error.
+                      const reviewed = reviews.some(
+                        (r) => r.campaignId === booking.campaignId && r.userId === user.id,
+                      )
+                      const canReview =
+                        key === 'dash.completed' && booking.status !== 'cancelled' && !reviewed
                       return (
                         <li key={booking.id}>
                           <Card className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
@@ -218,8 +306,94 @@ export function DashboardPage() {
                                   {t('dash.cancelBooking')}
                                 </button>
                               )}
+                              {canReview && reviewing !== booking.id && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setReviewing(booking.id)
+                                    setDraft({ rating: 5, comment: '' })
+                                  }}
+                                  className="text-xs font-semibold text-nasek-700 transition-colors hover:underline"
+                                >
+                                  {t('review.write')}
+                                </button>
+                              )}
+                              {reviewed && (
+                                <span className="text-xs text-ink-400">{t('review.thanks')}</span>
+                              )}
                             </div>
                           </Card>
+
+                          {/* The form opens under the trip it is about rather
+                              than in a dialog: the traveller is looking at the
+                              booking, and the review is about that booking. */}
+                          {reviewing === booking.id && campaign && (
+                            <Card className="mt-2 p-5">
+                              <h3 className="text-base font-bold text-ink-900">
+                                {t('review.formTitle')}
+                              </h3>
+                              <p className="mt-1 text-xs text-ink-500">{t('review.formNote')}</p>
+
+                              <fieldset className="mt-4">
+                                <legend className="mb-1.5 text-xs font-bold uppercase tracking-wider text-ink-500">
+                                  {t('review.rating')}
+                                </legend>
+                                <div className="flex items-center gap-1">
+                                  {[1, 2, 3, 4, 5].map((star) => (
+                                    <button
+                                      key={star}
+                                      type="button"
+                                      aria-label={t('review.stars', { n: n(star) })}
+                                      aria-pressed={draft.rating === star}
+                                      onClick={() => setDraft((d) => ({ ...d, rating: star }))}
+                                      className="rounded-[3px] p-0.5 transition-transform hover:scale-110"
+                                    >
+                                      <Star
+                                        className={cx(
+                                          'size-6',
+                                          star <= draft.rating
+                                            ? 'fill-gold-400 text-gold-400'
+                                            : 'text-ivory-400',
+                                        )}
+                                        strokeWidth={1.5}
+                                      />
+                                    </button>
+                                  ))}
+                                </div>
+                              </fieldset>
+
+                              <div className="mt-4">
+                                <Field label={t('review.comment')}>
+                                  {(fp) => (
+                                    <Textarea
+                                      {...fp}
+                                      rows={3}
+                                      value={draft.comment}
+                                      onChange={(e) =>
+                                        setDraft((d) => ({ ...d, comment: e.target.value }))
+                                      }
+                                    />
+                                  )}
+                                </Field>
+                              </div>
+
+                              <div className="mt-4 flex gap-2">
+                                <Button
+                                  size="sm"
+                                  loading={posting}
+                                  disabled={!draft.comment.trim()}
+                                  onClick={() =>
+                                    void postReview(booking.campaignId, campaign.providerId)
+                                  }
+                                >
+                                  {t('review.submit')}
+                                </Button>
+                                <Button size="sm" variant="ghost" onClick={() => setReviewing(null)}>
+                                  {t('common.cancel')}
+                                </Button>
+                              </div>
+                            </Card>
+                          )}
                         </li>
                       )
                     })}
@@ -239,7 +413,7 @@ export function DashboardPage() {
               icon={<Bookmark className="size-5" />}
               title={t('dash.noSaved')}
               body={t('dash.noSavedHint')}
-              action={<LinkButton to="/campaigns">{t('compare.browse')}</LinkButton>}
+              action={<LinkButton to="/campaigns">{t('campaign.browse')}</LinkButton>}
             />
           ) : (
             <div className="stagger grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -264,7 +438,15 @@ export function DashboardPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => dispatch({ type: 'readAllNotifications' })}
+                    onClick={() => {
+                      // Written to the database as well as to the store. It
+                      // dispatched locally only, so every notification came
+                      // back unread on the next load — while the button beside
+                      // each one, which does call through, made its change
+                      // stick. Two controls for the same thing, disagreeing.
+                      void markAllNotificationsRead()
+                      dispatch({ type: 'readAllNotifications' })
+                    }}
                   >
                     {t('dash.markAllRead')}
                   </Button>
@@ -312,91 +494,27 @@ export function DashboardPage() {
       )}
 
       {/* --------------------------------------------------------- profile */}
-      {tab === 'profile' && (
-        <section className="max-w-xl">
-          <Card className="p-6">
-            <form
-              onSubmit={async (e) => {
-                e.preventDefault()
-                /*
-                 * Write through to the database, then apply locally.
-                 *
-                 * `saveProfile` sends only the fields a person owns and returns
-                 * the row as it actually landed — which may differ from what was
-                 * typed, because the guard trigger reverts anything privileged.
-                 * Applying the returned row rather than the form's own state is
-                 * what stops the interface from displaying a change the database
-                 * declined to make. With no backend configured it returns null
-                 * and the local patch stands, exactly as before.
-                 */
-                const saved = await saveProfile(profile)
-                dispatch({
-                  type: 'updateProfile',
-                  // With no backend `saved` is null and the typed values stand;
-                  // the placeholder flag has to be cleared by hand there, since
-                  // nothing round-tripped through `profileToUser` to compute it.
-                  patch: saved ?? { ...profile, nameIsPlaceholder: !profile.name.trim() },
-                })
-                toast(t('dash.profileSaved'))
-              }}
-              className="space-y-4"
-            >
-              <Field label={t('common.name')}>
-                {(p) => (
-                  <Input
-                    {...p}
-                    value={profile.name}
-                    onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-                  />
-                )}
-              </Field>
-              <Field label={t('common.email')}>
-                {(p) => (
-                  <Input
-                    {...p}
-                    type="email"
-                    dir="ltr"
-                    value={profile.email}
-                    onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                  />
-                )}
-              </Field>
-              <Field label={t('common.phone')}>
-                {(p) => (
-                  <Input
-                    {...p}
-                    type="tel"
-                    dir="ltr"
-                    value={profile.phone}
-                    onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                  />
-                )}
-              </Field>
-              <Field
-                label={t('common.wilayah')}
-                hint={wilayahName(profile.wilayahId, lang)}
-              >
-                {(p) => (
-                  <Select
-                    {...p}
-                    value={profile.wilayahId}
-                    onChange={(e) => setProfile({ ...profile, wilayahId: e.target.value })}
-                  >
-                    {WILAYAT.map((w) => (
-                      <option key={w.id} value={w.id}>
-                        {w.name[lang]}
-                      </option>
-                    ))}
-                  </Select>
-                )}
-              </Field>
-              <Button type="submit" size="lg">
-                {t('common.save')}
-              </Button>
-            </form>
-          </Card>
+      {/*
+        Lifted into its own component, and it grew a great deal while doing
+        so. What was here was four inputs and a save button — one of which,
+        the email field, was writable and silently discarded, because
+        `saveProfile` has never sent that column and the database now reverts
+        it outright.
 
-          <div className="mt-5">
+        `AccountPanel` is view-first with an explicit edit state, adds the
+        governorate and nationality the brief asked for, and treats the
+        sign-in address as what it is: a credential, changed through
+        Supabase with a confirmation email rather than saved like a phone
+        number.
+      */}
+      {tab === 'profile' && (
+        <div className="space-y-5">
+          <AccountPanel user={user} />
+
+          {/* The language switch stays with the account settings rather than
+              moving into the panel: it is a preference of this browser, not
+              a fact about the person, and nothing writes it to the profile. */}
+          <div className="max-w-2xl">
             <p className="mb-2 text-sm font-semibold text-ink-700">{t('common.language')}</p>
             <Segmented
               className="w-full"
@@ -409,7 +527,7 @@ export function DashboardPage() {
               ]}
             />
           </div>
-        </section>
+        </div>
       )}
     </main>
   )

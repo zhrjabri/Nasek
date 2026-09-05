@@ -1,5 +1,11 @@
 import { defineConfig } from 'vite'
-import { hashedChunks, renameEntry, serveEntryAtRoot, shared } from './vite.shared'
+import {
+  assertBackendConfigured,
+  hashedChunks,
+  renameEntry,
+  serveEntryAtRoot,
+  shared,
+} from './vite.shared'
 
 const OUT_DIR = 'dist-admin'
 
@@ -24,6 +30,8 @@ export default defineConfig({
   publicDir: 'public-admin',
   plugins: [
     ...shared.plugins,
+    // Fails the build rather than shipping a sign-in with no backend behind it.
+    assertBackendConfigured('admin'),
     // `/` serves the dashboard in dev, exactly as it does in production.
     serveEntryAtRoot('admin.html'),
     renameEntry('admin.html', OUT_DIR),

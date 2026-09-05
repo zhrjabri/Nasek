@@ -12,7 +12,8 @@ import {
   Watch,
 } from 'lucide-react'
 import { useI18n, type MessageKey } from '@/i18n'
-import { Badge, Card, LinkButton, SectionHeading } from '@/components/ui'
+import { useCatalogue } from '@/hooks/useCatalogue'
+import { Badge, Card, SectionHeading } from '@/components/ui'
 import { LogoMark } from '@/components/brand/Logo'
 
 
@@ -23,15 +24,9 @@ const TRUST: { n: 1 | 2 | 3 | 4; icon: typeof ShieldCheck }[] = [
   { n: 4, icon: Flag },
 ]
 
-/** Provider plans — the revenue model, stated plainly. */
-const PLANS = [
-  { id: 'basic', price: 15, ar: 'أساسي', en: 'Basic' },
-  { id: 'plus', price: 35, ar: 'بلَس', en: 'Plus' },
-  { id: 'premium', price: 75, ar: 'مميّز', en: 'Premium' },
-]
-
 export function AboutPage() {
-  const { t, lang, money, n } = useI18n()
+  const { t, lang, n } = useI18n()
+  const { campaigns } = useCatalogue()
 
   return (
     <main>
@@ -83,44 +78,21 @@ export function AboutPage() {
           </Card>
         </section>
 
-        {/* -------------------------------------------------- plans & fees */}
-        <section id="pricing" className="mt-16">
-          <SectionHeading title={t('footer.pricing')} subtitle={t('prov.planNote')} />
-          <ul className="mt-7 grid gap-4 sm:grid-cols-3">
-            {PLANS.map((plan, i) => (
-              <li key={plan.id}>
-                <Card
-                  className={
-                    i === 1
-                      ? 'relative border-nasek-300 p-6 ring-1 ring-nasek-200'
-                      : 'p-6'
-                  }
-                >
-                  {i === 1 && (
-                    <Badge tone="gold" className="absolute -top-2.5 start-6">
-                      {t('sort.recommended')}
-                    </Badge>
-                  )}
-                  <p className="text-sm font-bold uppercase tracking-wider text-gold-600">
-                    {lang === 'ar' ? plan.ar : plan.en}
-                  </p>
-                  <p className="nums mt-3 text-4xl font-bold leading-none text-ink-900">
-                    {money(plan.price)}
-                  </p>
-                  <p className="mt-1.5 text-xs text-ink-400">/ {t('prov.planMonthly')}</p>
-                  <p className="mt-4 border-t border-ivory-300 pt-4 text-sm leading-relaxed text-ink-500">
-                    {t('prov.planCommission')}
-                  </p>
-                </Card>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-6">
-            <LinkButton to="/signup/provider" size="lg">
-              {t('footer.listCampaign')}
-            </LinkButton>
-          </div>
-        </section>
+        {/*
+          The campaign-owner plans and fees table used to sit here, under
+          `#pricing`.
+
+          It was owner-facing pricing on a customer page — three
+          subscription tiers, a mediation fee and a "list your campaign"
+          button — and its only call to action was into a portal this site
+          no longer links to or knows the address of. What a pilgrim pays
+          is the campaign price, which is on every card; what a company
+          pays NASEK is a conversation with the NASEK team.
+
+          The `#pricing` anchor goes with it. Nothing in this bundle points
+          at it any more — the footer column that did was removed at the
+          same time.
+        */}
 
         {/* --------------------------------------------------- the roadmap */}
         <section className="mt-16">
@@ -176,10 +148,24 @@ export function AboutPage() {
           <ul className="mt-6 grid gap-3 sm:grid-cols-3">
             <ContactRow icon={<Mail className="size-4" />} value="hello@nasek.om" href="mailto:hello@nasek.om" />
             <ContactRow icon={<Phone className="size-4" />} value="+968 2400 0000" href="tel:+96824000000" />
-            <ContactRow icon={<MessageSquare className="size-4" />} value={t('trust.support')} href="#" />
+            {/* `href="#"` here was worse than a dead link. Under a hash router
+                it is not inert: it clears the route fragment and drops the
+                visitor on the home page, so the one row labelled "contact
+                support" was the one that threw away the page they were on.
+                Support is the same address the refusal notice already gives
+                owners. */}
+            <ContactRow
+              icon={<MessageSquare className="size-4" />}
+              value={t('trust.support')}
+              href="mailto:support@nasek.om"
+            />
           </ul>
+          {/* The real count, not a constant. This read "Campaigns: 20 · Demo
+              data" against a live catalogue — a number left over from the
+              seeded prototype, on the one page whose whole subject is what
+              NASEK is honest about. */}
           <p className="mt-6 nums text-xs text-ink-400">
-            {t('hero.statCampaigns')}: {n(20)} · {t('common.demoData')}
+            {t('hero.statCampaigns')}: {n(campaigns.length)}
           </p>
         </section>
       </div>

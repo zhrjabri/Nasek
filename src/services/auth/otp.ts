@@ -25,6 +25,10 @@ import { authRedirectTarget } from './redirect'
  *     prototype runnable with no setup. It says so loudly and shows the code on
  *     screen; it is a demo of the flow, not a security control, and
  *     `isDemoOtp` is exported so the UI can never quietly pretend otherwise.
+ *
+ * The second one cannot reach a deployment. It is compiled out of any
+ * production build — see `ALLOW_LOCAL_OTP_FALLBACK` below for why that gate is
+ * on the build mode rather than on whether a client happens to exist.
  */
 
 export type OtpChannel = 'email' | 'phone'
@@ -68,8 +72,36 @@ export const MAX_OTP_ATTEMPTS = 5
  */
 export const EMAIL_OTP_TYPES = ['email', 'signup'] as const
 
+/**
+ * May the on-device fallback run at all?
+ *
+ * The fallback exists so a fresh clone with no `.env` still demonstrates the
+ * flow, and so `npm run verify:auth` can exercise the code path that must hold
+ * when there is no backend. Neither of those is a deployed site.
+ *
+ * It was gated on nothing but `supabase === null`, and that is the bug this
+ * constant closes. A production build whose `VITE_SUPABASE_*` variables never
+ * reached the build environment produces exactly the same null client as a
+ * fresh clone — so the deployed site silently stopped asking Supabase for
+ * anything, invented six digits in the visitor's own browser, and printed them
+ * on screen. Every visitor could sign in as anyone, and nothing in the build,
+ * the typecheck or the harnesses would have said a word, because from the
+ * code's point of view it was behaving exactly as designed.
+ *
+ * `MODE` is the discriminator rather than `DEV`, and it has to be: Vite sets
+ * `DEV` false for *every* build, including the `--mode harness` ones the
+ * verification scripts run, which would take the fallback away from the tests
+ * that exist to cover it. `MODE` is `development` on the dev server, `harness`
+ * under the verification scripts, and `production` only for a real
+ * `vite build` — so the fallback lives exactly where it is meant to and cannot
+ * be deployed. `assertBackendConfigured()` in `vite.shared.ts` refuses to
+ * produce that build without a backend in the first place; this is the second
+ * lock, on the chance the first is ever removed.
+ */
+export const ALLOW_LOCAL_OTP_FALLBACK = import.meta.env.MODE !== 'production'
+
 /** True when codes are being generated in this browser rather than sent by a server. */
-export const isDemoOtp = supabase === null
+export const isDemoOtp = supabase === null && ALLOW_LOCAL_OTP_FALLBACK
 
 // --------------------------------------------------------------- normalising
 
@@ -192,18 +224,49 @@ export async function startOtp(target: OtpTarget): Promise<OtpStartResult> {
           })
 
     if (error) {
+      /*
+       * Two different limits reach here, and telling them apart is the whole
+       * value of this branch.
+       *
+       *   * A short per-address cooldown — "you can only request this after 51
+       *     seconds" — which is over in under a minute and is genuinely "wait a
+       *     moment".
+       *   * The project's *hourly email quota*, which Supabase's built-in mail
+       *     service caps very low because it is meant for development. Once
+       *     that is exhausted nobody can sign in until the hour rolls over, and
+       *     no amount of waiting a moment helps. Telling somebody to "wait a
+       *     moment" when the real answer is "this project cannot send any more
+       *     email this hour" is how an operator spends an afternoon retrying a
+       *     button.
+       *
+       * Supabase words the second one as an "email rate limit exceeded" with no
+       * seconds in it, so the presence of a countdown is what separates them.
+       */
+      const message = error.message
+      const seconds = message.match(/(\d+)\s*second/i)?.[1]
+      const shortCooldown = seconds !== undefined
+      const limited = /rate|limit|seconds|too many/i.test(message)
+
       return {
         ok: false,
-        cooldownSeconds: 0,
-        // Supabase rate-limits sending, and that is worth naming precisely:
-        // "try again" is useless advice when the answer is "in 40 seconds".
-        error: /rate|limit|seconds/i.test(error.message) ? 'rate_limited' : 'send_failed',
+        cooldownSeconds: shortCooldown ? Number(seconds) : 0,
+        error: limited ? (shortCooldown ? 'rate_limited' : 'quota_exhausted') : 'send_failed',
       }
     }
     return { ok: true, cooldownSeconds: RESEND_COOLDOWN_SECONDS }
   }
 
   // ------------------------------------------------------- no backend
+  /*
+   * In a production build there is no fallback, only a fault. Saying so is the
+   * whole point: a deployment that lost its Supabase variables must look
+   * broken, because it is, rather than looking like a working sign-in that
+   * authenticates nobody.
+   */
+  if (!ALLOW_LOCAL_OTP_FALLBACK) {
+    return { ok: false, cooldownSeconds: 0, error: 'not_configured' }
+  }
+
   const code = generateCode()
   const salt = crypto.getRandomValues(new Uint8Array(16))
   writeDemo({
@@ -275,6 +338,8 @@ export async function verifyOtp(target: OtpTarget, code: string): Promise<OtpVer
   }
 
   // ------------------------------------------------------- no backend
+  if (!ALLOW_LOCAL_OTP_FALLBACK) return { ok: false, error: 'not_configured' }
+
   const record = readDemo()
   if (!record || record.target !== normalised) return { ok: false, error: 'wrong_code' }
   if (Date.now() > record.expiresAt) {

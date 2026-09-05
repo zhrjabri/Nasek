@@ -1,7 +1,7 @@
 # ناسِك | NASEK
 
 An interactive prototype of the NASEK platform — an Omani marketplace that gathers
-Hajj and Umrah campaigns in one place so pilgrims can search, compare and book,
+Hajj and Umrah campaigns in one place so pilgrims can search, choose and book,
 and campaign owners can publish trips and manage registrations.
 
 Built from the original NASEK business documents (`Nasek.docx`, `Nasek Platform.docx`
@@ -17,9 +17,31 @@ and the 32 app mockups), extended into a modern bilingual web application.
 
 ```bash
 npm install
-npm run dev          # public site       http://localhost:5173
-npm run dev:admin    # administration    http://localhost:5174
+npm run dev          # customer website      http://localhost:5173
+npm run dev:owner    # campaign owner portal http://localhost:5175
+npm run dev:admin    # administration        http://localhost:5174
 ```
+
+**Three applications, three doors, three hosts.** Not one site with three
+sign-in options — three separate builds that share a database and share no
+navigation at all.
+
+| | Local | How you get in |
+| --- | --- | --- |
+| **Customer website** | `:5173` | nothing, to browse. Email + one-time code to book |
+| **Campaign Owner Portal** | `:5175` | email + password. Accounts are created by NASEK |
+| **Administration** | `:5174` | one access code, checked server-side |
+
+A pilgrim's browser downloads **no** route, component or string belonging to the
+other two. There is no owner link in the navbar, none in the footer, none on the
+sign-in page, and no "are you a campaign owner?" anywhere — a customer should
+not learn from this site that the other applications exist.
+
+That is a claim about what ships, so it is checked against what ships:
+`npm run verify:isolation` walks the import graph *and* greps `dist/` for owner
+and administration wording, and `npm run verify:render` greps the rendered
+markup of the home and sign-in pages for the same. Both fail the build rather
+than warning.
 
 It runs with no configuration at all. Without a Supabase project NASEK falls
 back to on-device data and shows sign-in codes on screen — useful for a demo,
@@ -28,93 +50,114 @@ and it says so in a banner rather than pretending otherwise. See
 
 | Script | What it does |
 | --- | --- |
-| `npm run dev` / `dev:admin` | Dev server for each application |
-| `npm run build` | Typecheck, then build both to `dist/` and `dist-admin/` |
-| `npm run build:web` / `build:admin` | Build one |
-| `npm run preview` / `preview:admin` | Serve a production build |
+| `npm run dev` / `dev:owner` / `dev:admin` | Dev server for each application |
+| `npm run build` | Typecheck, then build all three to `dist/`, `dist-owner/`, `dist-admin/` |
+| `npm run build:web` / `build:owner` / `build:admin` | Build one |
+| `npm run preview` / `preview:owner` / `preview:admin` | Serve a production build |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm run verify` | All 246 checks below |
+| `npm run verify` | All 339 checks below |
 | `npm run verify:auth` | Phone normalisation, the one-time-code lifecycle, password rules, and where each role lands |
-| `npm run verify:isolation` | That no administration code reached the public bundle |
-| `npm run verify:journeys` | Owner → pilgrim → admin, end to end |
+| `npm run verify:isolation` | That no owner or administration code reached the customer bundle |
+| `npm run verify:journeys` | Owner registers → publishes → NASEK approves → pilgrim books → admin moderates, end to end |
 | `npm run verify:ai` | The intelligence layer against fixed inputs |
 | `npm run verify:map` | Every wilayah marker projects inside Oman's borders |
 | `npm run auth:urls` | Whether Supabase would honour the addresses sign-in emails point at |
 
 ### Signing in
 
-There are no demo accounts, and three doors that deliberately look nothing alike.
+There are no demo accounts, and three doors that share nothing.
 
-**A pilgrim registers on an email address and nothing else.** Type it, prove you
-received the code, and you have an account — no name, no phone number, no
-wilayah, no password, no terms checkbox. Registering and signing in are the same
-three steps, because they are the same operation: the code is sent with
-`shouldCreateUser`, so a first-time pilgrim and a returning one take an
-identical path and there is no "no account found" dead end.
+**A pilgrim types an address and a code.** That is the whole of it. There is no
+"create account" button, because verifying a code against an unknown address
+*is* creating the account — `shouldCreateUser` is true, so a first-time pilgrim
+and a returning one take an identical path and there is no "no account found"
+dead end. Offering both a sign-in and a sign-up would be two names for one
+operation, and a returning visitor wondering which they used last time.
 
-The profile stays that minimal on purpose. Everything a campaign actually needs
-— the contact name, a phone number, traveller passports and civil IDs — is
-collected on the **booking form**, at the point it becomes load-bearing, and the
-name and phone are written back to the profile there so they are asked once and
-never again. A pilgrim who browses and does not book is never asked for
-anything. Where the project has Google configured, **Continue with Google**
-appears above the code and skips even the code; the button stays hidden when it
-is not, because an OAuth provider that is not enabled fails by throwing the
-person out of the site.
+The profile stays minimal on purpose. Everything a campaign actually needs — the
+contact name, a phone number, traveller passports and civil IDs — is collected
+on the **booking form**, at the point it becomes load-bearing, and the name and
+phone are written back to the profile there so they are asked once and never
+again. A pilgrim who browses and does not book is never asked for anything.
 
-**A campaign owner registers a company**, and that flow is unchanged and
-deliberately heavier: company details, years of trading, the operating permit,
-and a password set at the end of the registration. Registering leaves the
-company `pending` in the administrator's verification queue, and
-`campaigns_read` in Postgres — not the interface — keeps its trips out of the
-public catalogue until someone has read the permit.
+No password on this screen, and no "Continue with Google". Both were removed
+with the three-door split: the two roles that hold a password each have an
+application of their own, and a second way to do the one thing this page does is
+a choice nobody arriving here wants to make.
 
-**An administrator types a password and nothing else.** There is one
-administration account, named at build time by `VITE_ADMIN_EMAIL`, so the login
-screen carries the address and asks only for the secret. Typing an address never
-protected anything: `is_admin()` runs inside Postgres against a signed token,
-and that is what actually decides whether the dashboard opens. Administrators
-can enrol an authenticator app from **Security** in the dashboard sidebar, and
-should. The one-time code remains as the recovery path — sent to the same
-configured address, still without asking for it.
+**A campaign owner signs in at their own portal, with a password.** A separate
+build on a separate host, with its own header and its own sign-in — no one-time
+code on it anywhere, because that is the pilgrims' method. Recovery is a reset
+link, which proves control of the same address a code would and ends in a
+password rather than in a session with none.
 
-An owner or an administrator who has a password can also use it on the public
-sign-in screen, folded away under the code, because the many people arriving
-there have no password and never will.
+There is **no public registration**. Owners are taken on by NASEK: an
+administrator enters the company, the licensing numbers and the address, uploads
+and reads the operating permit — image or PDF — and sends an invitation. The
+owner sets their own password from that link and lands in the portal. That
+removes a whole job from the verification queue: everything in it is there
+because a person at NASEK put it there, rather than because a form was open to
+the internet.
 
-What arrives depends on the project's email templates, and NASEK accepts either:
-a **six-digit code** to type, or a **sign-in link** to click. Supabase's default
-templates send a link and cannot be edited without custom SMTP, so the link is
-the common case; `services/auth/redirect.ts` completes that sign-in and lands
-the person on the right dashboard. With no backend configured at all, a code is
-generated on-device and shown on screen.
+**An administrator types one access code.** Not an address, not a password. The
+code is held in the `admin-access` Edge Function's environment, compared there in
+constant time, rate-limited per source, and never reaches the browser in any
+form — there is no hash of it in the bundle and no `VITE_` variable naming
+anything about it. On a correct code the function checks in the database that the
+target account really is an administrator, then mints a single-use magic-link
+token which the browser redeems for an ordinary Supabase session.
 
-Administration is a **separate application on its own host** and is not
-reachable from the public site at any address. Granting it is a database
-operation, never a screen:
+That last part is the point: the code is a *door*, not authority. `is_admin()`
+still runs inside Postgres against a signed token and the policies still scope
+every row, so a session obtained by defeating every line of the client reads
+exactly what a pilgrim's reads. Administrators can enrol an authenticator app
+from **Security** in the sidebar, and should — the second factor is checked at
+the gate whichever door opened the session.
+
+Granting administration is a database operation, never a screen:
 
 ```sql
 select * from public.promote_to_admin('you@example.com');
 ```
 
+What arrives in an email depends on the project's templates, and NASEK accepts
+either: a **six-digit code** to type, or a **sign-in link** to click. Supabase's
+default templates send a link and cannot be edited without custom SMTP, so the
+link is the common case; `services/auth/redirect.ts` completes that sign-in.
+With no backend configured at all, a code is generated on-device and shown on
+screen.
+
 ---
 
 ## The journeys that work end to end
 
-**Pilgrim** — Home → smart or field search → filtered listing → campaign detail →
-compare up to 3 → sign up with an email address alone → 4-step booking, which is
-where the traveller and contact details are collected → confirmation with
+**Pilgrim** — Home → smart or field search → filtered listing → campaign detail,
+one trip at a time → sign up with an email address alone → 4-step booking, which
+is where the traveller and contact details are collected → confirmation with
 reference → dashboard, with the profile now filled in from what the booking
-asked for.
+asked for. Everything up to the booking is open to a signed-out visitor: an
+address is asked for at the moment it is needed, never to browse.
 
-**Campaign owner** — Register as owner → dashboard → add a trip → it appears
-immediately in the public listing, map and search → manage bookings → analytics.
+**Campaign owner** — an administrator adds the company and sends an invitation →
+the owner opens the **Campaign Owner Portal**, a separate application on its own
+host, and sets a password → signs in with **email and password** → dashboard →
+creates a campaign → it goes to NASEK for review, **not to the public site** →
+once an administrator approves it, it is live and the owner is told. Materially
+editing a live campaign — its price, dates, services, photographs or terms —
+sends it back to the queue. Seat counts do not.
 
-**Admin** — On its own host: a password, plus an authenticator code where the
-account has one enrolled → Postgres confirms the account holds the
-role → verification queue → read the permit → approve, or refuse with a reason
-the owner reads word for word and can correct → the "Verified by NASEK" badge
-appears across every listing, and the owner's trips become visible at all.
+The portal's own sections: overview, my campaigns, bookings, customers, reviews,
+analytics, company profile (with the verification status and the permit NASEK
+holds), and notifications.
+
+**Admin** — On its own host: **one access code**, checked by an Edge Function
+that holds it, then an authenticator code where the account has one enrolled →
+Postgres confirms the account holds the role → two queues. Owners: read the
+permit against the number and expiry on the application, approve or refuse with
+a reason the owner reads word for word and can correct. Campaigns: read the
+trip, approve it onto the public site or refuse it with a reason. Both
+decisions write an in-app notification and queue an email in the same
+transaction.
 
 **Smart Match** — up to 7 questions, every one skippable → weighted scoring →
 ranked matches with the reasons *and* the trade-offs behind each score.
@@ -227,16 +270,10 @@ each that scores badly contributes one to `tradeoffs`. Showing the downsides is
 what makes a "96% match" credible — and because both come from the same numbers
 as the score, the explanation can never contradict the ranking.
 
-**NASEK Assistant** (`assistant.ts`) classifies intent, then answers from the
-same in-memory catalogue the listing page reads — so it can't quote a price or
-seat count the site contradicts. Two rules are hard-wired: religious rulings are
-always redirected to qualified scholars and the Ministry of Endowments and
-Religious Affairs, and no claim of official licensing is made about any campaign.
-
 ### Swapping in a hosted model
 
 Everything in the UI is written against the `AIProvider` interface. To move to a
-hosted model, implement a `/api/ai/{search,match,ask}` route and change one line:
+hosted model, implement a `/api/ai/{search,match}` route and change one line:
 
 ```ts
 // src/services/ai/index.ts
