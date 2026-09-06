@@ -11,6 +11,7 @@ import {
 } from 'react'
 import { Link } from 'react-router-dom'
 import {
+  ArrowRight,
   Check,
   ChevronDown,
   CircleAlert,
@@ -27,15 +28,59 @@ export const cx = (...parts: (string | false | null | undefined)[]) =>
 
 // ------------------------------------------------------------------ Button
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'gold' | 'danger' | 'outline'
+type ButtonVariant =
+  | 'primary'
+  | 'secondary'
+  | 'ghost'
+  | 'gold'
+  | 'danger'
+  | 'outline'
+  | 'anchor'
+  | 'hairline'
+  | 'hairlineDark'
 type ButtonSize = 'sm' | 'md' | 'lg'
 
 /* Buttons are ruled blocks, not pills: a hairline border on every variant and
    a square-ish radius, so they sit in the same visual language as the framed
-   panels rather than looking like a modern app pasted onto parchment. */
+   panels rather than looking like a modern app pasted onto parchment.
+ *
+ * `anchor` and `hairline` are the customer site's two new tiers, and they are
+ * additions rather than edits on purpose. `secondary` is named 57 times across
+ * the three applications — 35 of those in the owner portal and the
+ * administration — so changing what it looks like would restyle two products
+ * nobody asked about. New names mean a call site opts in. */
 const VARIANTS: Record<ButtonVariant, string> = {
   primary:
     'bg-nasek-800 text-ivory-50 border border-nasek-900 hover:bg-nasek-900 active:bg-nasek-950',
+  /* The one filled tier the customer site still spends, and it carries the
+     sign-in control's gold rule inside its own bottom edge — the same gesture
+     drawn under a filled block instead of under bare text. That single detail
+     is what ties the filled tier to the chromeless one. The rule reaches
+     wider on hover rather than changing colour, so a filled button and a
+     ruled link animate the same way. */
+  anchor:
+    'relative bg-nasek-800 text-ivory-50 border border-nasek-900 hover:bg-nasek-900 active:bg-nasek-950 ' +
+    "after:content-[''] after:absolute after:bottom-1.5 after:inset-x-3.5 after:h-px " +
+    'after:bg-gold-400 after:opacity-85 after:transition-all after:duration-300 after:ease-out-soft ' +
+    'hover:after:inset-x-2.5 hover:after:opacity-100',
+  /* A frame, not a fill. Gold at 60% so it reads as a drawn line rather than
+     a border the browser happened to put there. */
+  hairline:
+    'bg-transparent text-nasek-800 border border-gold-300/60 hover:border-gold-400 hover:bg-nasek-50',
+  /*
+   * The same frame over the hero photograph, and a separate variant rather
+   * than `hairline` plus a `text-ivory-50` override, because that override
+   * silently loses: Tailwind orders two text-colour utilities by its own
+   * scale, not by the order they appear in the class attribute, so the
+   * variant's `text-nasek-800` won and the hero shipped dark green text on a
+   * dark photograph. A variant cannot lose to itself.
+   *
+   * Gold-300 rather than gold-400 — the darker gold does not survive a bright
+   * sky at hairline weight.
+   */
+  hairlineDark:
+    'bg-transparent text-ivory-50 border border-gold-300/75 backdrop-blur-sm ' +
+    'hover:border-gold-300 hover:bg-ivory-50/12',
   secondary:
     'bg-ivory-50 text-nasek-800 border border-ivory-400 hover:border-nasek-700 hover:bg-nasek-50',
   outline:
@@ -125,6 +170,76 @@ export function LinkButton({
       {...rest}
     >
       {children}
+    </Link>
+  )
+}
+
+/**
+ * Tier three: the onward link. Text, an arrow in the direction of travel, and
+ * a gold rule that grows from 38% to full width.
+ *
+ * This is deliberately a second copy of the navbar's `SignInLink` rather than
+ * a shared component both of them call. The sign-in control is finished and
+ * frozen; extracting it would mean editing it, and a refactor that "cannot
+ * change the pixels" is exactly the kind of claim that turns out to be wrong
+ * on the one screen nobody re-checked. When this tier has settled, the two
+ * should merge — until then the duplication is the cheaper mistake.
+ *
+ * The `@media (hover: none)` rule is not a flourish: Tailwind wraps every
+ * `group-hover:` rule in `@media (hover: hover)`, so on a phone the growing
+ * rule never fires, and a control whose only affordance is a hover state has
+ * no affordance at all on a touch screen.
+ */
+export function RuleLink({
+  to,
+  children,
+  className,
+  onDark,
+}: {
+  to: string
+  children: ReactNode
+  className?: string
+  /** Over the hero photograph, where gold-400 is too dark to survive. */
+  onDark?: boolean
+}) {
+  const { lang } = useI18n()
+
+  return (
+    <Link
+      to={to}
+      className={cx(
+        'group relative inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap',
+        'rounded-[3px] px-1 text-sm font-semibold',
+        'transition-colors duration-200 ease-out-soft',
+        'focus-visible:outline-2 focus-visible:outline-offset-2',
+        onDark
+          ? 'text-ivory-50/90 hover:text-ivory-50 focus-visible:outline-gold-300'
+          : 'text-ink-700 hover:text-nasek-800 focus-visible:outline-nasek-800',
+        className,
+      )}
+    >
+      {/* Kufi carries line-height 1.95 from the base layer — right for running
+          Arabic, and enough to push a label off centre inside a 40px control. */}
+      <span className="leading-none">{children}</span>
+
+      <ArrowRight
+        className={cx(
+          'size-3.5 transition-transform duration-300 ease-out-soft rtl:rotate-180',
+          lang === 'ar' ? 'group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5',
+        )}
+        strokeWidth={2}
+      />
+
+      <span
+        aria-hidden
+        className={cx(
+          'pointer-events-none absolute start-1 bottom-2 h-px w-[38%]',
+          'transition-[width] duration-300 ease-out-soft',
+          'group-hover:w-[calc(100%-0.5rem)]',
+          '[@media(hover:none)]:w-[calc(100%-0.5rem)]',
+          onDark ? 'bg-gold-300' : 'bg-gold-400',
+        )}
+      />
     </Link>
   )
 }
@@ -412,6 +527,7 @@ export function Segmented<T extends string>({
   size = 'md',
   className,
   label,
+  tone = 'solid',
 }: {
   value: T
   onChange: (next: T) => void
@@ -419,13 +535,26 @@ export function Segmented<T extends string>({
   size?: 'sm' | 'md'
   className?: string
   label?: string
+  /**
+   * `solid` fills the chosen tab with nasek-800 and is what the owner portal,
+   * the administration and the rest of the customer site already use. `rule`
+   * empties the tray and marks the chosen tab with a gold rule instead, for
+   * the customer surfaces that follow the sign-in control's language.
+   *
+   * Opt-in rather than a new default: this control is named in ten places
+   * across all three applications.
+   */
+  tone?: 'solid' | 'rule'
 }) {
+  const ruled = tone === 'rule'
+
   return (
     <div
       role="radiogroup"
       aria-label={label}
       className={cx(
-        'inline-flex rounded-[3px] border border-ivory-400 bg-ivory-200 p-0.5',
+        'inline-flex rounded-[3px] border border-ivory-400 p-0.5',
+        ruled ? 'bg-transparent' : 'bg-ivory-200',
         className,
       )}
     >
@@ -439,11 +568,15 @@ export function Segmented<T extends string>({
             aria-checked={active}
             onClick={() => onChange(opt.value)}
             className={cx(
-              'flex-1 rounded-[2px] font-semibold transition-all duration-200',
+              'relative flex-1 rounded-[2px] font-semibold transition-all duration-200',
               size === 'sm' ? 'px-3 py-1.5 text-sm' : 'px-4 py-2 text-sm',
-              active
-                ? 'bg-nasek-800 text-ivory-50'
-                : 'text-ink-500 hover:text-ink-800',
+              ruled
+                ? active
+                  ? "text-nasek-800 after:content-[''] after:absolute after:inset-x-3 after:bottom-1 after:h-0.5 after:bg-gold-400"
+                  : 'text-ink-500 hover:text-ink-800'
+                : active
+                  ? 'bg-nasek-800 text-ivory-50'
+                  : 'text-ink-500 hover:text-ink-800',
             )}
           >
             {opt.label}

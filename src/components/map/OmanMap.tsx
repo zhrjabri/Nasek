@@ -177,15 +177,23 @@ export function OmanMap({
                   type="button"
                   onClick={() => onSelect(selected ? null : wilayah.id)}
                   aria-pressed={selected}
+                  /* A filter, not a command — the tertiary chip shape, round
+                     with a gold hairline. Chosen fills solid, so which region
+                     is showing is legible without reading the labels. */
                   className={cx(
-                    'flex items-center gap-1.5 rounded-[3px] border px-2.5 py-1.5 text-xs font-semibold transition-colors',
+                    'flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors',
                     selected
-                      ? 'border-gold-400 bg-gold-50 text-gold-800'
-                      : 'border-ivory-400 bg-ivory-50 text-ink-600 hover:border-nasek-500 hover:text-nasek-700',
+                      ? 'border-nasek-800 bg-nasek-800 text-ivory-50'
+                      : 'border-gold-200 bg-transparent text-ink-600 hover:border-gold-400 hover:text-nasek-800',
                   )}
                 >
                   {wilayah.name[lang]}
-                  <span className="nums rounded-[2px] bg-ivory-200 px-1.5 text-2xs text-ink-500">
+                  <span
+                    className={cx(
+                      'nums rounded-full px-1.5 text-2xs',
+                      selected ? 'bg-ivory-50/20 text-ivory-50' : 'bg-ivory-200 text-ink-500',
+                    )}
+                  >
                     {n(count)}
                   </span>
                 </button>

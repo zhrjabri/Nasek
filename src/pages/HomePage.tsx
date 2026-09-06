@@ -26,7 +26,7 @@ import { useStore } from '@/store/AppStore'
 import { CampaignCard, CampaignCardSkeleton } from '@/components/campaign/CampaignCard'
 import { SmartSearch } from '@/components/search/SmartSearch'
 import { OmanMap } from '@/components/map/OmanMap'
-import { Badge, LinkButton, Ornament, Rating, SectionHeading } from '@/components/ui'
+import { Badge, LinkButton, Ornament, Rating, RuleLink, SectionHeading } from '@/components/ui'
 
 import heroWide from '@/assets/hero/kaaba-wide.jpg'
 import heroWideWebp from '@/assets/hero/kaaba-wide.webp'
@@ -134,16 +134,17 @@ export function HomePage() {
               {t('hero.trust')}
             </p>
 
+            {/* One fill, one frame. Both of these were 50px slabs, which on a
+                390px phone stacked into 112px of solid colour above the fold;
+                they are 44px now, and only the gold one is filled. Gold stays
+                here because this is the brand's one moment on the page — the
+                rest of the site spends it as a hairline. */}
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <LinkButton to="/campaigns" variant="gold" size="lg">
+              <LinkButton to="/campaigns" variant="gold">
                 {t('hero.ctaSecondary')}
                 <Arrow className="size-4" />
               </LinkButton>
-              <LinkButton
-                to="/smart-match"
-                size="lg"
-                className="border-ivory-50/35 bg-ivory-50/10 text-ivory-50 backdrop-blur-sm hover:bg-ivory-50/20 active:bg-ivory-50/25"
-              >
+              <LinkButton to="/smart-match" variant="hairlineDark">
                 <Compass className="size-4" />
                 {t('hero.ctaPrimary')}
               </LinkButton>
@@ -220,12 +221,7 @@ export function HomePage() {
           eyebrow={t('common.demoData')}
           title={t('home.featured')}
           subtitle={t('home.featuredSub')}
-          action={
-            <LinkButton to="/campaigns" variant="secondary" size="sm">
-              {t('common.viewAll')}
-              <Arrow className="size-4" />
-            </LinkButton>
-          }
+          action={<RuleLink to="/campaigns">{t('common.viewAll')}</RuleLink>}
         />
         <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {featured
@@ -400,10 +396,9 @@ export function HomePage() {
               {t('giving.subtitle')}
             </p>
           </div>
-          <LinkButton to="/giving" variant="secondary" size="lg" className="shrink-0">
+          <RuleLink to="/giving" className="shrink-0">
             {t('common.view')}
-            <Arrow className="size-4" />
-          </LinkButton>
+          </RuleLink>
         </div>
       </section>
 
@@ -415,11 +410,11 @@ export function HomePage() {
         </h2>
         <p className="mt-3 text-md leading-relaxed text-ink-500">{t('home.finalCta.body')}</p>
         <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <LinkButton to="/smart-match" size="lg">
+          <LinkButton to="/smart-match" variant="anchor">
             <Sparkles className="size-4" />
             {t('smart.start')}
           </LinkButton>
-          <LinkButton to="/campaigns" variant="secondary" size="lg">
+          <LinkButton to="/campaigns" variant="hairline">
             {t('hero.ctaSecondary')}
           </LinkButton>
         </div>

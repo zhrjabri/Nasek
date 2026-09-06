@@ -35,10 +35,15 @@ export function SmartSearch({ variant = 'hero' }: { variant?: 'hero' | 'panel' }
         variant === 'hero' ? 'border-ivory-300/80' : 'border-ivory-300',
       )}
     >
+      {/* The mode switch sat right above a filled submit button, so the panel
+          opened with two solid green blocks stacked on each other. The tray is
+          a frame now and the chosen tab is marked with a rule, which leaves the
+          submit as the only filled thing in the panel. */}
       <Segmented
         value={mode}
         onChange={setMode}
         size="sm"
+        tone="rule"
         className="mb-4 w-full"
         label={t('search.title')}
         options={[
@@ -143,7 +148,7 @@ function SmartMode({
               setQuery(example)
               setResult(null)
             }}
-            className="rounded-full border border-ivory-300 bg-ivory-100 px-3 py-1 text-2xs font-medium text-ink-600 transition-colors hover:border-nasek-300 hover:bg-nasek-50 hover:text-nasek-800"
+            className="rounded-full border border-gold-200 bg-transparent px-3 py-1 text-2xs font-medium text-ink-600 transition-colors hover:border-gold-400 hover:text-nasek-800"
           >
             {example}
           </button>
@@ -155,7 +160,7 @@ function SmartMode({
           onClick={() => void analyse()}
           loading={thinking}
           disabled={!query.trim()}
-          size="lg"
+          variant="anchor"
           block
         >
           {!thinking && <Wand2 className="size-4" />}
@@ -294,7 +299,7 @@ function ClassicMode({ onSubmit }: { onSubmit: (filters: SearchFilters) => void 
       </label>
 
       <div className="sm:col-span-2 lg:col-span-4">
-        <Button type="submit" size="lg" block>
+        <Button type="submit" variant="anchor" block>
           {t('search.submit')}
         </Button>
       </div>

@@ -18,7 +18,7 @@ import { useCatalogue } from '@/hooks/useCatalogue'
 import { campaignImageUrl } from '@/services/storage/campaignImages'
 import { useToggleSaved } from '@/hooks/useToggleSaved'
 import { tripDays } from '@/lib/trip'
-import { Badge, Rating, cx } from '@/components/ui'
+import { Badge, LinkButton, Rating, cx } from '@/components/ui'
 
 export function CampaignCard({
   campaign,
@@ -218,12 +218,13 @@ export function CampaignCard({
           >
             {saved ? <BookmarkCheck className="size-4" /> : <Bookmark className="size-4" />}
           </IconButton>
-          <Link
-            to={`/campaigns/${campaign.id}`}
-            className="rounded-[3px] border border-nasek-900 bg-nasek-800 px-3.5 py-2 text-sm font-semibold text-ivory-50 transition-colors hover:bg-nasek-900"
-          >
+          {/* Was a filled block writing its own classes — the only control on
+              the page that had drifted out of `Button` entirely. It is a frame
+              now, and a real variant: the card itself is already a link, so
+              this never had to be the loudest thing in it. */}
+          <LinkButton to={`/campaigns/${campaign.id}`} variant="hairline" size="sm">
             {t('common.viewDetails')}
-          </Link>
+          </LinkButton>
         </div>
       </div>
     </article>
@@ -285,11 +286,17 @@ function IconButton({
       aria-pressed={active}
       aria-label={label}
       title={label}
+      /* A ring rather than a square: the icon tier is the one place the
+         customer site can be round without arguing with the framed panels,
+         and a saved trip fills the ring solid rather than only swapping its
+         glyph — saved and unsaved should differ by more than a bookmark that
+         gained a tick. 36px, which is the ring size the sign-in proofs
+         settled on. */
       className={cx(
-        'rounded-[3px] border p-2 transition-all duration-200',
+        'flex size-9 items-center justify-center rounded-full border transition-all duration-200',
         active
-          ? 'border-nasek-900 bg-nasek-800 text-ivory-50'
-          : 'border-ivory-400 bg-ivory-50 text-ink-500 hover:border-nasek-600 hover:text-nasek-700',
+          ? 'border-nasek-800 bg-nasek-800 text-ivory-50'
+          : 'border-ivory-400 bg-transparent text-ink-500 hover:border-gold-400 hover:text-nasek-800',
       )}
     >
       {children}
