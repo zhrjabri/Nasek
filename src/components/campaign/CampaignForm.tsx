@@ -57,7 +57,22 @@ interface ServiceRow {
   text: string
 }
 
-const rowKey = () => Math.random().toString(36).slice(2, 10)
+/*
+ * A counter rather than `Math.random().toString(36).slice(2, 10)`.
+ *
+ * Both give a key that survives a reorder, which is the property these lists
+ * need. The counter gives it without the two things random keys quietly bring
+ * with them: a birthday collision — remote, but the failure mode is two rows
+ * sharing a key, which React resolves by reusing the wrong input — and a
+ * component whose output differs between two runs on identical input, which is
+ * exactly what makes a rendering bug impossible to reproduce.
+ *
+ * Module scope, so it keeps counting across every form opened in one page
+ * load; a key only has to be unique among its siblings, and this is stricter
+ * than that.
+ */
+let rowKeys = 0
+const rowKey = () => `row-${(rowKeys += 1)}`
 
 /**
  * Today, in the browser's own timezone.

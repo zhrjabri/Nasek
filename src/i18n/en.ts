@@ -27,6 +27,18 @@ export const en = {
   'common.clearAll': 'Clear all',
   'common.cancel': 'Cancel',
   'common.remove': 'Remove',
+  /*
+   * What an error boundary says. Deliberately four short strings and not one
+   * paragraph: the panel names what broke, offers the two things that ever
+   * help, and then shows the error's own text — because the person reading it
+   * is usually the person who can pass it on, and "something went wrong" gives
+   * them nothing to pass.
+   */
+  'error.title': 'This part of the page stopped working',
+  'error.body':
+    'The rest of the screen is unaffected. Try again, and if it keeps happening send us the message below.',
+  'error.retry': 'Try again',
+  'error.reload': 'Reload the page',
   'common.close': 'Close',
   'common.back': 'Back',
   'common.next': 'Next',

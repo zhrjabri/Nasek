@@ -24,6 +24,7 @@ import {
   setCampaignStatus,
 } from '@/services/data/catalogue'
 import { CampaignForm } from '@/components/campaign/CampaignForm'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { campaignImageUrl } from '@/services/storage/campaignImages'
 import { useSnapshotLoader } from '@/hooks/useRemoteData'
 import { useStore } from '@/store/AppStore'
@@ -313,42 +314,46 @@ export function CampaignsTab({
         </Button>
       </div>
 
+      {/* Its own boundary, inside the dashboard's: a form that throws costs an
+          administrator the form and leaves the queue and the list behind it. */}
       {creating && (
-        <CampaignForm
-          campaign={null}
-          providerId=""
-          providers={providers}
-          onClose={() => setCreating(false)}
-          onSave={async (campaign) => {
-            const stored = await saveCampaign(campaign)
-            if (!stored) {
-              toast(t('admin.addTripFailed'), 'warning')
-              return
-            }
-            /*
-             * Approved explicitly, through the same RPC the queue's approve
-             * button uses — not by writing `status` on the insert.
-             *
-             * The row lands `pending_approval` because that is the column's
-             * default, and `set_campaign_status` is the one path that moves it.
-             * It re-checks `is_admin()` inside Postgres and writes the audit
-             * entry, so a trip NASEK entered is approved by exactly the
-             * mechanism, and with exactly the trail, of one it approved for
-             * somebody else. Sending `status: 'active'` on the insert would
-             * have worked for an administrator and left no record of who
-             * decided.
-             */
-            const decided = await setCampaignStatus(stored.id, 'active')
-            if (!decided.ok) {
-              // The trip exists and is in the queue; only the approval failed.
-              toast(t('admin.addTripPending'), 'warning')
-            } else {
-              toast(t('admin.addTripDone'))
-            }
-            setCreating(false)
-            await reload()
-          }}
-        />
+        <ErrorBoundary where="the administrator campaign form">
+          <CampaignForm
+            campaign={null}
+            providerId=""
+            providers={providers}
+            onClose={() => setCreating(false)}
+            onSave={async (campaign) => {
+              const stored = await saveCampaign(campaign)
+              if (!stored) {
+                toast(t('admin.addTripFailed'), 'warning')
+                return
+              }
+              /*
+               * Approved explicitly, through the same RPC the queue's approve
+               * button uses — not by writing `status` on the insert.
+               *
+               * The row lands `pending_approval` because that is the column's
+               * default, and `set_campaign_status` is the one path that moves it.
+               * It re-checks `is_admin()` inside Postgres and writes the audit
+               * entry, so a trip NASEK entered is approved by exactly the
+               * mechanism, and with exactly the trail, of one it approved for
+               * somebody else. Sending `status: 'active'` on the insert would
+               * have worked for an administrator and left no record of who
+               * decided.
+               */
+              const decided = await setCampaignStatus(stored.id, 'active')
+              if (!decided.ok) {
+                // The trip exists and is in the queue; only the approval failed.
+                toast(t('admin.addTripPending'), 'warning')
+              } else {
+                toast(t('admin.addTripDone'))
+              }
+              setCreating(false)
+              await reload()
+            }}
+          />
+        </ErrorBoundary>
       )}
 
       {visible.length === 0 ? (

@@ -472,10 +472,35 @@ export function Modal({
   const { t } = useI18n()
   const panelRef = useRef<HTMLDivElement>(null)
 
+  /*
+   * The escape handler, held where re-rendering cannot reach it.
+   *
+   * This is not a micro-optimisation; it is the fix for a defect that made
+   * every form in NASEK unusable. `onClose` is a new function on every render
+   * of every caller — `requestClose` in `CampaignForm` is declared in the
+   * component body, as such handlers almost always are — so naming it in the
+   * dependency array below meant "re-run this effect after every render".
+   *
+   * The effect focuses the dialog. So: an owner clicked the Arabic title, typed
+   * one character, `setForm` re-rendered the form, the effect tore down and ran
+   * again, and `panelRef.current.focus()` took the focus off the input and put
+   * it on the panel. The second character went nowhere. Every text field in
+   * every modal behaved the same way, and it looked like an Arabic or an
+   * input-method problem because Arabic is what people were typing.
+   *
+   * A ref read at event time keeps the handler current without making the
+   * effect depend on its identity, so the effect now runs when the dialog opens
+   * and closes — which is what "focus the dialog when it opens" always meant.
+   */
+  const closeRef = useRef(onClose)
+  useEffect(() => {
+    closeRef.current = onClose
+  })
+
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') closeRef.current()
     }
     document.addEventListener('keydown', onKey)
     const previous = document.body.style.overflow
@@ -485,7 +510,7 @@ export function Modal({
       document.removeEventListener('keydown', onKey)
       document.body.style.overflow = previous
     }
-  }, [open, onClose])
+  }, [open])
 
   if (!open) return null
 

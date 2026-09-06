@@ -27,6 +27,11 @@ export const ar: Record<PublicMessageKey, string> = {
   'common.clearAll': 'مسح الكل',
   'common.cancel': 'إلغاء',
   'common.remove': 'إزالة',
+  'error.title': 'توقف هذا الجزء من الصفحة عن العمل',
+  'error.body':
+    'بقية الشاشة تعمل كالمعتاد. حاول مرة أخرى، وإذا تكرر الأمر أرسل لنا الرسالة التالية.',
+  'error.retry': 'حاول مرة أخرى',
+  'error.reload': 'إعادة تحميل الصفحة',
   'common.close': 'إغلاق',
   'common.back': 'رجوع',
   'common.next': 'التالي',

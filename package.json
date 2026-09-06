@@ -22,7 +22,7 @@
     "build:map": "node scripts/build-oman-map.mjs scripts/data/oman.geo.json src/data/omanOutline.ts",
     "verify:admin": "vite build --ssr scripts/verify-admin.ts --outDir .verify --mode harness --logLevel warn && node .verify/verify-admin.js",
     "verify:catalogue": "vite build --ssr scripts/verify-catalogue.ts --outDir .verify --mode harness --logLevel warn && node .verify/verify-catalogue.js",
-    "verify": "npm run verify:wiring && npm run verify:journeys && npm run verify:flow && npm run verify:auth && npm run verify:redirect && npm run verify:admin && npm run verify:catalogue && npm run verify:ai && npm run verify:map && npm run verify:render && npm run verify:isolation",
+    "verify": "npm run verify:wiring && npm run verify:journeys && npm run verify:flow && npm run verify:auth && npm run verify:redirect && npm run verify:admin && npm run verify:catalogue && npm run verify:ai && npm run verify:map && npm run verify:render && npm run verify:interaction && npm run verify:isolation",
     "verify:journeys": "vite build --ssr scripts/verify-journeys.ts --outDir .verify --mode harness --logLevel warn && node .verify/verify-journeys.js",
     "verify:isolation": "node scripts/verify-isolation.mjs",
     "verify:wiring": "vite build --ssr scripts/verify-wiring.ts --outDir .verify --mode harness --logLevel warn && node .verify/verify-wiring.js",
@@ -32,7 +32,8 @@
     "verify:backend": "node scripts/verify-backend.mjs",
     "auth:urls": "node scripts/supabase-auth-urls.mjs",
     "verify:redirect": "vite build --ssr scripts/verify-redirect.ts --outDir .verify --mode harness --logLevel warn && node .verify/verify-redirect.js",
-    "debug:signin": "vite build --ssr scripts/debug-signin.ts --outDir .verify --logLevel warn && node .verify/debug-signin.js"
+    "debug:signin": "vite build --ssr scripts/debug-signin.ts --outDir .verify --logLevel warn && node .verify/debug-signin.js",
+    "verify:interaction": "vite build --ssr scripts/verify-interaction.tsx --outDir .verify --mode harness --logLevel warn && node scripts/run-interaction.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4",
@@ -47,6 +48,7 @@
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
     "@vitejs/plugin-react": "^4.3.4",
+    "jsdom": "^30.0.1",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.2",
     "vite": "^6.0.5"

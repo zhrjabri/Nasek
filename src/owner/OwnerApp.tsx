@@ -6,6 +6,7 @@ import { useRemoteData } from '@/hooks/useRemoteData'
 import { loadSessionSettled, onAuthChange, signOutRemote } from '@/services/auth/session'
 import { completeAuthRedirect, isAuthRedirect } from '@/services/auth/redirect'
 import { Spinner } from '@/components/ui'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { OwnerShell } from './layout/OwnerShell'
 import { OwnerLoginPage } from './LoginPage'
 import { SetPasswordPage } from './SetPasswordPage'
@@ -303,17 +304,28 @@ function OwnerPortal() {
       ) : status === 'rejected' ? (
         <RejectedPage />
       ) : status === 'verified' ? (
-        /* Held while the dashboard chunk arrives. Sized so the shell, which is
-           already painted around it, does not jump when it lands. */
-        <Suspense
-          fallback={
-            <div className="flex min-h-[60dvh] items-center justify-center">
-              <Spinner className="size-7 text-nasek-600" />
-            </div>
-          }
-        >
-          <DashboardPage />
-        </Suspense>
+        /*
+          The boundary sits inside `OwnerShell`, not around it, and that is the
+          whole point of putting it here. A throw from the dashboard — or from
+          anything it opens — now costs the owner the dashboard and leaves them
+          the header, the language switch and the way out. Around the shell it
+          would cost them the portal, which is what has already happened twice.
+
+          The Suspense fallback inside is held while the dashboard chunk
+          arrives, sized so the shell — already painted around it — does not
+          jump when it lands.
+        */
+        <ErrorBoundary where="the owner dashboard">
+          <Suspense
+            fallback={
+              <div className="flex min-h-[60dvh] items-center justify-center">
+                <Spinner className="size-7 text-nasek-600" />
+              </div>
+            }
+          >
+            <DashboardPage />
+          </Suspense>
+        </ErrorBoundary>
       ) : (
         <PendingPage />
       )}

@@ -36,6 +36,7 @@ import type { BookingStatus, Campaign } from '@/types'
 import { useI18n, type MessageKey } from '@/i18n'
 import { wilayahName } from '@/data/geo'
 import { CampaignForm } from '@/components/campaign/CampaignForm'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 import {
   completePastBookings,
@@ -896,56 +897,67 @@ export function DashboardPage() {
       {tab === 'notifications' && <NotificationsPanel />}
 
       {/* ------------------------------------------------------ edit modal */}
+      {/*
+        The form gets its own boundary, inside the one around the screen.
+
+        Not belt and braces: they catch different sizes of failure. If the form
+        throws, the boundary nearest it keeps the list, the filters and the
+        rest of this screen alive, and the panel it draws appears where the
+        modal was rather than replacing everything. The outer one only ever
+        sees what this cannot.
+      */}
       {editing && (
-        <CampaignForm
-          campaign={editing === 'new' ? null : editing}
-          providerId={providerId}
-          onClose={() => setEditing(null)}
-          onSave={async (campaign) => {
-            // Written to the database first, then to the store with whatever
-            // the database actually stored — an insert comes back with a real
-            // id, and keeping the local one would orphan every later edit.
-            const stored = await saveCampaign(campaign)
-            /*
-             * A null answer means Postgres refused, and it must not be reported
-             * as a save.
-             *
-             * `stored ?? campaign` quietly substituted the unsaved object and
-             * toasted success, so a trip rejected by a policy or a constraint
-             * sat in this browser's store looking published — until the next
-             * load, when it silently vanished.
-             */
-            if (isSupabaseConfigured && !stored) {
-              toast(t('prov.campaignSaveFailed'), 'warning')
-              return
-            }
-            const saved = stored ?? campaign
-            dispatch({ type: 'upsertCampaign', campaign: saved })
-            /*
-             * Say what happened, in the owner's terms.
-             *
-             * A new trip goes to `pending_approval` — the database decides that,
-             * not this screen — so the confirmation names the wait rather than
-             * the queue that causes it. "Send for review" told an owner their
-             * trip had gone into somebody's workflow; this tells them it is
-             * added and when people will see it, which is the thing they
-             * actually wanted to know.
-             *
-             * `saved.status` and not a guess: it is whatever Postgres returned,
-             * so an administrator's own trip reads "live now" without this
-             * having to know it was an administrator.
-             */
-            toast(
-              editing === 'new'
-                ? saved.status === 'active'
-                  ? t('prov.publishedActive')
-                  : t('prov.publishedPending')
-                : t('prov.campaignSaved'),
-            )
-            setEditing(null)
-            await reload()
-          }}
-        />
+        <ErrorBoundary where="the owner campaign form">
+          <CampaignForm
+            campaign={editing === 'new' ? null : editing}
+            providerId={providerId}
+            onClose={() => setEditing(null)}
+            onSave={async (campaign) => {
+              // Written to the database first, then to the store with whatever
+              // the database actually stored — an insert comes back with a real
+              // id, and keeping the local one would orphan every later edit.
+              const stored = await saveCampaign(campaign)
+              /*
+               * A null answer means Postgres refused, and it must not be reported
+               * as a save.
+               *
+               * `stored ?? campaign` quietly substituted the unsaved object and
+               * toasted success, so a trip rejected by a policy or a constraint
+               * sat in this browser's store looking published — until the next
+               * load, when it silently vanished.
+               */
+              if (isSupabaseConfigured && !stored) {
+                toast(t('prov.campaignSaveFailed'), 'warning')
+                return
+              }
+              const saved = stored ?? campaign
+              dispatch({ type: 'upsertCampaign', campaign: saved })
+              /*
+               * Say what happened, in the owner's terms.
+               *
+               * A new trip goes to `pending_approval` — the database decides that,
+               * not this screen — so the confirmation names the wait rather than
+               * the queue that causes it. "Send for review" told an owner their
+               * trip had gone into somebody's workflow; this tells them it is
+               * added and when people will see it, which is the thing they
+               * actually wanted to know.
+               *
+               * `saved.status` and not a guess: it is whatever Postgres returned,
+               * so an administrator's own trip reads "live now" without this
+               * having to know it was an administrator.
+               */
+              toast(
+                editing === 'new'
+                  ? saved.status === 'active'
+                    ? t('prov.publishedActive')
+                    : t('prov.publishedPending')
+                  : t('prov.campaignSaved'),
+              )
+              setEditing(null)
+              await reload()
+            }}
+          />
+        </ErrorBoundary>
       )}
     </main>
   )

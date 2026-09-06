@@ -7,6 +7,7 @@ import { useStore } from '@/store/AppStore'
 import { useCatalogue } from '@/hooks/useCatalogue'
 import { useRemoteData } from '@/hooks/useRemoteData'
 import { Spinner } from '@/components/ui'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { AdminShell } from '@/admin/layout/AdminShell'
 import { loadAdminSession, type AdminGateReason } from '@/admin/session'
 import { onAuthChange } from '@/services/auth/session'
@@ -219,46 +220,54 @@ function AdminRoutes() {
 
   return (
     <AdminShell badges={badges}>
-      <Routes>
-        <Route path="/" element={<Navigate to="/overview" replace />} />
-        <Route
-          path="/overview"
-          element={
-            <Suspense fallback={<TabFallback />}>
-              <OverviewTab
-                campaigns={campaigns}
+      {/*
+        Inside the shell, so a tab that throws costs an administrator that tab
+        and not the dashboard. The alternative — no boundary at all, which is
+        what this was — turns any render error anywhere below into a white
+        page with no navigation left to escape by.
+      */}
+      <ErrorBoundary where="the administration dashboard">
+        <Routes>
+          <Route path="/" element={<Navigate to="/overview" replace />} />
+          <Route
+            path="/overview"
+            element={
+              <Suspense fallback={<TabFallback />}>
+                <OverviewTab
+                  campaigns={campaigns}
+                  providers={providers}
+                  suspendedCampaigns={suspendedCampaigns}
+                  suspendedUsers={suspendedUsers}
+                />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/users"
+            element={<UsersTab directory={directory} />}
+          />
+          <Route path="/owners" element={<OwnersTab providers={providers} />} />
+          <Route
+            path="/campaigns"
+            element={
+              /* The admin list, not the public one: a suspended trip has to stay
+                 visible on the screen that holds the button to bring it back. */
+              <CampaignsTab
+                campaigns={adminCampaigns}
                 providers={providers}
-                suspendedCampaigns={suspendedCampaigns}
-                suspendedUsers={suspendedUsers}
+                isSuspended={isSuspended}
               />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/users"
-          element={<UsersTab directory={directory} />}
-        />
-        <Route path="/owners" element={<OwnersTab providers={providers} />} />
-        <Route
-          path="/campaigns"
-          element={
-            /* The admin list, not the public one: a suspended trip has to stay
-               visible on the screen that holds the button to bring it back. */
-            <CampaignsTab
-              campaigns={adminCampaigns}
-              providers={providers}
-              isSuspended={isSuspended}
-            />
-          }
-        />
-        <Route path="/bookings" element={<BookingsTab campaigns={adminCampaigns} />} />
-        <Route path="/reviews" element={<ReviewsTab campaigns={adminCampaigns} />} />
-        <Route path="/security" element={<SecurityTab />} />
-        {/* An unknown address inside the dashboard is a mistyped bookmark, not
-            an intrusion — there is nothing to conceal from someone already
-            through the gate, so it lands on the overview. */}
-        <Route path="*" element={<Navigate to="/overview" replace />} />
-      </Routes>
+            }
+          />
+          <Route path="/bookings" element={<BookingsTab campaigns={adminCampaigns} />} />
+          <Route path="/reviews" element={<ReviewsTab campaigns={adminCampaigns} />} />
+          <Route path="/security" element={<SecurityTab />} />
+          {/* An unknown address inside the dashboard is a mistyped bookmark, not
+              an intrusion — there is nothing to conceal from someone already
+              through the gate, so it lands on the overview. */}
+          <Route path="*" element={<Navigate to="/overview" replace />} />
+        </Routes>
+      </ErrorBoundary>
     </AdminShell>
   )
 }

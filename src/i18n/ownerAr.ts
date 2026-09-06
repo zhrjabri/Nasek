@@ -25,9 +25,27 @@ export const ownerAr: Record<OwnerMessageKey, string> = {
   'prov.editCampaign': 'تعديل الرحلة',
   'prov.newCampaign': 'رحلة جديدة',
   'prov.formTitle': 'عنوان الرحلة',
-  'prov.formTitleAr': 'عنوان الرحلة (بالعربية)',
+  /*
+   * No "(in Arabic)" on either of these two.
+   *
+   * The parenthetical earned its place when the form asked for an English
+   * title and an English description as well and the owner had to be told
+   * which box was which. It no longer does: the form asks once, the Arabic is
+   * written into both columns, and there is nothing to disambiguate. What is
+   * left is an instruction to an Arabic speaker, in Arabic, to write in
+   * Arabic.
+   *
+   * `ownerEn` keeps its "(Arabic)", deliberately. There the note is still
+   * information — it tells an administrator reading the interface in English
+   * which alphabet the value is expected in, which is a thing they cannot
+   * infer. Here it told an Arabic speaker to write Arabic.
+   *
+   * The keys keep their `Ar` suffix, and so do the columns behind them. It is
+   * the label that stopped being true, not the field.
+   */
+  'prov.formTitleAr': 'عنوان الرحلة',
   'prov.formTitleEn': 'عنوان الرحلة (بالإنجليزية)',
-  'prov.formDescAr': 'الوصف (بالعربية)',
+  'prov.formDescAr': 'الوصف',
   'prov.formDescEn': 'الوصف (بالإنجليزية)',
   'prov.formType': 'نوع الرحلة',
   'prov.formPrice': 'السعر للمسافر (ر.ع)',
