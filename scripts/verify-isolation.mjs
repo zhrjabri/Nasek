@@ -358,8 +358,30 @@ const FALLBACK_MACHINERY = [
   // deriveCode(): the only thing in the public application that derives a key.
   'PBKDF2',
   'deriveBits',
-  // writeDemo(): the only thing that ever put a live code into storage.
-  'sessionStorage.setItem',
+  /*
+   * There used to be a third marker here, `sessionStorage.setItem`, standing in
+   * for "put a live code into storage". It is gone, and the reasoning is worth
+   * keeping so nobody restores it.
+   *
+   * It failed in both directions. Too loose: the owner portal acquired an
+   * unrelated reason to write to session storage — remembering that an invited
+   * owner still owes a password — and the build failed for a change that had
+   * nothing to do with sign-in codes. Too strict, once replaced with the
+   * literal `DEMO_KEY`: minification keeps the key string and the *clear-down*
+   * half of `writeDemo`, so the public bundle legitimately contains
+   *
+   *     const x="nasek.otp.pending"; function w(a){try{a||sessionStorage.removeItem(x)}catch{}}
+   *
+   * which deletes a key and could not create one. Both were markers about
+   * plumbing rather than about the property.
+   *
+   * The property is that no deployed bundle can *derive* a valid code without
+   * the server, and `deriveCode()` is the only thing that ever could. PBKDF2
+   * and deriveBits are its irreducible parts: no code exists to be stored if
+   * none can be produced. The positive half — that the app says so rather than
+   * failing silently — is asserted separately, by the "refuses to sign anyone
+   * in when it has no backend" checks below.
+   */
 ]
 
 if (publicBundle !== null) {

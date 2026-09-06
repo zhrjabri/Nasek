@@ -36,7 +36,28 @@ import { OwnerAuthShell } from './layout/OwnerShell'
  * has lost their password resets it, which proves control of the same address a
  * code would and ends in a password rather than in a session with none.
  */
-export function OwnerLoginPage({ onSignedIn }: { onSignedIn: () => Promise<void> | void }) {
+/** What to say when the link that brought them here could not be completed. */
+const LINK_MESSAGE: Record<'expired' | 'wrong_browser' | 'failed', MessageKey> = {
+  expired: 'auth.linkExpired',
+  wrong_browser: 'auth.linkWrongBrowser',
+  failed: 'auth.linkFailed',
+}
+
+export function OwnerLoginPage({
+  onSignedIn,
+  linkError,
+}: {
+  onSignedIn: () => Promise<void> | void
+  /**
+   * Set when this page load followed a dead invitation or reset link.
+   *
+   * Without it an invited owner who clicks a spent link is shown a password
+   * form and nothing else — the one screen they cannot use, since not having a
+   * password is why they were invited. The notice below names what happened and
+   * puts them one button from a fresh link.
+   */
+  linkError?: 'expired' | 'wrong_browser' | 'failed'
+}) {
   const { t } = useI18n()
   const { dispatch } = useStore()
   const [error, setError] = useState<MessageKey | null>(null)
@@ -98,6 +119,22 @@ export function OwnerLoginPage({ onSignedIn }: { onSignedIn: () => Promise<void>
         </p>
       }
     >
+      {linkError && !error && (
+        <Notice tone="warn" live className="mb-5">
+          <span className="block">{t(LINK_MESSAGE[linkError])}</span>
+          {/* The way out, rather than an instruction to contact somebody. A
+              reset link lands on the same set-password screen the invitation
+              was going to, so an owner recovers this without NASEK. */}
+          <button
+            type="button"
+            onClick={() => setResetting(true)}
+            className="mt-2 font-bold underline underline-offset-2"
+          >
+            {t('owner.forgotSend')}
+          </button>
+        </Notice>
+      )}
+
       {error && (
         <Notice tone="danger" live className="mb-5">
           {t(error)}

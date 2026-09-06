@@ -28,7 +28,19 @@ import { supabase } from '@/services/supabase/client'
 
 export type RedirectOutcome =
   | { kind: 'none' }
-  | { kind: 'signed-in' }
+  | {
+      kind: 'signed-in'
+      /**
+       * Which kind of link this was, when Supabase said.
+       *
+       * Read off the `type` parameter before the URL is cleaned. The owner
+       * portal needs it: an `invite` or a `recovery` means the account owes a
+       * password, and that has to be known from the link itself rather than
+       * guessed from whether this particular page load happened to carry a
+       * token — see `OwnerApp`.
+       */
+      linkType?: LinkType
+    }
   | { kind: 'error'; reason: 'expired' | 'wrong_browser' | 'failed'; detail?: string }
 
 /**
@@ -164,6 +176,12 @@ export async function completeAuthRedirect(): Promise<RedirectOutcome> {
   const query = new URLSearchParams(window.location.search)
   const hash = authFragment() ?? new URLSearchParams()
 
+  /*
+   * Read before anything strips it. `cleanUrl()` below wipes the fragment, and
+   * `type` lives in there alongside the tokens.
+   */
+  const linkType = asLinkType(hash.get('type') ?? query.get('type'))
+
   // ---------------------------------------------------------------- errors
   const errorCode = query.get('error_code') ?? hash.get('error_code')
   const errorDescription = query.get('error_description') ?? hash.get('error_description')
@@ -182,7 +200,7 @@ export async function completeAuthRedirect(): Promise<RedirectOutcome> {
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     cleanUrl()
-    if (!error) return { kind: 'signed-in' }
+    if (!error) return { kind: 'signed-in', linkType }
     /*
      * The characteristic PKCE failure, and worth naming precisely. The verifier
      * is written to this browser's storage when the code is requested, so a
@@ -209,7 +227,7 @@ export async function completeAuthRedirect(): Promise<RedirectOutcome> {
     cleanUrl()
     return error
       ? { kind: 'error', reason: 'failed', detail: error.message }
-      : { kind: 'signed-in' }
+      : { kind: 'signed-in', linkType }
   }
 
   return { kind: 'none' }
@@ -228,6 +246,12 @@ export function isAuthRedirect(): boolean {
 /** The confirmation types Supabase can put in a sign-in link. */
 const LINK_TYPES = ['signup', 'magiclink', 'email', 'invite', 'recovery', 'email_change'] as const
 export type LinkType = (typeof LINK_TYPES)[number]
+
+/** The `type` parameter, when it names one we know. */
+function asLinkType(raw: string | null): LinkType | undefined {
+  const value = (raw ?? '').trim().toLowerCase()
+  return LINK_TYPES.find((t) => t === value)
+}
 
 export interface ParsedSignInLink {
   tokenHash: string
@@ -323,7 +347,7 @@ export async function verifyEmailLink(input: string): Promise<RedirectOutcome> {
     token_hash: parsed.tokenHash,
     type: parsed.type,
   })
-  if (!error) return { kind: 'signed-in' }
+  if (!error) return { kind: 'signed-in', linkType: parsed.type }
 
   /*
    * A `pkce_`-prefixed token cannot be redeemed this way — it needs the

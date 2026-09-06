@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react'
 import { useI18n } from '@/i18n'
 import { useStore } from '@/store/AppStore'
 import { useCatalogue } from '@/hooks/useCatalogue'
@@ -60,16 +60,85 @@ const DashboardPage = lazy(() =>
 
 type Gate =
   | { phase: 'checking' }
-  /** Signed out, or signed in as somebody who is not a campaign owner. */
-  | { phase: 'out' }
+  /**
+   * Signed out, or signed in as somebody who is not a campaign owner.
+   *
+   * `linkError` is set when this page load *was* an arrival from an emailed
+   * link and that link could not be completed. Without it the portal answered
+   * a dead invitation with a bare "Email / Password / Sign in" — which is the
+   * one screen an invited owner cannot use, because the whole point of the
+   * invitation is that they have no password yet. They were left to conclude
+   * the portal was broken, and in a sense it was.
+   */
+  | { phase: 'out'; linkError?: 'expired' | 'wrong_browser' | 'failed' }
   /** Arrived from an invitation or a reset link; owes a password. */
   | { phase: 'password' }
   | { phase: 'in' }
+
+/**
+ * "This account came in on an invitation and still owes a password."
+ *
+ * Kept in `sessionStorage` rather than deduced from the current URL, and that
+ * is a correction of a real defect rather than belt-and-braces.
+ *
+ * The URL is true for exactly one moment. `completeAuthRedirect()` strips the
+ * fragment as soon as it has used it — it has to, so a token does not sit in
+ * browser history — and `setSession()` fires an auth-state change that runs
+ * this whole check a second time. That second run sees a clean URL, concludes
+ * the owner did not arrive from a link, and sends them to the dashboard with
+ * no password ever set. A plain page refresh does the same thing. Either way
+ * the owner ends up unable to sign in again, having never been asked.
+ *
+ * Session-scoped on purpose: it is a fact about this arrival, not about the
+ * account, and the account's real recovery path if the tab is closed is the
+ * portal's own "forgotten your password", which issues a fresh link to the
+ * same screen.
+ */
+const OWES_PASSWORD_KEY = 'nasek.owner.owes-password'
+
+/*
+ * Mirrored in memory, because Safari in private browsing throws on
+ * `sessionStorage` rather than returning null. Storage is what survives a
+ * refresh; this is what survives the auth-state change that re-runs the check
+ * milliseconds later — and that second one is the case that was actually
+ * breaking, so losing it on a private-mode phone would leave the bug in place
+ * for exactly the people most likely to open a link on one.
+ */
+let owesPasswordInMemory = false
+
+const markOwesPassword = () => {
+  owesPasswordInMemory = true
+  try {
+    window.sessionStorage.setItem(OWES_PASSWORD_KEY, '1')
+  } catch {
+    /* private mode — the in-memory mirror carries this page load */
+  }
+}
+
+const owesPassword = () => {
+  if (owesPasswordInMemory) return true
+  try {
+    return window.sessionStorage.getItem(OWES_PASSWORD_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+const clearOwesPassword = () => {
+  owesPasswordInMemory = false
+  try {
+    window.sessionStorage.removeItem(OWES_PASSWORD_KEY)
+  } catch {
+    /* ignore */
+  }
+}
 
 export function OwnerApp() {
   const { t } = useI18n()
   const { dispatch } = useStore()
   const [gate, setGate] = useState<Gate>({ phase: 'checking' })
+  /** Generation counter, so a superseded check cannot answer for a newer one. */
+  const runRef = useRef(0)
 
   const check = useCallback(async () => {
     /*
@@ -84,20 +153,51 @@ export function OwnerApp() {
      * has no password or has one its holder cannot remember. Either way the
      * next screen is the same one.
      */
-    let cameFromLink = false
+    /*
+     * Only the most recent check may write the gate.
+     *
+     * `setSession()` inside `completeAuthRedirect()` fires an auth-state change,
+     * which runs `check` again while the first run is still in flight. Two runs
+     * then raced to answer a question they had different information about —
+     * the first knew an invitation had just been redeemed, the second saw a
+     * cleaned URL — and whichever finished last won. That is how an invited
+     * owner could land on the dashboard, or on the login screen, at random.
+     */
+    const run = ++runRef.current
+    const settle = (next: Gate) => {
+      if (runRef.current === run) setGate(next)
+    }
+
     if (isAuthRedirect()) {
-      cameFromLink = true
       const outcome = await completeAuthRedirect()
       if (outcome.kind === 'error') {
-        setGate({ phase: 'out' })
+        /*
+         * A link that could not be completed. Almost always because it has
+         * already been used — single-use tokens are routinely spent by the
+         * scanners that mail providers and corporate filters run over inbound
+         * links, so the human clicking arrives second.
+         *
+         * Say so. The owner can then use "forgotten your password", which
+         * issues a fresh link to the same screen and needs no administrator.
+         */
+        settle({ phase: 'out', linkError: outcome.reason })
         return
       }
+      /*
+       * An invitation or a password reset. Both mean the same thing for what
+       * happens next — there is a session, and the account either has no
+       * password or has one its holder cannot remember.
+       *
+       * Recorded now, while the answer is known, rather than re-derived later
+       * from a URL that is about to be wiped.
+       */
+      if (outcome.kind === 'signed-in') markOwesPassword()
     }
 
     const session = await loadSessionSettled()
 
     if (!session.user || session.blocked) {
-      setGate({ phase: 'out' })
+      settle({ phase: 'out' })
       return
     }
 
@@ -113,13 +213,14 @@ export function OwnerApp() {
     if (session.user.role !== 'provider') {
       await signOutRemote()
       dispatch({ type: 'signOut' })
-      setGate({ phase: 'out' })
+      clearOwesPassword()
+      settle({ phase: 'out' })
       return
     }
 
     dispatch({ type: 'registerUser', user: session.user })
     dispatch({ type: 'signIn', user: session.user })
-    setGate({ phase: cameFromLink ? 'password' : 'in' })
+    settle({ phase: owesPassword() ? 'password' : 'in' })
   }, [dispatch])
 
   useEffect(() => {
@@ -143,10 +244,20 @@ export function OwnerApp() {
     )
   }
 
-  if (gate.phase === 'out') return <OwnerLoginPage onSignedIn={check} />
+  if (gate.phase === 'out') {
+    return <OwnerLoginPage onSignedIn={check} linkError={gate.linkError} />
+  }
 
   if (gate.phase === 'password') {
-    return <SetPasswordPage onDone={async () => setGate({ phase: 'in' })} />
+    return (
+      <SetPasswordPage
+        onDone={async () => {
+          // The debt is paid; a refresh from here belongs on the dashboard.
+          clearOwesPassword()
+          setGate({ phase: 'in' })
+        }}
+      />
+    )
   }
 
   return <OwnerPortal />
