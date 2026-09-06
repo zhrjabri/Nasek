@@ -5,7 +5,7 @@ import { WILAYAT } from '@/data/geo'
 import { useCatalogue } from '@/hooks/useCatalogue'
 import { OmanMap } from '@/components/map/OmanMap'
 import { CampaignCard } from '@/components/campaign/CampaignCard'
-import { EmptyState, LinkButton, SectionHeading } from '@/components/ui'
+import { EmptyState, RuleLink, SectionHeading } from '@/components/ui'
 
 export function MapPage() {
   const { t, lang } = useI18n()
@@ -57,9 +57,7 @@ export function MapPage() {
                      the other wilayat, not an invitation to start a travel
                      company. */
                   action={
-                    <LinkButton to="/campaigns" variant="secondary">
-                      {t('campaign.browse')}
-                    </LinkButton>
+                    <RuleLink to="/campaigns">{t('campaign.browse')}</RuleLink>
                   }
                 />
               ) : (

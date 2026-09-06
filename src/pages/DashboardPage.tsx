@@ -32,7 +32,7 @@ import {
   Card,
   EmptyState,
   Field,
-  LinkButton,
+  RuleLink,
   Segmented,
   Textarea,
   cx,
@@ -248,7 +248,7 @@ export function DashboardPage() {
               icon={<Ticket className="size-5" />}
               title={t('dash.noBookings')}
               body={t('dash.noBookingsHint')}
-              action={<LinkButton to="/campaigns">{t('campaign.browse')}</LinkButton>}
+              action={<RuleLink to="/campaigns">{t('campaign.browse')}</RuleLink>}
             />
           ) : (
             (
@@ -410,7 +410,7 @@ export function DashboardPage() {
                                 >
                                   {t('review.submit')}
                                 </Button>
-                                <Button size="sm" variant="ghost" onClick={() => setReviewing(null)}>
+                                <Button size="sm" variant="secondary" onClick={() => setReviewing(null)}>
                                   {t('common.cancel')}
                                 </Button>
                               </div>
@@ -435,7 +435,7 @@ export function DashboardPage() {
               icon={<Bookmark className="size-5" />}
               title={t('dash.noSaved')}
               body={t('dash.noSavedHint')}
-              action={<LinkButton to="/campaigns">{t('campaign.browse')}</LinkButton>}
+              action={<RuleLink to="/campaigns">{t('campaign.browse')}</RuleLink>}
             />
           ) : (
             <div className="stagger grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

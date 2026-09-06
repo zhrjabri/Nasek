@@ -279,7 +279,7 @@ export function CompanyProfilePanel({ provider }: { provider?: Provider }) {
 
       {!editing && (
         <div className="flex justify-end">
-          <Button onClick={beginEdit}>
+          <Button size="sm" onClick={beginEdit}>
             <Pencil className="size-4" />
             {t('owner.profileEdit')}
           </Button>
@@ -528,11 +528,11 @@ export function CompanyProfilePanel({ provider }: { provider?: Provider }) {
             </div>
           ) : (
             <div className="flex gap-2.5">
-              <Button type="submit" size="lg" loading={saving}>
+              <Button type="submit" size="sm" loading={saving}>
                 <Check className="size-4" />
                 {touchesVerified ? t('owner.profileSubmit') : t('common.save')}
               </Button>
-              <Button type="button" variant="secondary" size="lg" onClick={cancel}>
+              <Button type="button" variant="secondary" size="sm" onClick={cancel}>
                 <X className="size-4" />
                 {t('common.cancel')}
               </Button>

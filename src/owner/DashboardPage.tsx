@@ -26,7 +26,6 @@ import {
   Plus,
   Star,
   Ticket,
-  ExternalLink,
   Search as SearchIcon,
   Trash2,
   TriangleAlert,
@@ -55,8 +54,9 @@ import {
   Card,
   EmptyState,
   Input,
-  LinkButton,
   ProgressBar,
+  RuleButton,
+  RuleLink,
   Rating,
   Select,
   Textarea,
@@ -324,7 +324,7 @@ export function DashboardPage() {
               : t('common.pendingVerification')}
           </Badge>
         )}
-        <Button onClick={() => setEditing('new')}>
+        <Button size="sm" onClick={() => setEditing('new')}>
           <Plus className="size-4" />
           {t('prov.addCampaign')}
         </Button>
@@ -469,7 +469,7 @@ export function DashboardPage() {
               title={t('prov.noCampaigns')}
               body={t('prov.noCampaignsHint')}
               action={
-                <Button onClick={() => setEditing('new')}>
+                <Button size="sm" onClick={() => setEditing('new')}>
                   <Plus className="size-4" />
                   {t('prov.addCampaign')}
                 </Button>
@@ -563,7 +563,7 @@ export function DashboardPage() {
                             <Trash2 className="size-3.5" />
                             {t('common.delete')}
                           </Button>
-                          <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(null)}>
+                          <Button variant="secondary" size="sm" onClick={() => setConfirmDelete(null)}>
                             {t('common.cancel')}
                           </Button>
                         </div>
@@ -575,10 +575,7 @@ export function DashboardPage() {
                             address yet, so the control says that instead of
                             offering to show it. */}
                         {c.status === 'active' ? (
-                          <LinkButton to={`/campaigns/${c.id}`} variant="ghost" size="sm">
-                            <ExternalLink className="size-3.5" />
-                            {t('prov.viewPublic')}
-                          </LinkButton>
+                          <RuleLink to={`/campaigns/${c.id}`}>{t('prov.viewPublic')}</RuleLink>
                         ) : (
                           <span className="px-2.5 text-xs font-semibold text-ink-400">
                             {t('prov.viewPublicPending')}
@@ -650,6 +647,7 @@ export function DashboardPage() {
                   title={t('prov.noMatch')}
                   action={
                     <Button
+                      size="sm"
                       variant="secondary"
                       onClick={() => {
                         setCustomerQuery('')
@@ -712,7 +710,7 @@ export function DashboardPage() {
 
                   {filteredBookings.length > visibleRows && (
                     <div className="mt-4 text-center">
-                      <Button variant="secondary" onClick={() => setVisibleRows((v) => v + 40)}>
+                      <Button size="sm" variant="secondary" onClick={() => setVisibleRows((v) => v + 40)}>
                         {t('prov.showMore')}
                       </Button>
                     </div>
@@ -749,13 +747,9 @@ export function DashboardPage() {
                           owner comes to this tab to do. It now writes a reply
                           that shows under the review. */}
                       {!bl(review.reply) && replyTo?.id !== review.id && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setReplyTo({ id: review.id, text: '' })}
-                        >
+                        <RuleButton onClick={() => setReplyTo({ id: review.id, text: '' })}>
                           {t('prov.respondReview')}
-                        </Button>
+                        </RuleButton>
                       )}
                     </div>
 
@@ -791,7 +785,7 @@ export function DashboardPage() {
                           >
                             {t('prov.replySend')}
                           </Button>
-                          <Button variant="ghost" size="sm" onClick={() => setReplyTo(null)}>
+                          <Button variant="secondary" size="sm" onClick={() => setReplyTo(null)}>
                             {t('common.cancel')}
                           </Button>
                           <span className="text-2xs text-ink-400">{t('prov.replyNote')}</span>

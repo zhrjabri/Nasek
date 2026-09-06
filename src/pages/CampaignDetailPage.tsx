@@ -38,6 +38,7 @@ import {
   Card,
   EmptyState,
   LinkButton,
+  RuleLink,
   ProgressBar,
   Rating,
   Skeleton,
@@ -80,7 +81,7 @@ export function CampaignDetailPage() {
         <EmptyState
           title={t('state.notFoundTitle')}
           body={t('state.notFoundBody')}
-          action={<LinkButton to="/campaigns">{t('campaign.browse')}</LinkButton>}
+          action={<RuleLink to="/campaigns">{t('campaign.browse')}</RuleLink>}
         />
       </main>
     )
@@ -529,12 +530,12 @@ export function CampaignDetailPage() {
 
               <div className="space-y-2.5 p-5">
                 {bookable ? (
-                  <LinkButton to={`/booking/${campaign.id}`} block size="lg">
+                  <LinkButton to={`/booking/${campaign.id}`} block size="md">
                     {t('common.bookNow')}
                     <Arrow className="size-4" />
                   </LinkButton>
                 ) : (
-                  <Button block size="lg" disabled>
+                  <Button block size="md" disabled>
                     {soldOut ? t('common.soldOut') : t('campaign.deadlinePassed')}
                   </Button>
                 )}
@@ -591,12 +592,12 @@ export function CampaignDetailPage() {
             )}
           </div>
           {bookable ? (
-            <LinkButton to={`/booking/${campaign.id}`} size="lg" className="ms-auto">
+            <LinkButton to={`/booking/${campaign.id}`} size="md" className="ms-auto">
               {t('common.bookNow')}
               <Arrow className="size-4" />
             </LinkButton>
           ) : (
-            <Button className="ms-auto" size="lg" disabled>
+            <Button className="ms-auto" size="md" disabled>
               {soldOut ? t('common.soldOut') : t('campaign.deadlinePassed')}
             </Button>
           )}

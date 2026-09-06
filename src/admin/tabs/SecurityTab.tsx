@@ -188,7 +188,7 @@ function MailPanel() {
         </ul>
       )}
 
-      <Button variant="secondary" size="sm" className="mt-4" onClick={() => void load()}>
+      <Button variant="secondary" size="xs" className="mt-4" onClick={() => void load()}>
         {t('admin.mailRefresh')}
       </Button>
     </Panel>
@@ -222,6 +222,7 @@ function TwoFactorPanel({
         body={t('admin.mfaOnBody')}
       >
         <Button
+          size="sm"
           variant="secondary"
           loading={busy}
           onClick={async () => {
@@ -257,6 +258,7 @@ function TwoFactorPanel({
         body={t('admin.mfaOffBody')}
       >
         <Button
+          size="sm"
           loading={busy}
           onClick={async () => {
             setError('')
@@ -328,6 +330,7 @@ function TwoFactorPanel({
 
         <div className="flex gap-2">
           <Button
+            size="sm"
             block
             loading={busy}
             disabled={code.replace(/\D/g, '').length !== TOTP_CODE_LENGTH}
@@ -335,7 +338,7 @@ function TwoFactorPanel({
           >
             {t('admin.mfaConfirm')}
           </Button>
-          <Button variant="secondary" onClick={() => setEnrolment(null)}>
+          <Button size="sm" variant="secondary" onClick={() => setEnrolment(null)}>
             {t('common.back')}
           </Button>
         </div>
@@ -433,7 +436,7 @@ function PasswordPanel({
             />
           )}
         </Field>
-        <Button type="submit" loading={busy} disabled={!password}>
+        <Button size="sm" type="submit" loading={busy} disabled={!password}>
           {t('admin.passwordSave')}
         </Button>
       </form>

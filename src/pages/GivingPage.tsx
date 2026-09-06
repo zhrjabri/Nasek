@@ -142,7 +142,7 @@ export function GivingPage() {
                   />
                 )}
               </Field>
-              <Button type="submit" size="lg" loading={busy} className="shrink-0">
+              <Button type="submit" size="md" loading={busy} className="shrink-0">
                 <Send className="size-4 rtl:-scale-x-100" />
                 {t('giving.interest')}
               </Button>

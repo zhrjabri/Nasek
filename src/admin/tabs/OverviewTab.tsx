@@ -158,11 +158,11 @@ export function OverviewTab({
                   <p className="truncate text-base font-bold text-ink-900">{bl(p.name)}</p>
                   <p className="truncate text-xs text-ink-500">{t('admin.awaitingVerification')}</p>
                 </div>
-                <Button size="sm" variant="secondary" onClick={() => navigate('/owners')}>
+                <Button size="xs" variant="secondary" onClick={() => navigate('/owners')}>
                   {t('admin.reviewPermit')}
                 </Button>
                 <Button
-                  size="sm"
+                  size="xs"
                   onClick={async () => {
                     // The store follows the database rather than racing it. The
                     // old order — draw the badge, fire the request, ignore the

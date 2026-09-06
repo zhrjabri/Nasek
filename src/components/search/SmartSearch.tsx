@@ -160,7 +160,6 @@ function SmartMode({
           onClick={() => void analyse()}
           loading={thinking}
           disabled={!query.trim()}
-          variant="anchor"
           block
         >
           {!thinking && <Wand2 className="size-4" />}
@@ -299,7 +298,7 @@ function ClassicMode({ onSubmit }: { onSubmit: (filters: SearchFilters) => void 
       </label>
 
       <div className="sm:col-span-2 lg:col-span-4">
-        <Button type="submit" variant="anchor" block>
+        <Button type="submit" block>
           {t('search.submit')}
         </Button>
       </div>

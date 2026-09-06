@@ -145,13 +145,13 @@ export function SmartMatchPage() {
                     <Button variant="ghost" onClick={() => setStep((s) => s + 1)}>
                       {t('common.skip')}
                     </Button>
-                    <Button onClick={() => setStep((s) => s + 1)} size="lg">
+                    <Button onClick={() => setStep((s) => s + 1)} size="md">
                       {t('common.next')}
                       <Next className="size-4" />
                     </Button>
                   </>
                 ) : (
-                  <Button variant="gold" size="lg" onClick={() => void run(input)}>
+                  <Button variant="gold" size="md" onClick={() => void run(input)}>
                     <Sparkles className="size-4" />
                     {t('smart.start')}
                   </Button>
@@ -208,7 +208,7 @@ function Intro({ onStart }: { onStart: () => void }) {
       <p className="mx-auto mt-4 max-w-xl text-md leading-relaxed text-ink-500">
         {t('smart.subtitle')}
       </p>
-      <Button size="lg" className="mt-8" onClick={onStart}>
+      <Button size="md" className="mt-8" onClick={onStart}>
         <Sparkles className="size-4" />
         {t('smart.start')}
       </Button>

@@ -766,12 +766,12 @@ export function CampaignForm({
               rather than that it was done. The queue has not gone away — the
               confirmation after this says so plainly.
             */}
-            <Button type="submit" size="lg" block>
+            <Button type="submit" size="md" block>
               {isNew
                 ? t('prov.publishCampaign')
                 : t('prov.saveCampaign')}
             </Button>
-            <Button type="button" variant="secondary" size="lg" onClick={requestClose}>
+            <Button type="button" variant="secondary" size="md" onClick={requestClose}>
               {t('common.cancel')}
             </Button>
           </div>

@@ -35,6 +35,7 @@ import {
   Field,
   Input,
   LinkButton,
+  RuleLink,
   ProgressBar,
   Segmented,
   Select,
@@ -126,7 +127,7 @@ export function BookingPage() {
         <EmptyState
           title={t('state.notFoundTitle')}
           body={t('state.notFoundBody')}
-          action={<LinkButton to="/campaigns">{t('campaign.browse')}</LinkButton>}
+          action={<RuleLink to="/campaigns">{t('campaign.browse')}</RuleLink>}
         />
       </main>
     )
@@ -153,7 +154,7 @@ export function BookingPage() {
         <EmptyState
           title={t('campaign.deadlinePassed')}
           body={t('campaign.deadline') + ' · ' + date(campaign.registrationDeadline)}
-          action={<LinkButton to="/campaigns">{t('campaign.browse')}</LinkButton>}
+          action={<RuleLink to="/campaigns">{t('campaign.browse')}</RuleLink>}
         />
       </main>
     )
@@ -748,7 +749,7 @@ export function BookingPage() {
                 </div>
 
                 <Button
-                  size="lg"
+                  size="md"
                   block
                   className="mt-6"
                   loading={processing}
@@ -771,7 +772,7 @@ export function BookingPage() {
                   {t('common.back')}
                 </Button>
                 <Button
-                  size="lg"
+                  size="md"
                   onClick={() => {
                     if (step === 2 && !validateDetails()) return
                     setStep((s) => s + 1)
@@ -932,10 +933,10 @@ function Confirmation({ booking, campaign }: { booking: Booking; campaign: Campa
       </Card>
 
       <div className="mt-7 flex flex-col gap-2.5 sm:flex-row">
-        <LinkButton to="/dashboard?tab=bookings" size="lg" block>
+        <LinkButton to="/dashboard?tab=bookings" size="md" block>
           {t('booking.viewBookings')}
         </LinkButton>
-        <Button variant="secondary" size="lg" block onClick={() => window.print()}>
+        <Button variant="secondary" size="md" block onClick={() => window.print()}>
           <Printer className="size-4" />
           {t('booking.print')}
         </Button>

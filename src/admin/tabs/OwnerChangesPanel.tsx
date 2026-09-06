@@ -125,7 +125,8 @@ export function OwnerChangesPanel({ providers }: { providers: Provider[] }) {
 
                 <div className="mt-4 flex flex-wrap gap-2 border-t border-ivory-300 pt-4">
                   <Button
-                    size="sm"
+                    size="xs"
+                    variant="approve"
                     disabled={deciding}
                     onClick={() => void decide(change, true)}
                   >
@@ -133,7 +134,7 @@ export function OwnerChangesPanel({ providers }: { providers: Provider[] }) {
                     {t('admin.ownerChangeApprove')}
                   </Button>
                   <Button
-                    size="sm"
+                    size="xs"
                     variant="danger"
                     disabled={deciding}
                     onClick={() => {
@@ -180,10 +181,11 @@ export function OwnerChangesPanel({ providers }: { providers: Provider[] }) {
               )}
             </Field>
             <div className="flex justify-end gap-2">
-              <Button variant="secondary" onClick={() => setRefusing(null)}>
+              <Button size="sm" variant="secondary" onClick={() => setRefusing(null)}>
                 {t('common.cancel')}
               </Button>
               <Button
+                size="sm"
                 variant="danger"
                 loading={deciding}
                 disabled={!reason.trim()}
@@ -281,7 +283,7 @@ function ChangeTable({
             {change.licence_file_name || t('admin.licence')}
           </span>
           <Button
-            size="sm"
+            size="xs"
             variant="secondary"
             loading={permit === 'opening'}
             onClick={() => void open()}

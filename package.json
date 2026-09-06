@@ -35,7 +35,8 @@
     "auth:urls": "node scripts/supabase-auth-urls.mjs",
     "verify:redirect": "vite build --ssr scripts/verify-redirect.ts --outDir .verify --mode harness --logLevel warn && node .verify/verify-redirect.js",
     "debug:signin": "vite build --ssr scripts/debug-signin.ts --outDir .verify --logLevel warn && node .verify/debug-signin.js",
-    "verify:interaction": "vite build --ssr scripts/verify-interaction.tsx --outDir .verify --mode harness --logLevel warn && node scripts/run-interaction.mjs"
+    "verify:interaction": "vite build --ssr scripts/verify-interaction.tsx --outDir .verify --mode harness --logLevel warn && node scripts/run-interaction.mjs",
+    "harness": "vite --config vite.harness.config.ts --mode harness"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4",

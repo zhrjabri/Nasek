@@ -18,7 +18,7 @@ import { useCatalogue } from '@/hooks/useCatalogue'
 import { campaignImageUrl } from '@/services/storage/campaignImages'
 import { useToggleSaved } from '@/hooks/useToggleSaved'
 import { tripDays } from '@/lib/trip'
-import { Badge, LinkButton, Rating, cx } from '@/components/ui'
+import { Badge, IconButton, LinkButton, Rating, cx } from '@/components/ui'
 
 export function CampaignCard({
   campaign,
@@ -265,42 +265,6 @@ function Fact({
         </dd>
       </div>
     </div>
-  )
-}
-
-function IconButton({
-  active,
-  onClick,
-  label,
-  children,
-}: {
-  active: boolean
-  onClick: () => void
-  label: string
-  children: React.ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      aria-label={label}
-      title={label}
-      /* A ring rather than a square: the icon tier is the one place the
-         customer site can be round without arguing with the framed panels,
-         and a saved trip fills the ring solid rather than only swapping its
-         glyph — saved and unsaved should differ by more than a bookmark that
-         gained a tick. 36px, which is the ring size the sign-in proofs
-         settled on. */
-      className={cx(
-        'flex size-9 items-center justify-center rounded-full border transition-all duration-200',
-        active
-          ? 'border-nasek-800 bg-nasek-800 text-ivory-50'
-          : 'border-ivory-400 bg-transparent text-ink-500 hover:border-gold-400 hover:text-nasek-800',
-      )}
-    >
-      {children}
-    </button>
   )
 }
 

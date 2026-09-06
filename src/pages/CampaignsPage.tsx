@@ -194,7 +194,7 @@ export function CampaignsPage() {
         title={t('common.filters')}
       >
         <CampaignFilters filters={filters} onChange={commit} campaigns={campaigns} />
-        <Button block size="lg" className="mt-6" onClick={() => setFiltersOpen(false)}>
+        <Button block size="md" className="mt-6" onClick={() => setFiltersOpen(false)}>
           {t('filters.showResults', { n: n(results.length) })}
         </Button>
       </Modal>

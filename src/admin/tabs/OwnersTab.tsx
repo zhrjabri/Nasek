@@ -125,7 +125,7 @@ export function OwnersTab({ providers }: { providers: Provider[] }) {
           <h2 className="text-lg font-bold text-ink-900">{t('admin.providers')}</h2>
           <p className="text-sm text-ink-500">{t('admin.newOwnerBody')}</p>
         </div>
-        <Button onClick={() => setAdding(true)}>
+        <Button size="sm" onClick={() => setAdding(true)}>
           <UserPlus className="size-4" />
           {t('admin.newOwnerButton')}
         </Button>
@@ -239,7 +239,7 @@ export function OwnersTab({ providers }: { providers: Provider[] }) {
                     </td>
                     <td className="p-3.5">
                       {hasPermit ? (
-                        <Button size="sm" variant="secondary" onClick={() => setPermit(p)}>
+                        <Button size="xs" variant="secondary" onClick={() => setPermit(p)}>
                           <FileImage className="size-3.5" />
                           {t('admin.viewLicence')}
                         </Button>
@@ -253,15 +253,15 @@ export function OwnersTab({ providers }: { providers: Provider[] }) {
                     <td className="p-3.5">
                       <div className="flex flex-wrap justify-end gap-2">
                         {!verified && (
-                          <Button size="sm" onClick={() => void decide(p, 'verified')}>
+                          <Button size="xs" variant="approve" onClick={() => void decide(p, 'verified')}>
                             <BadgeCheck className="size-3.5" />
                             {t('admin.approve')}
                           </Button>
                         )}
                         {p.verification !== 'rejected' && !verified && (
                           <Button
-                            size="sm"
-                            variant="secondary"
+                            size="xs"
+                            variant="danger"
                             onClick={() => setRefusing({ provider: p, status: 'rejected' })}
                           >
                             <XCircle className="size-3.5" />
@@ -271,16 +271,16 @@ export function OwnersTab({ providers }: { providers: Provider[] }) {
                         {verified && (
                           <>
                             <Button
-                              size="sm"
-                              variant="secondary"
+                              size="xs"
+                              variant="danger"
                               onClick={() => void decide(p, 'pending')}
                             >
                               <ShieldX className="size-3.5" />
                               {t('admin.unverify')}
                             </Button>
                             <Button
-                              size="sm"
-                              variant="secondary"
+                              size="xs"
+                              variant="danger"
                               onClick={() => setRefusing({ provider: p, status: 'suspended' })}
                             >
                               <Ban className="size-3.5" />
@@ -290,7 +290,7 @@ export function OwnersTab({ providers }: { providers: Provider[] }) {
                         )}
                         {p.verification === 'suspended' && (
                           <Button
-                            size="sm"
+                            size="xs"
                             variant="secondary"
                             onClick={() => void decide(p, 'verified')}
                           >
@@ -403,6 +403,8 @@ export function OwnersTab({ providers }: { providers: Provider[] }) {
             <div className="flex flex-wrap justify-end gap-2 border-t border-ivory-300 pt-4">
               {permit.verification !== 'verified' && (
                 <Button
+                  size="sm"
+                  variant="approve"
                   onClick={async () => {
                     if (await decide(permit, 'verified')) setPermit(null)
                   }}
@@ -412,6 +414,7 @@ export function OwnersTab({ providers }: { providers: Provider[] }) {
                 </Button>
               )}
               <Button
+                size="sm"
                 variant="secondary"
                 onClick={() => {
                   setRefusing({
@@ -648,10 +651,11 @@ function RefusalDialog({
         </Field>
 
         <div className="flex justify-end gap-2 border-t border-ivory-300 pt-4">
-          <Button variant="secondary" onClick={onClose}>
+          <Button size="sm" variant="secondary" onClick={onClose}>
             {t('common.cancel')}
           </Button>
           <Button
+            size="sm"
             loading={busy}
             onClick={async () => {
               if (!reason.trim()) {

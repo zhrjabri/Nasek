@@ -308,7 +308,7 @@ export function CampaignsTab({
         cannot write a trip for a company it does not administer.
       */}
       <div className="flex justify-end">
-        <Button type="button" size="sm" onClick={() => setCreating(true)}>
+        <Button type="button" size="xs" onClick={() => setCreating(true)}>
           <Plus className="size-3.5" />
           {t('admin.addTrip')}
         </Button>
@@ -436,12 +436,13 @@ export function CampaignsTab({
                         */}
                         {c.status === 'pending_approval' ? (
                           <>
-                            <Button size="sm" variant="secondary" onClick={() => setDetail(c)}>
+                            <Button size="xs" variant="secondary" onClick={() => setDetail(c)}>
                               <Eye className="size-3.5" />
                               {t('admin.reviewDetail')}
                             </Button>
                             <Button
-                              size="sm"
+                              size="xs"
+                              variant="approve"
                               disabled={deciding}
                               onClick={() => void decide(c, 'active')}
                             >
@@ -449,7 +450,7 @@ export function CampaignsTab({
                               {t('admin.campaignApprove')}
                             </Button>
                             <Button
-                              size="sm"
+                              size="xs"
                               variant="danger"
                               disabled={deciding}
                               onClick={() => {
@@ -469,7 +470,7 @@ export function CampaignsTab({
                                 theatre. */}
                             {c.status === 'rejected' && (
                               <Button
-                                size="sm"
+                                size="xs"
                                 variant="secondary"
                                 disabled={deciding}
                                 onClick={() => void decide(c, 'pending_approval')}
@@ -494,9 +495,12 @@ export function CampaignsTab({
                                   )}
                                   onClick={() => toggleFeatured(c)}
                                 />
+                                {/* One control, two consequences: suspending a
+                                    live trip is destructive, restoring one is
+                                    not, so the tier follows the label. */}
                                 <Button
-                                  size="sm"
-                                  variant="secondary"
+                                  size="xs"
+                                  variant={down ? 'secondary' : 'danger'}
                                   onClick={() => toggleSuspended(c)}
                                 >
                                   {down ? <Undo2 className="size-3.5" /> : <Ban className="size-3.5" />}
@@ -642,6 +646,8 @@ export function CampaignsTab({
               {detail.status === 'pending_approval' ? (
                 <>
                   <Button
+                    size="sm"
+                    variant="approve"
                     disabled={deciding}
                     onClick={() => void decide(detail, 'active')}
                   >
@@ -649,6 +655,7 @@ export function CampaignsTab({
                     {t('admin.campaignApprove')}
                   </Button>
                   <Button
+                    size="sm"
                     variant="danger"
                     disabled={deciding}
                     onClick={() => {
@@ -674,13 +681,17 @@ export function CampaignsTab({
                   )}
                   {detail.status === 'active' && (
                     <>
-                      <Button size="sm" variant="secondary" onClick={() => toggleFeatured(detail)}>
+                      <Button size="xs" variant="secondary" onClick={() => toggleFeatured(detail)}>
                         <Star
                           className={cx('size-3.5', detail.featured && 'fill-gold-500 text-gold-600')}
                         />
                         {t(detail.featured ? 'admin.campUnfeature' : 'admin.campFeature')}
                       </Button>
-                      <Button size="sm" variant="secondary" onClick={() => toggleSuspended(detail)}>
+                      <Button
+                        size="xs"
+                        variant={isSuspended(detail.id) ? 'secondary' : 'danger'}
+                        onClick={() => toggleSuspended(detail)}
+                      >
                         {isSuspended(detail.id) ? (
                           <Undo2 className="size-3.5" />
                         ) : (
@@ -692,6 +703,7 @@ export function CampaignsTab({
                   )}
                   {detail.status === 'rejected' && (
                     <Button
+                      size="sm"
                       variant="secondary"
                       disabled={deciding}
                       onClick={() => void decide(detail, 'pending_approval')}
@@ -740,10 +752,11 @@ export function CampaignsTab({
               )}
             </Field>
             <div className="flex justify-end gap-2">
-              <Button variant="secondary" onClick={() => setRefusing(null)}>
+              <Button size="sm" variant="secondary" onClick={() => setRefusing(null)}>
                 {t('common.cancel')}
               </Button>
               <Button
+                size="sm"
                 variant="danger"
                 loading={deciding}
                 disabled={!reason.trim()}
@@ -772,10 +785,10 @@ export function CampaignsTab({
               {t('admin.campDeleteHint')}
             </p>
             <div className="flex justify-end gap-2">
-              <Button variant="secondary" onClick={() => setConfirmDelete(null)}>
+              <Button size="sm" variant="secondary" onClick={() => setConfirmDelete(null)}>
                 {t('common.cancel')}
               </Button>
-              <Button onClick={() => void remove(confirmDelete)}>
+              <Button size="sm" variant="danger" onClick={() => void remove(confirmDelete)}>
                 <Trash2 className="size-3.5" />
                 {t('admin.campDelete')}
               </Button>

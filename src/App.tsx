@@ -8,7 +8,7 @@ import { useRemoteData } from '@/hooks/useRemoteData'
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
 import { ToastHost } from '@/components/layout/ToastHost'
-import { EmptyState, LinkButton, Spinner } from '@/components/ui'
+import { EmptyState, LinkButton, RuleLink, Spinner } from '@/components/ui'
 
 import { HomePage } from '@/pages/HomePage'
 import { CampaignsPage } from '@/pages/CampaignsPage'
@@ -148,7 +148,7 @@ function NotFoundPage() {
       <EmptyState
         title={t('state.notFoundTitle')}
         body={t('state.notFoundBody')}
-        action={<LinkButton to="/">{t('state.notFoundCta')}</LinkButton>}
+        action={<RuleLink to="/">{t('state.notFoundCta')}</RuleLink>}
       />
     </main>
   )

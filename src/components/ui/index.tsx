@@ -31,40 +31,55 @@ export const cx = (...parts: (string | false | null | undefined)[]) =>
 type ButtonVariant =
   | 'primary'
   | 'secondary'
-  | 'ghost'
-  | 'gold'
-  | 'danger'
-  | 'outline'
-  | 'anchor'
   | 'hairline'
   | 'hairlineDark'
-type ButtonSize = 'sm' | 'md' | 'lg'
+  | 'ghost'
+  | 'gold'
+  | 'approve'
+  | 'danger'
+type ButtonSize = 'xs' | 'sm' | 'md' | 'lg'
 
-/* Buttons are ruled blocks, not pills: a hairline border on every variant and
-   a square-ish radius, so they sit in the same visual language as the framed
-   panels rather than looking like a modern app pasted onto parchment.
+/*
+ * SIX TIERS, THREE APPLICATIONS.
  *
- * `anchor` and `hairline` are the customer site's two new tiers, and they are
- * additions rather than edits on purpose. `secondary` is named 57 times across
- * the three applications — 35 of those in the owner portal and the
- * administration — so changing what it looks like would restyle two products
- * nobody asked about. New names mean a call site opts in. */
+ * Buttons are ruled blocks, not pills: a hairline border on every variant and
+ * a square-ish radius, so they sit in the same visual language as the framed
+ * panels rather than looking like a modern app pasted onto parchment. The one
+ * round thing in the system is the icon tier, and that is a seal rather than
+ * a pill.
+ *
+ *   1 primary     filled green, gold rule inset along the bottom
+ *   2 secondary   a frame; `hairline` is the same frame in gold, for the
+ *                 customer site where warmth is wanted
+ *   3 tertiary    not here — see `RuleLink` and `RuleButton` below
+ *   4 icon        not here — see `IconButton`
+ *   5 danger      red hairline that fills only on hover
+ *   6 approve     gold, so yes and no are separable across a table
+ *
+ * No two tiers share a weight. That is the whole point: the audit that
+ * produced this found `حذف الحملة` and `اعتماد ونشر` rendering identically,
+ * `رفض` drawn two different ways, and suspend, restore and unverify — three
+ * different consequences — sharing one look.
+ */
 const VARIANTS: Record<ButtonVariant, string> = {
+  /*
+   * Tier one, and it carries the sign-in control's gold rule inside its own
+   * bottom edge — the same gesture drawn under a filled block instead of
+   * under bare text. That single detail is what ties the filled tier to the
+   * chromeless one. The rule reaches wider on hover rather than changing
+   * colour, so a filled button and a ruled link animate the same way.
+   */
   primary:
-    'bg-nasek-800 text-ivory-50 border border-nasek-900 hover:bg-nasek-900 active:bg-nasek-950',
-  /* The one filled tier the customer site still spends, and it carries the
-     sign-in control's gold rule inside its own bottom edge — the same gesture
-     drawn under a filled block instead of under bare text. That single detail
-     is what ties the filled tier to the chromeless one. The rule reaches
-     wider on hover rather than changing colour, so a filled button and a
-     ruled link animate the same way. */
-  anchor:
     'relative bg-nasek-800 text-ivory-50 border border-nasek-900 hover:bg-nasek-900 active:bg-nasek-950 ' +
     "after:content-[''] after:absolute after:bottom-1.5 after:inset-x-3.5 after:h-px " +
     'after:bg-gold-400 after:opacity-85 after:transition-all after:duration-300 after:ease-out-soft ' +
     'hover:after:inset-x-2.5 hover:after:opacity-100',
-  /* A frame, not a fill. Gold at 60% so it reads as a drawn line rather than
-     a border the browser happened to put there. */
+  /* A frame, not a fill — the white ground it used to carry made it read as a
+     second filled tier on a parchment page. */
+  secondary:
+    'bg-transparent text-nasek-800 border border-ivory-400 hover:border-nasek-700 hover:bg-nasek-50',
+  /* The same frame in gold, for the customer site. Gold at 60% so it reads as
+     a drawn line rather than a border the browser happened to put there. */
   hairline:
     'bg-transparent text-nasek-800 border border-gold-300/60 hover:border-gold-400 hover:bg-nasek-50',
   /*
@@ -81,13 +96,27 @@ const VARIANTS: Record<ButtonVariant, string> = {
   hairlineDark:
     'bg-transparent text-ivory-50 border border-gold-300/75 backdrop-blur-sm ' +
     'hover:border-gold-300 hover:bg-ivory-50/12',
-  secondary:
-    'bg-ivory-50 text-nasek-800 border border-ivory-400 hover:border-nasek-700 hover:bg-nasek-50',
-  outline:
-    'bg-transparent text-nasek-800 border border-nasek-700/35 hover:border-nasek-700 hover:bg-nasek-50',
   ghost: 'bg-transparent text-ink-600 border border-transparent hover:bg-ivory-200 hover:text-ink-800',
+  /* The brand's one moment, spent on the hero and nowhere else on the
+     customer site. In the two operator applications gold means `approve`. */
   gold: 'bg-gold-400 text-nasek-950 border border-gold-500 hover:bg-gold-300',
-  danger: 'bg-ivory-50 text-red-800 border border-red-300/70 hover:bg-red-50 hover:border-red-400',
+  /*
+   * Tier six. Approving is the affirming act in both operator applications,
+   * and gold is already NASEK's mark of endorsement — which also means
+   * اعتماد and رفض no longer read as "important" and "unimportant" the way a
+   * primary/secondary pairing made them.
+   */
+  approve: 'bg-gold-400 text-nasek-950 border border-gold-500 hover:bg-gold-300 active:bg-gold-500',
+  /*
+   * Tier five. Obvious, never aggressive: a red hairline over the page's own
+   * ground that fills only on hover, so a table of destructive row actions
+   * does not become a wall of red blocks. Uses the semantic tokens in
+   * `index.css` rather than Tailwind's raw red ramp, which is what three
+   * different spellings of "this is dangerous" grew out of.
+   */
+  danger:
+    'bg-transparent text-danger-fg border border-danger-border ' +
+    'hover:bg-danger-surface hover:border-danger-fg/45',
 }
 
 /*
@@ -99,8 +128,20 @@ const VARIANTS: Record<ButtonVariant, string> = {
  * still sit in a dense table row without turning it into a list.
  */
 const SIZES: Record<ButtonSize, string> = {
+  /*
+   * 36px, and the administration's working size. It goes inside table rows
+   * carrying four actions, where 40 turns every row into two lines. Below the
+   * 44px Apple asks for, which is why it is confined to pointer-driven
+   * operator screens and never used on the customer site.
+   */
+  xs: 'h-9 px-3 text-sm gap-1.5 rounded-[3px]',
   sm: 'h-10 px-3.5 text-sm gap-1.5 rounded-[3px]',
   md: 'h-11 px-5 text-sm gap-2 rounded-[3px]',
+  /*
+   * 50px, and now reserved for the one place a full-width target is right:
+   * the sign-in and one-time-code submits, where the button is the only thing
+   * on the screen. Everywhere else it made a page of slabs.
+   */
   lg: 'h-12.5 px-8 text-md gap-2.5 rounded-[3px] tracking-[0.02em]',
 }
 
@@ -174,21 +215,63 @@ export function LinkButton({
   )
 }
 
+/** Shared by `RuleLink` and `RuleButton` — tier three, drawn once. */
+const RULE_BASE =
+  'group relative inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap ' +
+  'rounded-[3px] px-1 text-sm font-semibold transition-colors duration-200 ease-out-soft ' +
+  'focus-visible:outline-2 focus-visible:outline-offset-2'
+
+const ruleTone = (onDark?: boolean) =>
+  onDark
+    ? 'text-ivory-50/90 hover:text-ivory-50 focus-visible:outline-gold-300'
+    : 'text-ink-700 hover:text-nasek-800 focus-visible:outline-nasek-800'
+
 /**
- * Tier three: the onward link. Text, an arrow in the direction of travel, and
- * a gold rule that grows from 38% to full width.
+ * The gold rule itself: 38% of the control at rest, full width on hover.
  *
- * This is deliberately a second copy of the navbar's `SignInLink` rather than
- * a shared component both of them call. The sign-in control is finished and
- * frozen; extracting it would mean editing it, and a refactor that "cannot
- * change the pixels" is exactly the kind of claim that turns out to be wrong
- * on the one screen nobody re-checked. When this tier has settled, the two
- * should merge — until then the duplication is the cheaper mistake.
- *
- * The `@media (hover: none)` rule is not a flourish: Tailwind wraps every
+ * The `@media (hover: none)` rule is not a flourish. Tailwind wraps every
  * `group-hover:` rule in `@media (hover: hover)`, so on a phone the growing
- * rule never fires, and a control whose only affordance is a hover state has
- * no affordance at all on a touch screen.
+ * rule never fires at all — and a control whose only affordance is a hover
+ * state has no affordance on a touch screen.
+ */
+function RuleMark({ onDark }: { onDark?: boolean }) {
+  return (
+    <span
+      aria-hidden
+      className={cx(
+        'pointer-events-none absolute start-1 bottom-2 h-px w-[38%]',
+        'transition-[width] duration-300 ease-out-soft',
+        'group-hover:w-[calc(100%-0.5rem)]',
+        '[@media(hover:none)]:w-[calc(100%-0.5rem)]',
+        onDark ? 'bg-gold-300' : 'bg-gold-400',
+      )}
+    />
+  )
+}
+
+/** The arrow points the way the reader is travelling, which is the opposite
+ *  edge in each language. Written per language rather than as an `rtl:`
+ *  variant: the glyph is already flipped by `rtl:rotate-180`, and a translate
+ *  composes with that rotation in the parent's axes, not the glyph's. */
+function RuleArrow({ lang }: { lang: string }) {
+  return (
+    <ArrowRight
+      className={cx(
+        'size-3.5 transition-transform duration-300 ease-out-soft rtl:rotate-180',
+        lang === 'ar' ? 'group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5',
+      )}
+      strokeWidth={2}
+    />
+  )
+}
+
+/**
+ * Tier three as a router link: onward navigation, not a decision.
+ *
+ * This deliberately duplicates the navbar's `SignInLink` rather than sharing
+ * with it. That control is finished and frozen; extracting it would mean
+ * editing it, and a refactor that "cannot change the pixels" is exactly the
+ * claim that turns out to be wrong on the one screen nobody re-checked.
  */
 export function RuleLink({
   to,
@@ -199,48 +282,101 @@ export function RuleLink({
   to: string
   children: ReactNode
   className?: string
-  /** Over the hero photograph, where gold-400 is too dark to survive. */
   onDark?: boolean
 }) {
   const { lang } = useI18n()
-
   return (
-    <Link
-      to={to}
+    <Link to={to} className={cx(RULE_BASE, ruleTone(onDark), className)}>
+      {/* Kufi carries line-height 1.95 from the base layer — right for running
+          Arabic, and enough to push a label off centre in a 40px control. */}
+      <span className="leading-none">{children}</span>
+      <RuleArrow lang={lang} />
+      <RuleMark onDark={onDark} />
+    </Link>
+  )
+}
+
+/** Tier three for the cases that run a handler rather than navigate. */
+export function RuleButton({
+  onClick,
+  children,
+  className,
+  onDark,
+  type = 'button',
+  disabled,
+}: {
+  onClick?: () => void
+  children: ReactNode
+  className?: string
+  onDark?: boolean
+  type?: 'button' | 'submit'
+  disabled?: boolean
+}) {
+  const { lang } = useI18n()
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled}
+      className={cx(RULE_BASE, ruleTone(onDark), 'disabled:pointer-events-none disabled:opacity-45', className)}
+    >
+      <span className="leading-none">{children}</span>
+      <RuleArrow lang={lang} />
+      <RuleMark onDark={onDark} />
+    </button>
+  )
+}
+
+/**
+ * Tier four: no room for a word.
+ *
+ * A ring rather than a square — the icon tier is the one place this system
+ * can be round without arguing with the framed panels, and it echoes the seal
+ * the sign-in proofs settled on. `active` fills it solid, so a saved trip and
+ * an unsaved one differ by more than a glyph that gained a tick.
+ *
+ * 36px everywhere except the administration's table rows, where `sm` gives 32
+ * and keeps four actions on one line.
+ */
+export function IconButton({
+  label,
+  onClick,
+  active,
+  size = 'md',
+  tone = 'neutral',
+  className,
+  children,
+}: {
+  label: string
+  onClick?: () => void
+  active?: boolean
+  size?: 'sm' | 'md'
+  tone?: 'neutral' | 'danger'
+  className?: string
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      aria-label={label}
+      title={label}
       className={cx(
-        'group relative inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap',
-        'rounded-[3px] px-1 text-sm font-semibold',
-        'transition-colors duration-200 ease-out-soft',
-        'focus-visible:outline-2 focus-visible:outline-offset-2',
-        onDark
-          ? 'text-ivory-50/90 hover:text-ivory-50 focus-visible:outline-gold-300'
-          : 'text-ink-700 hover:text-nasek-800 focus-visible:outline-nasek-800',
+        'inline-flex shrink-0 items-center justify-center rounded-full border',
+        'transition-all duration-200 ease-out-soft',
+        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nasek-800',
+        size === 'sm' ? 'size-8' : 'size-9',
+        tone === 'danger'
+          ? 'border-danger-border bg-transparent text-danger-fg hover:bg-danger-surface hover:border-danger-fg/45'
+          : active
+            ? 'border-nasek-800 bg-nasek-800 text-ivory-50'
+            : 'border-ivory-400 bg-transparent text-ink-500 hover:border-gold-400 hover:text-nasek-800',
         className,
       )}
     >
-      {/* Kufi carries line-height 1.95 from the base layer — right for running
-          Arabic, and enough to push a label off centre inside a 40px control. */}
-      <span className="leading-none">{children}</span>
-
-      <ArrowRight
-        className={cx(
-          'size-3.5 transition-transform duration-300 ease-out-soft rtl:rotate-180',
-          lang === 'ar' ? 'group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5',
-        )}
-        strokeWidth={2}
-      />
-
-      <span
-        aria-hidden
-        className={cx(
-          'pointer-events-none absolute start-1 bottom-2 h-px w-[38%]',
-          'transition-[width] duration-300 ease-out-soft',
-          'group-hover:w-[calc(100%-0.5rem)]',
-          '[@media(hover:none)]:w-[calc(100%-0.5rem)]',
-          onDark ? 'bg-gold-300' : 'bg-gold-400',
-        )}
-      />
-    </Link>
+      {children}
+    </button>
   )
 }
 
@@ -552,8 +688,28 @@ export function Segmented<T extends string>({
     <div
       role="radiogroup"
       aria-label={label}
+      /*
+       * The tray scrolls rather than overflowing the page.
+       *
+       * The administration's campaign filter carries six options — الكل,
+       * مميّزة, موقوفة, مرفوضة, منشورة, بانتظار المراجعة — which come to 427px.
+       * On a 390px phone that pushed the layout viewport wider than the device
+       * and cut الكل off the edge, and no ancestor clipped it because the tray
+       * was a bare `inline-flex`.
+       *
+       * `max-w-full` gives it a width to overflow *within*, and `overflow-x-auto`
+       * makes the overflow the tray's problem instead of the document's. Where
+       * there is room — every laptop, and every two- or three-option tray on a
+       * phone — nothing overflows, so nothing scrolls and nothing about the
+       * control changes.
+       *
+       * The scrollbar is hidden in both engines. A visible one inside a 36px
+       * control is bulky, and this scrolls by touch and by trackpad; the edge
+       * of a cut-off option is its own affordance.
+       */
       className={cx(
-        'inline-flex rounded-[3px] border border-ivory-400 p-0.5',
+        'inline-flex max-w-full overflow-x-auto rounded-[3px] border border-ivory-400 p-0.5',
+        '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
         ruled ? 'bg-transparent' : 'bg-ivory-200',
         className,
       )}
@@ -568,7 +724,17 @@ export function Segmented<T extends string>({
             aria-checked={active}
             onClick={() => onChange(opt.value)}
             className={cx(
-              'relative flex-1 rounded-[2px] font-semibold transition-all duration-200',
+              /*
+               * `whitespace-nowrap` is what makes the tray above scroll rather
+               * than crush. A flex item's `min-width` is `auto`, so it will not
+               * shrink below its own min-content — and with the label allowed
+               * to wrap, min-content was one word, so six options folded into
+               * two lines each and *still* overflowed. Nowrap makes min-content
+               * the whole label: the options keep their size and the tray takes
+               * the overflow. `flex-1` is untouched, so a two-option tray with
+               * room to spare still divides it evenly.
+               */
+              'relative flex-1 rounded-[2px] font-semibold whitespace-nowrap transition-all duration-200',
               size === 'sm' ? 'px-3 py-1.5 text-sm' : 'px-4 py-2 text-sm',
               ruled
                 ? active

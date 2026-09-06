@@ -410,7 +410,7 @@ export function HomePage() {
         </h2>
         <p className="mt-3 text-md leading-relaxed text-ink-500">{t('home.finalCta.body')}</p>
         <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <LinkButton to="/smart-match" variant="anchor">
+          <LinkButton to="/smart-match">
             <Sparkles className="size-4" />
             {t('smart.start')}
           </LinkButton>
