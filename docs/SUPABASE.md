@@ -352,6 +352,63 @@ Editor and the CLI run as. Calling it with the anon key — from either app, or
 from a script someone writes — is a permission error, not a check that happens
 to fail.
 
+## 7b. Notifications belong to a person *and* an audience
+
+`notifications.user_id` says whose row it is. `notifications.audience`
+(`customer` | `owner` | `admin`, added by `20260909000100`) says which of the
+three applications should show it, and the two are different questions: one
+profile is one person, and that person may be both a pilgrim and a company
+owner. Conflating them is what put "تم اعتماد حملتك" into a Customer Dashboard.
+
+Each build asks for its own — `APP_AUDIENCE` in `src/services/data/catalogue.ts`,
+derived from the `VITE_NASEK_APP` baked into each Vite config — and the policy
+refuses an owner-audience row to any account that owns no company, and an
+admin-audience row to anyone who is not an administrator.
+
+**Anything new that writes a notification must name its audience.** Through
+`notify_user` the parameter defaults to `owner`, which is what nine of the ten
+existing writers are; a customer notification must pass `'customer'`
+explicitly, or it lands in an inbox its reader never opens.
+
+### Proving the boundary without creating an account
+
+The interesting case — "a customer with their own JWT cannot read owner rows" —
+needs a signed-in session, and you should not make a test account on a live
+project to get one. `auth.uid()` reads `request.jwt.claims`, so you can set that
+GUC directly and roll the whole thing back. It reads nothing it would not
+already return and writes nothing at all:
+
+```sql
+begin;
+-- Any real customer id: an account with role 'customer' that owns no provider.
+select set_config(
+  'request.jwt.claims',
+  json_build_object('sub', (
+    select p.id from public.profiles p
+     where p.role = 'customer'
+       and not exists (select 1 from public.providers pr where pr.owner_id = p.id)
+     limit 1
+  ))::text, true);
+
+select public.is_provider_owner() as owns_a_company;   -- expect: false
+select public.is_admin()          as is_an_admin;      -- expect: false
+
+-- What the policy would return for them. Expect zero owner rows.
+select audience, count(*)
+  from public.notifications
+ where user_id = auth.uid()
+   and case audience
+         when 'owner' then public.is_provider_owner()
+         when 'admin' then public.is_admin()
+         else true
+       end
+ group by audience;
+rollback;
+```
+
+Repeat with an owner's id and the same query returns their `owner` rows, which
+is the other half of the property: isolation, not suppression.
+
 ## 8. Deploy the Edge Functions
 
 Three of them, and the dashboard cannot be opened without `admin-access`.

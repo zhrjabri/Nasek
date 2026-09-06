@@ -3,6 +3,7 @@ import type {
   Campaign,
   CampaignStatus,
   Notification,
+  NotificationAudience,
   Provider,
   Review,
   Traveller,
@@ -32,6 +33,26 @@ import {
   toProvider,
   toReview,
 } from './mappers'
+
+/**
+ * Which inbox this build reads.
+ *
+ * `VITE_NASEK_APP` is baked in by each Vite config rather than read from the
+ * environment — it is a property of the build, not of the machine — and the
+ * Supabase client already picks its auth storage key from it. The same fact
+ * answers this: the customer site shows a pilgrim's notifications, the portal
+ * shows a company's, the dashboard shows an administrator's.
+ *
+ * A constant rather than a parameter because `loadSnapshot` is called from all
+ * three applications and none of them should be able to ask for a different
+ * audience than the one it is. There is exactly one correct answer per bundle.
+ */
+const APP_AUDIENCE: NotificationAudience =
+  import.meta.env.VITE_NASEK_APP === 'admin'
+    ? 'admin'
+    : import.meta.env.VITE_NASEK_APP === 'owner'
+      ? 'owner'
+      : 'customer'
 
 /**
  * The catalogue, in the database.
@@ -185,7 +206,29 @@ export async function fetchSnapshot(): Promise<RemoteSnapshot | null> {
      * view must cost the site its review *bylines*, not its reviews.
      */
     readReviews(),
-    supabase.from('notifications').select('*').order('created_at', { ascending: false }),
+    /*
+     * This application's own inbox, and nobody else's half of it.
+     *
+     * `audience` is asked for in the query rather than filtered after it
+     * arrives, and the difference is the whole point: an owner signed in to the
+     * customer site was being handed their company's approvals — "تم اعتماد
+     * حملتك" in a pilgrim's dashboard — because `user_id = auth.uid()` is true
+     * of both inboxes and nothing else distinguished them. The rows were
+     * genuinely theirs; the screen was the wrong one.
+     *
+     * `20260909000100` also refuses owner rows to an account that owns no
+     * company, and admin rows to anyone who is not an administrator, so a
+     * customer cannot reach them by asking PostgREST directly either. That
+     * policy is the security boundary. This line is the product one: for the
+     * person who legitimately holds both, it decides which of their two inboxes
+     * this application is looking at, which is not a question Postgres can
+     * answer — the request looks identical from there.
+     */
+    supabase
+      .from('notifications')
+      .select('*')
+      .eq('audience', APP_AUDIENCE)
+      .order('created_at', { ascending: false }),
     supabase.from('saved_campaigns').select('campaign_id'),
     /*
      * The account directory, scoped by policy to exactly what the caller may
@@ -655,10 +698,20 @@ export async function markAllNotificationsRead(): Promise<boolean> {
   const { data: auth } = await supabase.auth.getSession()
   const userId = auth.session?.user?.id
   if (!userId) return false
+  /*
+   * Scoped to this application's audience, like the read that populated it.
+   *
+   * Without the `audience` clause this marks every unread row the person holds,
+   * across both inboxes — so a campaign owner pressing "mark all read" on the
+   * customer site would silently clear their company's approvals in the Owner
+   * Portal, notifications they had never been shown and could no longer find.
+   * A control should not reach further than the list it sits above.
+   */
   const { error } = await supabase
     .from('notifications')
     .update({ read: true })
     .eq('user_id', userId)
+    .eq('audience', APP_AUDIENCE)
     .eq('read', false)
   return !error
 }

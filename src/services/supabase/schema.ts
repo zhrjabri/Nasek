@@ -244,10 +244,13 @@ export type GivingInterestRow = {
   created_at: string
 }
 
+export type NotificationAudienceRow = 'customer' | 'owner' | 'admin'
+
 export type NotificationRow = {
   id: string
   user_id: string
   kind: NotificationKindRow
+  audience: NotificationAudienceRow
   title_ar: string
   title_en: string
   body_ar: string

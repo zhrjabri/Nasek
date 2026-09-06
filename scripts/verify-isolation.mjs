@@ -427,5 +427,98 @@ if (ownerBundle !== null) {
   )
 }
 
+/*
+ * ------------------------------------------------ the notification boundary
+ *
+ * A campaign owner found their company's approvals in the Customer Dashboard.
+ * Nothing had leaked — the rows were addressed to their own profile, and the
+ * policy has always been `user_id = auth.uid()` — but a notification recorded a
+ * person and never an audience, so one profile meant one undifferentiated inbox
+ * rendered by whichever of the three applications happened to be open.
+ *
+ * `20260909000100` is the fix, and these read the shipped SQL rather than a
+ * database, for the same reason the rest of this file reads the built bundle:
+ * the claim is about what NASEK would deploy. A later migration that quietly
+ * restored `using (user_id = auth.uid())` on its own would put the owner rows
+ * back within reach of any customer, and nothing else in `npm run verify` would
+ * notice.
+ *
+ * What this cannot check is a live project — `verify:backend` does that — or a
+ * signed-in customer's view, which needs a JWT and therefore an account. See
+ * docs/SUPABASE.md for the rolled-back `set_config` simulation that proves that
+ * one without creating anybody.
+ */
+console.log('\n--- the notification audience boundary ----------------------\n')
+
+const audienceMigration = (() => {
+  try {
+    return fs.readFileSync(
+      path.join(root, 'supabase/migrations/20260909000100_notification_audience.sql'),
+      'utf8',
+    )
+  } catch {
+    return null
+  }
+})()
+
+if (audienceMigration === null) {
+  check('the notification audience migration is in the repository', false, 'file missing')
+} else {
+  const policy = audienceMigration.slice(audienceMigration.indexOf('create policy notifications_own'))
+
+  check(
+    'the read policy still requires the row to be the caller’s own',
+    /create policy notifications_own[\s\S]{0,400}?user_id = auth\.uid\(\)/.test(audienceMigration),
+  )
+  check(
+    'an owner-audience row needs the reader to own a company',
+    policy.includes("when 'owner' then public.is_provider_owner()"),
+  )
+  check(
+    'an admin-audience row needs is_admin()',
+    policy.includes("when 'admin' then public.is_admin()"),
+  )
+  check(
+    'the audience column is NOT NULL, so no row escapes classification',
+    /audience public\.notification_audience not null/.test(audienceMigration),
+  )
+  check(
+    'the browser may write only whether a notification has been read',
+    audienceMigration.includes('revoke update on public.notifications from authenticated') &&
+      audienceMigration.includes('grant update (read) on public.notifications to authenticated'),
+  )
+  check(
+    'nothing in the migration deletes a notification',
+    !/delete\s+from\s+public\.notifications|truncate/i.test(audienceMigration),
+  )
+}
+
+/*
+ * And the three applications, each asking for its own audience.
+ *
+ * The policy is the security half and cannot be the whole fix: for somebody who
+ * genuinely owns a company the owner rows are legitimately theirs, so Postgres
+ * must return them, and only the client knows which of that person's two
+ * dashboards is asking.
+ */
+const catalogueSource = fs.readFileSync(
+  path.join(root, 'src/services/data/catalogue.ts'),
+  'utf8',
+)
+check(
+  'the snapshot asks Postgres for one audience rather than filtering afterwards',
+  catalogueSource.includes(".eq('audience', APP_AUDIENCE)"),
+)
+check(
+  'and marking everything read is scoped to that audience too',
+  /update\(\{ read: true \}\)[\s\S]{0,300}?\.eq\('audience', APP_AUDIENCE\)/.test(catalogueSource),
+)
+for (const app of ['admin', 'owner']) {
+  check(
+    `the ${app} build reads the ${app} inbox`,
+    new RegExp(`VITE_NASEK_APP === '${app}'[\\s\\S]{0,40}?'${app}'`).test(catalogueSource),
+  )
+}
+
 console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} CHECK(S) FAILED`)
 if (failures > 0) process.exitCode = 1

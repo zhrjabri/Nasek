@@ -406,6 +406,16 @@ export interface Booking {
   notes?: string
 }
 
+/**
+ * Which of the three applications a notification belongs in.
+ *
+ * Not the same question as `userId`, and conflating them is what put "تم
+ * اعتماد حملتك" in a Customer Dashboard. One profile is one person, and that
+ * person may be both a pilgrim and a company owner; `userId` says whose row it
+ * is, and this says which of their two inboxes it belongs to.
+ */
+export type NotificationAudience = 'customer' | 'owner' | 'admin'
+
 export interface Notification {
   id: string
   userId: string
@@ -414,6 +424,7 @@ export interface Notification {
   date: string
   read: boolean
   kind: 'booking' | 'trip' | 'availability' | 'system'
+  audience: NotificationAudience
 }
 
 export interface Wilayah {

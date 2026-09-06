@@ -165,6 +165,45 @@ async function main() {
   await hidden('admin_audit', 'the administration audit trail is closed')
 
   /*
+   * The notification audience, checked from outside without a session.
+   *
+   * Asking for a *named column* separates two answers that `hidden` above
+   * cannot: PostgREST rejects an unknown column with 400 and `42703` even when
+   * row-level security would have returned nothing anyway, so a 200 with an
+   * empty array means both that `20260909000100` is applied and that the table
+   * is still shut to a stranger holding the public key. A 400 here means the
+   * migration has not been run against this project and the three applications
+   * are asking for a column that does not exist.
+   */
+  {
+    const res = await rest('notifications?select=audience&limit=1')
+    const body = await res.text()
+    if (res.status === 401 || res.status === 403) {
+      // Refused before the column name is ever resolved, so this branch proves
+      // the table is shut and says nothing either way about the migration.
+      check('notifications stay closed when a column is named', true, `HTTP ${res.status}, refused outright`)
+    } else if (res.status === 400) {
+      check(
+        'the notification audience column exists',
+        false,
+        'HTTP 400 — 20260909000100 has not been applied to this project',
+      )
+    } else {
+      let rows = []
+      try {
+        rows = JSON.parse(body)
+      } catch {
+        rows = []
+      }
+      check(
+        'the notification audience column exists and returns nothing to a stranger',
+        res.status === 200 && Array.isArray(rows) && rows.length === 0,
+        `HTTP ${res.status}, ${Array.isArray(rows) ? rows.length : '?'} row(s)`,
+      )
+    }
+  }
+
+  /*
    * The permit scans. This is the check that used to lie.
    *
    * `providers` holds the uploaded trade permit, the owner's private phone

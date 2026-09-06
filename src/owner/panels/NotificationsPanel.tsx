@@ -26,7 +26,18 @@ export function NotificationsPanel() {
   const { t, date } = useI18n()
   const { user, notifications, dispatch } = useStore()
 
-  const mine = notifications.filter((entry) => !user || entry.userId === user.id)
+  /*
+   * This owner's rows, and this application's audience.
+   *
+   * The snapshot query already asks for `audience = 'owner'`, so the second
+   * test is redundant against a configured backend and deliberately kept: with
+   * no backend the store is filled from local state rather than from a query,
+   * and "the portal shows only owner notifications" should be a property of the
+   * portal rather than of one code path into it.
+   */
+  const mine = notifications.filter(
+    (entry) => entry.audience === 'owner' && (!user || entry.userId === user.id),
+  )
   const unread = mine.filter((entry) => !entry.read).length
 
   if (mine.length === 0) {

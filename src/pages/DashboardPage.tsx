@@ -50,9 +50,28 @@ const TABS: { id: Tab; key: MessageKey; icon: typeof Ticket }[] = [
 export function DashboardPage() {
   const { t, lang, setLang, bl, money, n, date } = useI18n()
   const [params, setParams] = useSearchParams()
-  const { user, bookings, reviews, savedIds, notifications, unreadCount, dispatch, toast } =
+  const { user, bookings, reviews, savedIds, notifications, dispatch, toast } =
     useStore()
   const { getCampaign, getProvider } = useCatalogue()
+
+  /*
+   * A pilgrim's notifications, and only those.
+   *
+   * `loadSnapshot` already asks Postgres for `audience = 'customer'` on this
+   * build, so against a configured backend this filter matches everything it is
+   * given. It is here because the property belongs to the screen rather than to
+   * one route into it: `pushNotification` writes straight to the store after a
+   * booking, and a campaign owner using the customer site is an ordinary person
+   * whose store may hold both kinds. This dashboard shows one of them.
+   *
+   * What it must not be mistaken for is the security boundary. That is
+   * `notifications_own` in `20260909000100`, which refuses an owner-audience
+   * row to any account that owns no company, so a customer cannot reach one by
+   * asking PostgREST directly. For somebody who genuinely owns a company the
+   * rows are legitimately theirs and Postgres must return them; which of their
+   * two dashboards is asking is a question only the client can answer.
+   */
+  const mine = notifications.filter((entry) => entry.audience === 'customer')
   // Re-read after a cancellation, so the seats the trip just got back are the
   // ones shown. Subscribes to nothing until it is called.
   const { reload } = useSnapshotLoader()
@@ -190,7 +209,10 @@ export function DashboardPage() {
               : item.id === 'saved'
                 ? savedIds.length
                 : item.id === 'notifications'
-                  ? unreadCount
+                  // The badge counts what the tab will actually draw. `unreadCount`
+                  // is the whole store, which for an owner browsing the customer
+                  // site would promise notifications this screen does not show.
+                  ? mine.filter((n) => !n.read).length
                   : 0
           return (
             <button
@@ -429,11 +451,11 @@ export function DashboardPage() {
       {/* --------------------------------------------------- notifications */}
       {tab === 'notifications' && (
         <section>
-          {notifications.length === 0 ? (
+          {mine.length === 0 ? (
             <EmptyState icon={<Bell className="size-5" />} title={t('dash.noNotifications')} />
           ) : (
             <>
-              {unreadCount > 0 && (
+              {mine.some((entry) => !entry.read) && (
                 <div className="mb-4 flex justify-end">
                   <Button
                     variant="ghost"
@@ -453,7 +475,7 @@ export function DashboardPage() {
                 </div>
               )}
               <ul className="space-y-2.5">
-                {notifications.map((notification) => (
+                {mine.map((notification) => (
                   <li key={notification.id}>
                     <button
                       type="button"

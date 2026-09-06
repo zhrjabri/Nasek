@@ -287,6 +287,23 @@ export function BookingPage() {
           },
           date: created.bookingDate,
           read: false,
+          /*
+           * The only customer-audience notification NASEK produces, and it says
+           * so rather than taking a default.
+           *
+           * Everything else written anywhere — company approved, campaign
+           * approved, new booking received, profile change reviewed — is
+           * addressed to a provider owner or to an administrator. Which is how
+           * an owner opening the customer site came to find their company's
+           * approvals in a pilgrim's dashboard: it was the only inbox there
+           * was. This one is genuinely the pilgrim's.
+           *
+           * Local to the session, as it always has been: dispatched into the
+           * store and never written to `notifications`, so it does not survive
+           * a reload. That is unchanged here and worth knowing when the
+           * Notifications tab looks empty on a second visit.
+           */
+          audience: 'customer',
         },
       })
       setBooking(created)

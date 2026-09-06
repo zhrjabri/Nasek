@@ -250,5 +250,17 @@ export function toNotification(row: NotificationRow): Notification {
     date: row.created_at.slice(0, 10),
     read: row.read,
     kind: row.kind,
+    /*
+     * Defaulted to `owner`, matching the column's own default in
+     * `20260909000100`.
+     *
+     * A row read back from a project that has not had that migration yet
+     * carries no `audience` at all, and every notification NASEK has ever
+     * written is an owner or an admin one — so `owner` is both the truthful
+     * reading of an older row and the safe one. The alternative would put an
+     * unlabelled owner notification into the Customer Dashboard, which is the
+     * defect the column exists to prevent.
+     */
+    audience: row.audience ?? 'owner',
   }
 }

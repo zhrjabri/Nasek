@@ -21,14 +21,17 @@
  * caught here through `onUncaughtError` *and* by reading the container back,
  * so an error boundary added later cannot quietly satisfy this file.
  */
-import { StrictMode, act, useState } from 'react'
+import { StrictMode, act, useEffect, useRef, useState, type ReactNode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
+import { MemoryRouter } from 'react-router-dom'
 import { I18nProvider } from '@/i18n'
 import { ownerAr } from '@/i18n/ownerAr'
 import { ownerEn } from '@/i18n/ownerEn'
-import { AppStoreProvider } from '@/store/AppStore'
+import { AppStoreProvider, useStore } from '@/store/AppStore'
 import { CampaignForm } from '@/components/campaign/CampaignForm'
 import { DashboardPage } from '@/owner/DashboardPage'
+import { DashboardPage as CustomerDashboardPage } from '@/pages/DashboardPage'
+import { NotificationsPanel } from '@/owner/panels/NotificationsPanel'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { CodeInput, TOTP_CODE_LENGTH } from '@/components/auth/CodeInput'
 import { OtpFlow } from '@/components/auth/OtpFlow'
@@ -36,7 +39,7 @@ import { EMAIL_CODE_LENGTH } from '@/services/auth/otp'
 import { ar } from '@/i18n/ar'
 import { en } from '@/i18n/en'
 import { SERVICE_KEYS } from '@/data/services'
-import type { Provider } from '@/types'
+import type { Notification, NotificationAudience, Provider, User } from '@/types'
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = '') => {
@@ -678,6 +681,162 @@ async function rest() {
     check('React was told it was caught', ui.errors.length > 0)
     act(() => ui.root.unmount())
     ui.container.remove()
+  }
+
+  /*
+   * ------------------------------------------- two inboxes, one person
+   *
+   * A campaign owner opened the customer site and found "تم اعتماد حملتك" in
+   * their pilgrim dashboard. Nothing had leaked — the rows were addressed to
+   * their own profile by `set_campaign_status`, and `notifications_own` has
+   * always been `user_id = auth.uid()`. What was missing was any notion of
+   * *which* of their two inboxes a row belonged to.
+   *
+   * So the store here holds exactly what such a person's store holds: one row
+   * of each audience, both theirs. Each screen must show its own and only its
+   * own. Seeding the store rather than the network is deliberate — it is the
+   * harder case, and the one `.eq('audience', …)` in `loadSnapshot` cannot
+   * cover on its own.
+   */
+  console.log(`\n--- Two inboxes, one person ${'-'.repeat(29)}\n`)
+  {
+    const PERSON: User = {
+      id: 'own-1',
+      name: 'الزهراء',
+      nameIsPlaceholder: false,
+      email: 'owner@example.om',
+      phone: '',
+      role: 'provider',
+      wilayahId: 'muscat',
+      avatarColor: '#1c5e4c',
+      providerId: 'p1',
+      createdAt: '2026-01-01',
+      suspended: false,
+      removed: false,
+    } as User
+
+    const row = (audience: NotificationAudience, titleAr: string): Notification => ({
+      id: `n-${audience}`,
+      userId: PERSON.id,
+      title: { ar: titleAr, en: titleAr },
+      body: { ar: '', en: '' },
+      date: '2026-09-08',
+      read: false,
+      kind: 'system',
+      audience,
+    })
+
+    const OWNER_TITLE = 'تم اعتماد حملتك'
+    const CUSTOMER_TITLE = 'تم تأكيد حجزك'
+
+    /*
+     * The store's dispatch, lifted out so seeding can happen *after* the mount.
+     *
+     * Not from an effect inside the tree, which is the obvious way and is
+     * wrong: a child's effects run before its parent's, so `AppStoreProvider`
+     * hydrates from storage after the child has dispatched and replaces
+     * everything the child just put there. Seeding from outside, once the mount
+     * has settled, puts the rows in after hydration rather than before it.
+     */
+    let dispatch: ((action: { type: string; [k: string]: unknown }) => void) | null = null
+    function Seed({ children }: { children: ReactNode }) {
+      const store = useStore()
+      dispatch = store.dispatch as typeof dispatch
+      return <>{children}</>
+    }
+
+    /*
+     * `hydrateRemote` rather than `pushNotification`, because it *sets* the
+     * slice instead of prepending to it.
+     *
+     * StrictMode double-invokes a reducer, which is harmless for a pure one
+     * and not harmless for a harness that counts what came out: prepending
+     * twice produced two rows with the same React key and a duplicate-key
+     * warning, which this file treats as a failure. Setting is idempotent, and
+     * it is also the path production uses — the snapshot loader.
+     */
+    const seed = async (rows: Notification[]) => {
+      await settle(2)
+      act(() => {
+        dispatch?.({ type: 'signIn', user: PERSON })
+        dispatch?.({
+          type: 'hydrateRemote',
+          snapshot: {
+            providers: [],
+            campaigns: [],
+            bookings: [],
+            reviews: [],
+            notifications: rows,
+            savedIds: [],
+            profiles: [],
+          },
+        })
+      })
+      await settle(2)
+    }
+
+    // ------------------------------------------- the customer dashboard
+    const customer = mount(
+      <MemoryRouter initialEntries={['/dashboard?tab=notifications']}>
+        <Seed>
+          <CustomerDashboardPage />
+        </Seed>
+      </MemoryRouter>,
+    )
+    await seed([row('owner', OWNER_TITLE), row('customer', CUSTOMER_TITLE)])
+    const customerText = customer.container.textContent ?? ''
+    check(
+      'the Customer Dashboard does not show the campaign approval',
+      !customerText.includes(OWNER_TITLE),
+      customerText.includes(OWNER_TITLE) ? 'the owner notification is on the pilgrim screen' : '',
+    )
+    check(
+      'and does show the booking confirmation, which is the pilgrim’s',
+      customerText.includes(CUSTOMER_TITLE),
+    )
+    check('nothing threw drawing it', customer.errors.length === 0, customer.errors.map(describe).join('; '))
+    act(() => customer.root.unmount())
+    customer.container.remove()
+
+    // ------------------------------------------------ the owner portal
+    const owner = mount(
+      <Seed>
+        <NotificationsPanel />
+      </Seed>,
+    )
+    await seed([row('owner', OWNER_TITLE), row('customer', CUSTOMER_TITLE)])
+    const ownerText = owner.container.textContent ?? ''
+    check(
+      'the Owner Portal does show the campaign approval',
+      ownerText.includes(OWNER_TITLE),
+      ownerText.slice(0, 100),
+    )
+    check(
+      'and does not show the pilgrim’s booking confirmation',
+      !ownerText.includes(CUSTOMER_TITLE),
+    )
+    check('nothing threw drawing it', owner.errors.length === 0, owner.errors.map(describe).join('; '))
+    act(() => owner.root.unmount())
+    owner.container.remove()
+
+    /*
+     * And a row belonging to somebody else, which the portal must drop even
+     * though the store handed it over. RLS would never return one; this is the
+     * offline path, where there is no RLS to rely on.
+     */
+    const OTHER = 'تم اعتماد حملة شركة أخرى'
+    const foreign = mount(
+      <Seed>
+        <NotificationsPanel />
+      </Seed>,
+    )
+    await seed([{ ...row('owner', OTHER), id: 'n-other', userId: 'own-2' }])
+    check(
+      'owner A is not shown a notification addressed to owner B',
+      !(foreign.container.textContent ?? '').includes(OTHER),
+    )
+    act(() => foreign.root.unmount())
+    foreign.container.remove()
   }
 
   /*
