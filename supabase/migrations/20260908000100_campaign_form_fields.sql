@@ -61,29 +61,87 @@ alter table public.campaigns
  * something: an array, every element an object, every object carrying a
  * non-empty name.
  *
- * Deliberately not a check on the phone. A contact with a name and no number is
- * incomplete rather than malformed, the form asks for both, and a constraint
- * that rejects the row would turn a missing field into a Postgres error string
- * in front of an owner.
+ * WHY A FUNCTION AND NOT THE EXPRESSION ITSELF
  *
- * `not valid`, like `campaigns_deadline_before_departure` before it: existing
- * rows all hold the default `[]` and satisfy it anyway, but skipping the table
- * scan keeps this migration from taking a lock proportional to the catalogue.
+ * The first version of this wrote the test inline:
+ *
+ *     check (jsonb_typeof(contact_persons) = 'array' and not exists (
+ *       select 1 from jsonb_array_elements(contact_persons) ...))
+ *
+ * which Postgres refuses outright — `0A000: cannot use subquery in check
+ * constraint`. A CHECK expression may call a function but may not contain a
+ * SELECT, and iterating a jsonb array needs one. Moving the iteration inside a
+ * function puts the SELECT somewhere it is allowed to be, and leaves the
+ * constraint a plain function call.
+ *
+ * `immutable` because a CHECK may not depend on anything that can change
+ * underneath it, and this depends on nothing but its argument. `parallel safe`
+ * and `strict` follow from the same fact.
+ *
+ * plpgsql rather than SQL, for one specific reason: `jsonb_array_elements`
+ * raises on a scalar, so the array test has to run *before* the iteration and
+ * has to be guaranteed to. SQL's `and` does not promise evaluation order —
+ * the planner may reorder it — while plpgsql's `if`/`return` does. A `'oops'`
+ * sent to this column must come back false, not blow up with "cannot extract
+ * elements from a scalar".
  */
-do $$ begin
-  alter table public.campaigns
-    add constraint campaigns_contact_persons_shape
-    check (
-      jsonb_typeof(contact_persons) = 'array'
-      and not exists (
-        select 1
-        from jsonb_array_elements(contact_persons) as person
-        where jsonb_typeof(person) <> 'object'
-           or coalesce(trim(person ->> 'name'), '') = ''
-      )
-    )
-    not valid;
-exception when duplicate_object then null; end $$;
+create or replace function public.is_valid_campaign_contact_persons(persons jsonb)
+returns boolean
+language plpgsql
+immutable
+strict
+parallel safe
+as $fn$
+declare
+  person jsonb;
+begin
+  if jsonb_typeof(persons) <> 'array' then
+    return false;
+  end if;
+
+  for person in select * from jsonb_array_elements(persons) loop
+    if jsonb_typeof(person) <> 'object' then
+      return false;
+    end if;
+    -- A name is what makes a contact a contact. The phone is deliberately not
+    -- checked: a person with no number is incomplete rather than malformed, the
+    -- form asks for both, and a constraint that refused the row would turn a
+    -- blank field into a Postgres error string in front of an owner.
+    if coalesce(btrim(person ->> 'name'), '') = '' then
+      return false;
+    end if;
+  end loop;
+
+  return true;
+end;
+$fn$;
+
+comment on function public.is_valid_campaign_contact_persons(jsonb) is
+  'True when the argument is a JSON array of objects, each with a non-empty trimmed name. Exists so campaigns_contact_persons_shape can be a function call: a CHECK constraint may not contain a subquery, and walking a jsonb array requires one.';
+
+/*
+ * Dropped first rather than wrapped in an exception handler.
+ *
+ * `add constraint` has no `if not exists`, so the usual shape is a `do` block
+ * swallowing `duplicate_object`. That is idempotent but it is also inert: a
+ * re-run leaves whatever definition is already there, so a corrected constraint
+ * would silently not be applied — which is exactly the situation this file is
+ * in. Dropping and adding is idempotent *and* converges on the definition
+ * written here.
+ *
+ * `not valid` skips the scan of existing rows. Every row holds the default `[]`
+ * — the column is added a few lines above — so there is nothing for a scan to
+ * find, and skipping it keeps this from taking a lock proportional to the
+ * catalogue. It does not weaken anything: `not valid` exempts existing rows
+ * only, and every insert and update is checked from here on.
+ */
+alter table public.campaigns
+  drop constraint if exists campaigns_contact_persons_shape;
+
+alter table public.campaigns
+  add constraint campaigns_contact_persons_shape
+  check (public.is_valid_campaign_contact_persons(contact_persons))
+  not valid;
 
 comment on column public.campaigns.contact_persons is
   'Responsible persons: [{name, phone}]. Replaces contact_name/contact_phone/contact_email, which are kept and still read so older campaigns do not lose their contact. No email — it was asked for and never used.';
