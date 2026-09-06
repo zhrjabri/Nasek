@@ -113,7 +113,7 @@ export type Action =
   | { type: 'signIn'; user: User }
   | { type: 'signOut' }
   | { type: 'updateProfile'; patch: Partial<User> }
-  | { type: 'toggleSaved'; id: string }
+  | { type: 'setSaved'; id: string; saved: boolean }
   | { type: 'addBooking'; booking: Booking }
   | { type: 'cancelBooking'; id: string }
   | { type: 'readNotification'; id: string }
@@ -258,13 +258,26 @@ export function reducer(state: PersistedState, action: Action): PersistedState {
     case 'updateProfile':
       return state.user ? { ...state, user: { ...state.user, ...action.patch } } : state
 
-    case 'toggleSaved':
-      return {
-        ...state,
-        savedIds: state.savedIds.includes(action.id)
-          ? state.savedIds.filter((id) => id !== action.id)
-          : [...state.savedIds, action.id],
-      }
+    /*
+     * Saved, or not saved — stated, never flipped.
+     *
+     * This was `toggleSaved`, which read the current list and inverted it. That
+     * is the wrong shape for a value the database also holds, and it broke in
+     * the ordinary case of pressing the bookmark twice quickly: both clicks
+     * read "not saved" from the same state, both asked the server to save, and
+     * the second toggle turned the heart back off over a row that was still
+     * there. An action that says which of the two states it wants cannot
+     * disagree with itself, and re-applying it changes nothing.
+     */
+    case 'setSaved':
+      return state.savedIds.includes(action.id) === action.saved
+        ? state
+        : {
+            ...state,
+            savedIds: action.saved
+              ? [...state.savedIds, action.id]
+              : state.savedIds.filter((id) => id !== action.id),
+          }
 
     case 'addBooking':
       return { ...state, bookings: [action.booking, ...state.bookings] }

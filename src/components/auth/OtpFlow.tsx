@@ -1,12 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import {
-  ArrowLeft,
-  ChevronDown,
-  KeyRound,
-  Link as LinkIcon,
-  Mail,
-  Smartphone,
-} from 'lucide-react'
+import { ArrowLeft, KeyRound, Mail, Smartphone } from 'lucide-react'
 import { useI18n, type MessageKey } from '@/i18n'
 import {
   EMAIL_CODE_LENGTH,
@@ -20,8 +13,7 @@ import {
   type OtpTarget,
 } from '@/services/auth/otp'
 import { maskEmail, maskPhone } from '@/services/auth/phone'
-import { parseSignInLink, verifyEmailLink } from '@/services/auth/redirect'
-import { Button, Field, Input, Notice, Segmented, Textarea, cx } from '@/components/ui'
+import { Button, Field, Input, Notice, Segmented, cx } from '@/components/ui'
 import { CodeInput } from './CodeInput'
 
 /**
@@ -108,17 +100,6 @@ export function OtpFlow({
   const [error, setError] = useState<MessageKey | null>(null)
   const [demoCode, setDemoCode] = useState<string | null>(null)
   const [cooldown, setCooldown] = useState(0)
-  const [link, setLink] = useState('')
-  const [linkOpen, setLinkOpen] = useState(false)
-  const [linkError, setLinkError] = useState<MessageKey | null>(null)
-  /*
-   * What the server actually said, shown under the friendly message.
-   *
-   * A category alone ("that link has expired") is a guess about why. When the
-   * guess is wrong there is nothing left to work with, which is exactly how a
-   * failing sign-in becomes unreportable.
-   */
-  const [linkDetail, setLinkDetail] = useState<string | null>(null)
   const liveRef = useRef(true)
 
   useEffect(() => {
@@ -195,46 +176,6 @@ export function OtpFlow({
     },
     [channel, value, onSuccess],
   )
-
-  /**
-   * Redeem a link the person pasted rather than followed.
-   *
-   * The route that works when the message was opened on a different device —
-   * which during local development is the only route that can, since a link to
-   * `localhost` means nothing on a phone.
-   */
-  const submitLink = async () => {
-    setLinkError(null)
-    setLinkDetail(null)
-    if (!link.trim()) {
-      setLinkError('auth.pasteLinkEmpty')
-      return
-    }
-    if (!parseSignInLink(link)) {
-      setLinkError('auth.pasteLinkInvalid')
-      return
-    }
-
-    setBusy(true)
-    const outcome = await verifyEmailLink(link)
-    if (!liveRef.current) return
-
-    if (outcome.kind !== 'signed-in') {
-      setBusy(false)
-      setLinkDetail(outcome.kind === 'error' ? (outcome.detail ?? null) : null)
-      setLinkError(
-        outcome.kind === 'error' && outcome.reason === 'expired'
-          ? 'auth.linkExpired'
-          : outcome.kind === 'error' && outcome.reason === 'wrong_browser'
-            ? 'auth.linkWrongBrowser'
-            : 'auth.linkFailed',
-      )
-      return
-    }
-
-    await onSuccess({ channel, value })
-    if (liveRef.current) setBusy(false)
-  }
 
   const back = () => {
     cancelOtp()
@@ -407,19 +348,6 @@ export function OtpFlow({
           </p>
         )}
 
-        {/*
-          Supabase's default email templates render a link rather than a code,
-          and on newer projects they cannot be edited without custom SMTP. Both
-          paths work — this screen accepts a typed code, and clicking the link
-          completes the same sign-in — so the copy names both rather than
-          leaving someone staring at a row of empty boxes wondering what to type.
-        */}
-        {!isDemoOtp && (
-          <p className="text-center text-xs leading-relaxed text-ink-500">
-            {t('auth.orUseLink')}
-          </p>
-        )}
-
         <Button
           type="submit"
           size="lg"
@@ -432,69 +360,26 @@ export function OtpFlow({
       </form>
 
       {/*
-        Supabase's default templates send a link and no code, and they cannot be
-        edited without custom SMTP — so for many projects this is not a fallback
-        at all, it is the way in. It is offered rather than forced because a
-        project with editable templates sends a code, and the boxes are far less
-        work than copying a URL.
-      */}
-      {!isDemoOtp && (
-        <div className="rounded-[3px] border border-ivory-300 bg-ivory-100/60">
-          <button
-            type="button"
-            onClick={() => setLinkOpen((v) => !v)}
-            aria-expanded={linkOpen}
-            className="flex w-full items-center justify-between gap-2 px-3.5 py-3 text-start text-xs font-bold text-ink-700 transition-colors hover:text-nasek-800"
-          >
-            <span className="flex items-center gap-2">
-              <LinkIcon className="size-3.5 shrink-0" aria-hidden />
-              {t('auth.pasteLinkTitle')}
-            </span>
-            <ChevronDown
-              className={cx('size-4 shrink-0 transition-transform', linkOpen && 'rotate-180')}
-              aria-hidden
-            />
-          </button>
+        NO "GOT A LINK INSTEAD OF A CODE?" PANEL, AND NOTHING FOLDED AWAY.
 
-          {linkOpen && (
-            <div className="space-y-3 border-t border-ivory-300 p-3.5">
-              <p className="text-xs leading-relaxed text-ink-500">{t('auth.pasteLinkBody')}</p>
-              <Field label={t('auth.pasteLinkLabel')} error={linkError ? t(linkError) : undefined}>
-                {(p) => (
-                  <Textarea
-                    {...p}
-                    dir="ltr"
-                    rows={3}
-                    spellCheck={false}
-                    autoComplete="off"
-                    placeholder="https://…supabase.co/auth/v1/verify?token=…"
-                    value={link}
-                    onChange={(e) => {
-                      setLink(e.target.value)
-                      setLinkError(null)
-                    }}
-                    className="min-h-20 text-xs"
-                  />
-                )}
-              </Field>
-              {linkDetail && (
-                <p className="nums break-words rounded-[3px] bg-ivory-200 p-2 text-2xs text-ink-500" dir="ltr">
-                  {linkDetail}
-                </p>
-              )}
-              <Button
-                type="button"
-                variant="secondary"
-                block
-                loading={busy}
-                onClick={() => void submitLink()}
-              >
-                {t('auth.pasteLinkAction')}
-              </Button>
-            </div>
-          )}
-        </div>
-      )}
+        A collapsible panel used to sit here offering a second way in: paste the
+        sign-in URL out of the email and be redeemed from it. It worked, and it
+        was still the wrong thing on this screen. A pilgrim signs in around one
+        trip in their life, and the panel asked them — at the exact moment they
+        were holding a code and looking for somewhere to put it — to decide
+        which of two mechanisms their email had given them. The boxes above are
+        the answer for both, because this project's `Email OTP Length` is set
+        and its templates do send a code.
+
+        What is removed is the *offer*, not the capability. A link that is
+        clicked rather than pasted still arrives at the site as an auth redirect
+        and is still completed by `useAuthRedirect` -> `completeAuthRedirect`,
+        which is untouched; `auth.linkExpired` and its two siblings are still
+        the wording that path uses when it fails. `parseSignInLink` and
+        `verifyEmailLink` remain in `services/auth/redirect.ts` with their
+        coverage in `verify:redirect`, and the Owner Portal's own sign-in still
+        reports link outcomes the same way it always did.
+      */}
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ivory-300 pt-4">
         <button

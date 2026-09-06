@@ -425,20 +425,21 @@ export const en = {
   'auth.blockedRemoved': 'This account is no longer active.',
   'auth.sessionFailed': 'We verified your code but couldn’t open your session. Try again.',
   // --------------------------------------------- arriving from an email link
-  'auth.orUseLink': 'No code in the email? Tap the sign-in link in it instead — that works too.',
   'auth.completingSignIn': 'Signing you in…',
   'auth.linkExpired': 'That sign-in link has expired or has already been used. Ask for a new one.',
   'auth.linkWrongBrowser':
     'Open the link in the same browser you asked for it from. For security, a link cannot finish signing you in anywhere else.',
   'auth.linkFailed': 'We could not finish signing you in from that link. Try asking for a new one.',
   'auth.linkRetry': 'Back to sign in',
-  'auth.pasteLinkTitle': 'Got a link instead of a code?',
-  'auth.pasteLinkBody':
-    'Reading the email on another device? Copy the sign-in link from it and paste it here — you do not need to open it.',
-  'auth.pasteLinkLabel': 'Sign-in link from your email',
-  'auth.pasteLinkAction': 'Sign me in',
-  'auth.pasteLinkEmpty': 'Paste the link from your email first.',
-  'auth.pasteLinkInvalid': 'That does not look like a NASEK sign-in link. Copy the whole link from the email.',
+  /*
+   * No "paste the link" wording here any more.
+   *
+   * The customer sign-in screen offers one road — address, then code — so the
+   * panel that asked someone to paste a URL is gone and its six strings with
+   * it. What remains below belongs to a link that is *clicked*: that path still
+   * lands on the site, is still completed by `completeAuthRedirect`, and still
+   * needs something to say when it fails.
+   */
 
   // ------------------------------------------------------- user dashboard
   'dash.welcome': 'Welcome, {name}',

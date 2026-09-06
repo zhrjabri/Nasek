@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useI18n } from '@/i18n'
 import { isSupabaseConfigured } from '@/services/supabase/client'
@@ -33,6 +33,18 @@ export function useToggleSaved() {
   const navigate = useNavigate()
   const location = useLocation()
 
+  /*
+   * Which trips have a write in the air.
+   *
+   * A ref rather than state because nothing renders from it and because the
+   * next click has to see the previous one immediately — a state update would
+   * not have landed yet, which is exactly the race being closed. Two quick
+   * presses used to send two saves and apply two flips, leaving the heart empty
+   * over a row that was saved; the second press is now dropped until the first
+   * has been answered.
+   */
+  const inFlight = useRef(new Set<string>())
+
   return useCallback(
     (campaignId: string) => {
       if (isSupabaseConfigured && !user) {
@@ -51,10 +63,13 @@ export function useToggleSaved() {
         )
 
       if (!isSupabaseConfigured) {
-        dispatch({ type: 'toggleSaved', id: campaignId })
+        dispatch({ type: 'setSaved', id: campaignId, saved: !saved })
         announce()
         return
       }
+
+      if (inFlight.current.has(campaignId)) return
+      inFlight.current.add(campaignId)
 
       /*
        * The store follows the write rather than racing it.
@@ -65,14 +80,18 @@ export function useToggleSaved() {
        * next snapshot would quietly undo. Optimism is the right default for a
        * toggle this small, but not optimism that cannot be corrected.
        */
-      void setSaved(campaignId, !saved).then((ok) => {
-        if (ok) {
-          dispatch({ type: 'toggleSaved', id: campaignId })
-          announce()
-        } else {
-          toast(t('campaign.saveFailed'), 'warning')
-        }
-      })
+      void setSaved(campaignId, !saved)
+        .then((ok) => {
+          if (ok) {
+            dispatch({ type: 'setSaved', id: campaignId, saved: !saved })
+            announce()
+          } else {
+            toast(t('campaign.saveFailed'), 'warning')
+          }
+        })
+        .finally(() => {
+          inFlight.current.delete(campaignId)
+        })
     },
     [user, isSaved, dispatch, toast, t, navigate, location.pathname, location.search],
   )

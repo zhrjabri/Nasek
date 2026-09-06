@@ -41,6 +41,8 @@ if (!url || !key) {
   process.exit(1)
 }
 
+const ZERO_UUID = '00000000-0000-0000-0000-000000000000'
+
 let failures = 0
 const check = (label, ok, detail = '') => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${label}${detail ? `  -> ${detail}` : ''}`)
@@ -444,6 +446,69 @@ async function main() {
     approved.status === 200 && approvedBody.trim() === 'false',
     `HTTP ${approved.status} ${approvedBody.slice(0, 40)}`,
   )
+
+  /*
+   * ------------------------------------------------------- saving a trip
+   *
+   * The bookmark on the customer site failed for every account, and the cause
+   * was a mismatch between the statement the client sent and the privileges
+   * this project grants. `20260901000200` gives `authenticated` exactly
+   * `select, insert, delete` on `saved_campaigns` and deliberately no UPDATE —
+   * a saved row is nothing but its own primary key plus the moment it was
+   * saved, so there is nothing to update and no reason to allow it. The client
+   * used `.upsert()`, which PostgREST sends as `INSERT ... ON CONFLICT DO
+   * UPDATE`, and Postgres demands UPDATE for that statement whether or not any
+   * row conflicts. Result: 42501, on the first save and every save after.
+   *
+   * PostgREST states the requirement itself, in the hint on a refusal, so the
+   * probes below read it back rather than inferring it. Both are made
+   * anonymously and both are refused — nothing is written to this project by
+   * this file — but the *hints* differ, and the difference is the whole bug:
+   * an insert is told it needs INSERT, an upsert is told it needs UPDATE too.
+   *
+   * If a later migration ever grants UPDATE here, or the client goes back to
+   * `.upsert()`, one of these stops holding.
+   */
+  console.log('\n--- saving a trip -------------------------------------------\n')
+
+  {
+    const probe = { user_id: ZERO_UUID, campaign_id: ZERO_UUID }
+    const write = (prefer) =>
+      rest('saved_campaigns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(prefer ? { Prefer: prefer } : {}) },
+        body: JSON.stringify(probe),
+      })
+
+    const plain = await write(null)
+    const plainHint = (await plain.json()).hint ?? ''
+    check(
+      'saved_campaigns is closed to the public key',
+      plain.status === 401 || plain.status === 403,
+      `HTTP ${plain.status}`,
+    )
+
+    const merge = await write('resolution=merge-duplicates')
+    const mergeHint = (await merge.json()).hint ?? ''
+
+    check(
+      'an upsert on saved_campaigns demands the UPDATE privilege',
+      /UPDATE/.test(mergeHint),
+      mergeHint.slice(0, 120),
+    )
+    check('a plain insert does not', !/UPDATE/.test(plainHint), plainHint.slice(0, 120))
+
+    /*
+     * The refusal names a role, which is what confirms grants rather than
+     * row-level security are doing the refusing here — RLS returns an empty
+     * result, a missing grant returns 42501. There is no anonymous way to read
+     * another role's grants, so what `authenticated` actually holds is pinned
+     * by `verify:favourites` instead: it drives the real client and fails if
+     * the statement it produces needs a privilege this project withholds.
+     */
+    check('and the refusal is a grant refusal, not a policy one', /TO anon/.test(plainHint), plainHint.slice(0, 120))
+  }
+
 
   console.log('\n--- is sign-in configured? ----------------------------------\n')
 

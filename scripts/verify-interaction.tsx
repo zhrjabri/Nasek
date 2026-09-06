@@ -596,13 +596,13 @@ async function rest() {
    * boxes that appear. It is the only check here that would have failed on the
    * build that shipped.
    *
-   * The magic link is asserted alongside it, because it is the other half of
-   * this screen and had to survive the fix untouched. On a project whose email
-   * templates are not editable the message carries a link and no code at all, so
-   * for many deployments it is not a fallback — it is the way in. The redemption
-   * itself belongs to `verify:redirect`, which drives `parseSignInLink` and
-   * `verifyEmailLink` over two dozen URL shapes; what is checked here is that
-   * the screen still offers it and still explains it.
+   * The absence of the magic-link panel is asserted alongside it. That panel —
+   * "وصلَك رابط بدل الرمز؟", a collapsible box holding a textarea for a pasted
+   * sign-in URL — used to sit under the Verify button, and the customer screen
+   * now offers one road in and no fork: an address, then a code. What was
+   * removed is the offer, not the mechanism; a link that is *clicked* still
+   * lands on the site and is still completed by `completeAuthRedirect`, which
+   * `verify:redirect` drives over two dozen URL shapes.
    */
   console.log(`\n--- The sign-in screen, end to end ${'-'.repeat(22)}\n`)
   {
@@ -633,15 +633,37 @@ async function rest() {
     )
 
     /*
-     * The link copy is read off the dictionary rather than the screen, and that
-     * is a limitation worth naming: both link affordances render only when
-     * `isDemoOtp` is false, and this harness runs with no backend, which is
-     * exactly the case that makes it true. So this proves the wording still
-     * exists to be shown; `verify:redirect` proves the arrival still works.
+     * And nothing else is on offer.
+     *
+     * Read off the rendered screen rather than off the dictionary, because the
+     * question is what the pilgrim is shown. The panel was a `<textarea>` — the
+     * only one this screen ever had — behind a disclosure button, so both the
+     * control and the wording are checked, and the wording is matched on the
+     * word "رابط" rather than on the old sentence, so reintroducing it under a
+     * different key would still fail.
      */
-    for (const key of ['auth.orUseLink', 'auth.pasteLinkTitle', 'auth.pasteLinkBody'] as const) {
-      check(`the emailed-link path still has its ${key} wording`, (ar[key] ?? '').length > 10)
-    }
+    check(
+      'the screen offers no box to paste a sign-in link into',
+      ui.container.querySelectorAll('textarea').length === 0,
+    )
+    check(
+      'and no disclosure that would reveal one',
+      ui.container.querySelectorAll('[aria-expanded]').length === 0,
+    )
+    check(
+      'the screen never mentions a link as an alternative to the code',
+      !/رابط|link/i.test(ui.container.textContent ?? ''),
+      (ui.container.textContent ?? '').slice(0, 160),
+    )
+
+    /*
+     * What is still there: the two controls that were explicitly kept.
+     */
+    check('resending a code is still offered', !!byText(ui.container, 'button', ar['auth.resend']))
+    check(
+      'and so is using a different address',
+      !!byText(ui.container, 'button', ar['auth.changeTarget']),
+    )
 
     check('drawing the whole flow raised nothing', ui.errors.length === 0, ui.errors.map(describe).join('; '))
     act(() => ui.root.unmount())

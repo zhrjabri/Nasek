@@ -667,22 +667,74 @@ export async function registerGivingInterest(email: string): Promise<boolean> {
 
 // -------------------------------------------------------------------- saved
 
-export async function setSaved(campaignId: string, saved: boolean): Promise<boolean> {
-  if (!supabase) return false
-  const { data: auth } = await supabase.auth.getSession()
+/**
+ * Postgres' code for "that row is already there".
+ *
+ * On this table that is not a failure. `saved_campaigns` is keyed on
+ * (user_id, campaign_id) and carries nothing else worth changing, so a second
+ * save of the same trip is a request for a state the database is already in.
+ */
+const UNIQUE_VIOLATION = '23505'
+
+/**
+ * Save a trip, or stop saving it.
+ *
+ * Written as a plain INSERT, and that is the whole of the fix for a bookmark
+ * that never worked in production. It used to be `.upsert()`, which PostgREST
+ * sends as `INSERT ... ON CONFLICT DO UPDATE` — and Postgres requires the
+ * UPDATE privilege for that statement whether or not a conflict actually
+ * happens. `20260901000200` grants `authenticated` exactly `select, insert,
+ * delete` on this table and deliberately no UPDATE, because a saved row has no
+ * mutable column: both of its fields are the key, and `created_at` is the
+ * moment it was first saved and should not be rewritten by saving again. So
+ * every save, by every account, came back
+ *
+ *   42501  permission denied for table saved_campaigns
+ *
+ * as HTTP 403 — which this function turned into `false` and the hook turned
+ * into "we could not save that just now". The grant was right; the statement
+ * was wrong.
+ *
+ * A duplicate is therefore handled here rather than delegated to `ON CONFLICT`:
+ * the insert races another tab, or a second press, and loses. The row exists
+ * and the caller wanted it to exist, so that is a success. Removing works the
+ * same way in reverse — deleting a row that is not there is not an error in
+ * Postgres, so unsaving twice is quietly fine.
+ */
+export async function setSaved(
+  campaignId: string,
+  saved: boolean,
+  /*
+   * The client to write through, which in the application is always the one
+   * this module imported.
+   *
+   * It is a parameter only so that `verify:favourites` can point the real
+   * query builder at a stand-in PostgREST and read the request that comes out
+   * of it. That is worth a seam: the bug this function was rewritten for was
+   * not in its logic but in the *statement* the builder produced, and a test
+   * that stubs the builder is a test that would have passed on the broken
+   * version. Nothing in `src/` passes this argument.
+   */
+  client: typeof supabase = supabase,
+): Promise<boolean> {
+  if (!client) return false
+  const { data: auth } = await client.auth.getSession()
   const userId = auth.session?.user?.id
   if (!userId) return false
 
-  const { error } = saved
-    ? await supabase
-        .from('saved_campaigns')
-        .upsert({ user_id: userId, campaign_id: campaignId })
-    : await supabase
-        .from('saved_campaigns')
-        .delete()
-        .eq('user_id', userId)
-        .eq('campaign_id', campaignId)
-  return !error
+  if (!saved) {
+    const { error } = await client
+      .from('saved_campaigns')
+      .delete()
+      .eq('user_id', userId)
+      .eq('campaign_id', campaignId)
+    return !error
+  }
+
+  const { error } = await client
+    .from('saved_campaigns')
+    .insert({ user_id: userId, campaign_id: campaignId })
+  return !error || error.code === UNIQUE_VIOLATION
 }
 
 // ------------------------------------------------------------- notifications
