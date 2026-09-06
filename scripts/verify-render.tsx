@@ -21,9 +21,15 @@ import { MemoryRouter } from 'react-router-dom'
 import { I18nProvider } from '@/i18n'
 import { adminEn } from '@/i18n/adminEn'
 import { adminAr } from '@/i18n/adminAr'
+import { ownerEn } from '@/i18n/ownerEn'
+import { ownerAr } from '@/i18n/ownerAr'
 import { AppStoreProvider } from '@/store/AppStore'
 import { App } from '@/App'
 import { AdminApp } from '@/admin/AdminApp'
+import { OwnerApp } from '@/owner/OwnerApp'
+import { OwnerLoginPage } from '@/owner/LoginPage'
+import { SetPasswordPage } from '@/owner/SetPasswordPage'
+import { DashboardPage as OwnerDashboardPage } from '@/owner/DashboardPage'
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = '') => {
@@ -65,6 +71,26 @@ const adminTree = (path: string) => (
         </AppStoreProvider>
       </I18nProvider>
     </MemoryRouter>
+  </StrictMode>
+)
+
+
+/*
+ * The owner portal, which had no entry in this harness at all until a blank
+ * white page in production went looking for one.
+ *
+ * It takes no router, because the portal has none — the tree below is what
+ * `src/owner/main.tsx` mounts, minus the toast host. Effects never run under
+ * `renderToStaticMarkup`, so what this covers is exactly what was missing:
+ * that the very first frame does not throw.
+ */
+const ownerTree = () => (
+  <StrictMode>
+    <I18nProvider extra={{ en: ownerEn, ar: ownerAr }}>
+      <AppStoreProvider>
+        <OwnerApp />
+      </AppStoreProvider>
+    </I18nProvider>
   </StrictMode>
 )
 
@@ -114,6 +140,39 @@ for (const path of ['/', '/overview', '/users', '/owners', '/campaigns', '/booki
   render(`admin ${path} resolves to the access check`, path, adminTree)
 }
 
+
+console.log('\n--- the campaign owner portal -------------------------------\n')
+
+render('the owner portal draws its first frame', '/', () => ownerTree())
+
+
+/*
+ * Each screen the gate can land on, not merely the frame it starts on.
+ *
+ * The first-frame check above passes on a portal that renders a blank page in
+ * a browser, because the frame it draws is the spinner and every screen after
+ * it arrives from an effect that `renderToStaticMarkup` never runs.
+ */
+const ownerScreen = (node: React.ReactElement) => (
+  <StrictMode>
+    <I18nProvider extra={{ en: ownerEn, ar: ownerAr }}>
+      <AppStoreProvider>{node}</AppStoreProvider>
+    </I18nProvider>
+  </StrictMode>
+)
+
+render('the owner sign-in screen', '/', () =>
+  ownerScreen(<OwnerLoginPage onSignedIn={() => {}} />),
+)
+render('the owner sign-in screen, after a dead invitation link', '/', () =>
+  ownerScreen(<OwnerLoginPage onSignedIn={() => {}} linkError="expired" />),
+)
+render('the set-password screen an invitation lands on', '/', () =>
+  ownerScreen(<SetPasswordPage onDone={() => {}} />),
+)
+render('the owner dashboard, which only a verified owner ever sees', '/', () =>
+  ownerScreen(<OwnerDashboardPage />),
+)
 console.log('\n--- what the public site must not contain -------------------\n')
 
 /*

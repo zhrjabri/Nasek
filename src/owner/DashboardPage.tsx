@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Area,
   AreaChart,
@@ -103,6 +102,63 @@ const TABS: { id: Tab; key: MessageKey; icon: typeof LayoutGrid }[] = [
 /** Monthly subscription tiers — the business model made concrete. */
 const PLAN_PRICE = { basic: 15, plus: 35, premium: 75 } as const
 
+/**
+ * The current tab, kept in the query string, without a router.
+ *
+ * This was `useSearchParams`, and that could not work here: the Campaign Owner
+ * Portal mounts no `Router` at all — deliberately, so that nothing competes
+ * with Supabase for the URL fragment an invitation link arrives in — and every
+ * router hook throws outside one. React draws this page, `useSearchParams`
+ * calls `useLocation`, and the render dies with
+ *
+ *     useLocation() may be used only in the context of a <Router> component.
+ *
+ * Inside the `Suspense` boundary that loads this module, with no error boundary
+ * above it, that unmounts the entire tree: a blank white page and nothing in
+ * the DOM. It survived review, typecheck, three builds and every harness
+ * because this is the one screen only a *verified owner* ever reaches, and
+ * until the first owner was invited into production nobody ever had.
+ * `verify:render` now draws it, so it cannot happen again.
+ *
+ * Adding a `HashRouter` to the portal would have been the smaller diff and the
+ * worse answer — it would put the router back in the fragment, which is the
+ * exact collision the portal is built to avoid.
+ *
+ * `replaceState` rather than a push, matching the `{ replace: true }` this
+ * replaces: changing tab is not a navigation, and thirty back-presses to leave
+ * a dashboard is not a feature.
+ */
+function useTabParam(): [Tab, (next: Tab) => void] {
+  const read = (): Tab => {
+    if (typeof window === 'undefined') return 'overview'
+    const raw = new URLSearchParams(window.location.search).get('tab')
+    return TABS.some((x) => x.id === raw) ? (raw as Tab) : 'overview'
+  }
+
+  const [tab, setTabState] = useState<Tab>(read)
+
+  const setTab = useCallback((next: Tab) => {
+    setTabState(next)
+    if (typeof window === 'undefined') return
+    const url = new URL(window.location.href)
+    url.searchParams.set('tab', next)
+    window.history.replaceState({}, '', url.toString())
+  }, [])
+
+  /*
+   * The address bar can still change under us — a browser back that pops past
+   * an entry something else pushed, or a link into another tab of this same
+   * screen. Reading it again is cheaper than being wrong about which tab is up.
+   */
+  useEffect(() => {
+    const onPop = () => setTabState(read())
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
+
+  return [tab, setTab]
+}
+
 export function DashboardPage() {
   const { t, lang, bl, money, n, date } = useI18n()
   const { user, dispatch, toast, bookings: allBookings, reviews: allReviews } = useStore()
@@ -136,10 +192,7 @@ export function DashboardPage() {
   // The tab lives in the URL, as it does on the customer dashboard: a
   // refresh, a bookmark or a link from the low-seat warning all land where
   // they should instead of bouncing back to the overview.
-  const [params, setParams] = useSearchParams()
-  const tabParam = params.get('tab') as Tab | null
-  const tab: Tab = TABS.some((x) => x.id === tabParam) ? (tabParam as Tab) : 'overview'
-  const setTab = (next: Tab) => setParams({ tab: next }, { replace: true })
+  const [tab, setTab] = useTabParam()
   const [editing, setEditing] = useState<Campaign | 'new' | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [customerQuery, setCustomerQuery] = useState('')
