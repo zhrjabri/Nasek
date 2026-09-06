@@ -89,6 +89,10 @@ export const en = {
   'nav.about': 'About',
   'nav.dashboard': 'Dashboard',
   'nav.signIn': 'Sign in',
+  /* The navbar control is chromeless — no box to fill — so it can afford the
+     full phrase on a laptop and shortens only where the bar is genuinely
+     tight. English has nothing to shorten; Arabic drops to 'دخول'. */
+  'nav.signInShort': 'Sign in',
   'nav.signOut': 'Sign out',
   'nav.saved': 'Saved',
   'nav.notifications': 'Notifications',

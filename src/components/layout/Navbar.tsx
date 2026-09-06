@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
+  ArrowRight,
   Bell,
   Bookmark,
   ChevronDown,
@@ -270,34 +271,7 @@ export function Navbar() {
               )}
             </div>
           ) : (
-            <div className="hidden items-center gap-2 sm:flex">
-              {/*
-                One control, and it is the only authentication this site has.
-
-                There is no "create account" beside it and no link to either of
-                the other two NASEK applications. Signing in for the first time
-                creates the account, so a second button would be a second name
-                for the same operation; and a pilgrim has no business being
-                shown a Campaign Owner Portal they cannot use — the portal is a
-                separate application on a separate host, and this bundle does
-                not know its address.
-
-                Glass rather than gold over the photograph: gold is spent on the
-                hero's own primary button eighty pixels below, and two of them in
-                one eyeful is what turns an accent into a theme.
-              */}
-              <Button
-                size="sm"
-                className={
-                  overHero
-                    ? 'border-ivory-50/35 bg-ivory-50/12 text-ivory-50 backdrop-blur-sm hover:bg-ivory-50/22'
-                    : undefined
-                }
-                onClick={() => navigate('/signin')}
-              >
-                {t('nav.signIn')}
-              </Button>
-            </div>
+            <SignInLink overHero={overHero} onClick={() => navigate('/signin')} />
           )}
 
           <button
@@ -374,6 +348,94 @@ export function Navbar() {
         </div>
       )}
     </header>
+  )
+}
+
+/**
+ * The way in.
+ *
+ * One control, and it is the only authentication this site has. There is no
+ * "create account" beside it and no link to either of the other two NASEK
+ * applications. Signing in for the first time creates the account, so a second
+ * button would be a second name for the same operation; and a pilgrim has no
+ * business being shown a Campaign Owner Portal they cannot use — the portal is
+ * a separate application on a separate host, and this bundle does not know its
+ * address.
+ *
+ * It is not a button any more. A filled block here was the single heaviest
+ * object in a bar that is otherwise all hairlines and type, and it competed
+ * with the hero's own primary call to action eighty pixels below it. What is
+ * left is the word, an arrow in the direction of travel, and a gold rule
+ * beneath — ruled, not shadowed, which is what the rest of this design system
+ * does. The rule sits at 38% of the control at rest and draws out to full width
+ * on hover; it is the whole animation.
+ *
+ * Two details are load-bearing rather than decorative:
+ *
+ *   The rule is drawn full width from the start on any device without hover
+ *   (`@media (hover: none)`). A control whose affordance only appears on hover
+ *   has no affordance at all on a phone, and a phone is how most of NASEK's
+ *   traffic arrives.
+ *
+ *   `leading-none` on the label. Kufi carries `line-height: 1.95` from the
+ *   base layer — correct for running Arabic, and enough to push a label off
+ *   centre inside a 40px control and shove the gold rule into the descender of
+ *   the ج in تسجيل.
+ *
+ * Gold rather than glass over the photograph, reversing what the filled button
+ * used to do. A hairline is not a second gold button, so it no longer competes
+ * with the hero — and `gold-400` is too dark to survive against a bright sky,
+ * hence `gold-300` in that state.
+ */
+function SignInLink({ overHero, onClick }: { overHero: boolean; onClick: () => void }) {
+  const { t, lang } = useI18n()
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cx(
+        'group relative inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap',
+        'rounded-[3px] px-1 text-sm font-semibold',
+        'transition-colors duration-200 ease-out-soft',
+        'focus-visible:outline-2 focus-visible:outline-offset-2',
+        overHero
+          ? 'text-ivory-50/90 hover:text-ivory-50 focus-visible:outline-gold-300'
+          : 'text-ink-700 hover:text-nasek-800 focus-visible:outline-nasek-800',
+      )}
+    >
+      {/* The full phrase wherever the bar has room for it, and only there. On a
+          phone the bar is already carrying a wordmark, a language toggle and a
+          hamburger, so Arabic drops to دخول — English has nothing to drop. */}
+      <span className="leading-none">
+        <span className="sm:hidden">{t('nav.signInShort')}</span>
+        <span className="hidden sm:inline">{t('nav.signIn')}</span>
+      </span>
+
+      <ArrowRight
+        className={cx(
+          'size-3.5 transition-transform duration-300 ease-out-soft rtl:rotate-180',
+          // Toward the edge the reader is travelling to, which is the opposite
+          // edge in each language. Written out per language rather than as a
+          // `rtl:` variant: the icon is already flipped by `rtl:rotate-180`,
+          // and a translate composes with that rotation in the parent's axes,
+          // not the glyph's — so the RTL case has to name its own direction.
+          lang === 'ar' ? 'group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5',
+        )}
+        strokeWidth={2}
+      />
+
+      <span
+        aria-hidden
+        className={cx(
+          'pointer-events-none absolute start-1 bottom-2 h-px w-[38%]',
+          'transition-[width] duration-300 ease-out-soft',
+          'group-hover:w-[calc(100%-0.5rem)]',
+          '[@media(hover:none)]:w-[calc(100%-0.5rem)]',
+          overHero ? 'bg-gold-300' : 'bg-gold-400',
+        )}
+      />
+    </button>
   )
 }
 

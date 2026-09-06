@@ -82,6 +82,7 @@ export const ar: Record<PublicMessageKey, string> = {
   'nav.about': 'عن ناسِك',
   'nav.dashboard': 'لوحتي',
   'nav.signIn': 'تسجيل الدخول',
+  'nav.signInShort': 'دخول',
   'nav.signOut': 'تسجيل الخروج',
   'nav.saved': 'المحفوظات',
   'nav.notifications': 'الإشعارات',
