@@ -16,8 +16,14 @@ interface ImportMetaEnv {
   readonly VITE_SUPABASE_URL?: string
   /** Supabase anon/publishable key. Public by design. */
   readonly VITE_SUPABASE_ANON_KEY?: string
-  /** Which of the two applications this bundle is. Set by the Vite config, not the shell. */
-  readonly VITE_NASEK_APP?: 'web' | 'owner' | 'admin'
+  /**
+   * Which build this bundle is. Set by the Vite config, not the shell.
+   *
+   * `harness` is the development-only visual harness and never ships; it is
+   * named here so that `client.ts` can give it an auth storage key of its own
+   * rather than falling through to the customer's.
+   */
+  readonly VITE_NASEK_APP?: 'web' | 'owner' | 'admin' | 'harness'
   /**
    * The deployed address of the public site, e.g. `https://nasek.vercel.app/`.
    *

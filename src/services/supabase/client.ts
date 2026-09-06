@@ -58,13 +58,27 @@ export const supabaseAnonKey = anonKey ?? ''
  * means that running both on `localhost` during development does not have one
  * app's sign-in silently adopt the other's session, which would make the role
  * checks impossible to test.
+ *
+ * `harness` is named for the same reason and one more. The visual harness mounts
+ * the owner and administration screens with a mocked signed-in user, and it used
+ * to fall through this chain to `nasek.auth.web` — the *customer* key. Nothing
+ * could be adopted through it today, because `localStorage` is scoped by origin
+ * including port and the harness serves on its own; but a build that shared an
+ * origin with the customer site would have shared its session storage too, while
+ * seeding an administrator into the client store. That combination should not be
+ * one deployment mistake away, so the harness gets a key of its own.
+ *
+ * The three application keys are unchanged, and `web` remains the default for an
+ * unset or unrecognised value.
  */
 const storageKey =
   import.meta.env.VITE_NASEK_APP === 'admin'
     ? 'nasek.auth.admin'
     : import.meta.env.VITE_NASEK_APP === 'owner'
       ? 'nasek.auth.owner'
-      : 'nasek.auth.web'
+      : import.meta.env.VITE_NASEK_APP === 'harness'
+        ? 'nasek.auth.harness'
+        : 'nasek.auth.web'
 
 export const supabase: SupabaseClient<Database> | null =
   url && anonKey
