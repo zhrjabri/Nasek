@@ -378,12 +378,20 @@ export const ar: Record<PublicMessageKey, string> = {
   'auth.chooseChannel': 'كيف تُفضّل استلام الرمز؟',
   'auth.continueEmail': 'البريد الإلكتروني',
   'auth.continuePhone': 'رقم الهاتف',
-  'auth.emailHint': 'سنرسل رمزًا من ستة أرقام إلى هذا العنوان.',
+  /*
+   * لا تذكر هذه النصوص عدد الأرقام.
+   *
+   * طول الرمز إعداد في Supabase (Email OTP Length) وليس قرارًا في هذا الملف —
+   * وقد تغيّر من ستة إلى ثمانية دون أن تتغير هذه الجمل، فوعدت المستخدم بستة
+   * أرقام بينما وصلته ثمانية. الصياغة التي لا تذكر عددًا تبقى صحيحة مهما تغيّر
+   * الإعداد.
+   */
+  'auth.emailHint': 'سنرسل رمز تسجيل الدخول إلى هذا العنوان.',
   'auth.phoneHint': 'الأرقام العُمانية تُقبل بصيغة 9123 4567 أو ‎+968 9123 4567‎.',
   'auth.sendCode': 'أرسل الرمز',
   'auth.sending': 'جارٍ الإرسال…',
-  'auth.codeSentEmail': 'أرسلنا رمزًا من ستة أرقام إلى',
-  'auth.codeSentPhone': 'أرسلنا رمزًا من ستة أرقام برسالة نصية إلى',
+  'auth.codeSentEmail': 'أرسلنا رمز تسجيل الدخول إلى',
+  'auth.codeSentPhone': 'أرسلنا رمز تسجيل الدخول برسالة نصية إلى',
   'auth.codeLabel': 'رمز التحقق',
   'auth.verify': 'تحقّق وتابع',
   'auth.verifying': 'جارٍ التحقق…',
@@ -404,7 +412,7 @@ export const ar: Record<PublicMessageKey, string> = {
   'auth.errWrongCode': 'الرمز غير صحيح.',
   'auth.errExpired': 'انتهت صلاحية الرمز. اطلب رمزًا جديدًا.',
   'auth.errTooMany': 'محاولات كثيرة. ابدأ من جديد برمز آخر.',
-  'auth.errCodeFormat': 'أدخل الأرقام الستة كاملة.',
+  'auth.errCodeFormat': 'أدخل الرمز كاملًا.',
   'auth.blockedSuspended': 'هذا الحساب موقوف. تواصل مع ناسِك لاستعادته.',
   'auth.blockedRemoved': 'هذا الحساب لم يعد نشطًا.',
   'auth.sessionFailed': 'تحققنا من الرمز لكن تعذّر فتح جلستك. حاول مرة أخرى.',

@@ -13,6 +13,7 @@
  * where the mistakes that silently let someone in would live.
  */
 import {
+  EMAIL_CODE_LENGTH,
   EMAIL_OTP_TYPES,
   MAX_OTP_ATTEMPTS,
   cancelOtp,
@@ -166,14 +167,51 @@ async function main() {
 
   const issued = await startOtp(target)
   check('a code is issued', issued.ok && !!issued.demoCode, issued.demoCode ?? '')
-  check('the code is six digits', /^\d{6}$/.test(issued.demoCode ?? ''))
+  /*
+   * The length the project actually issues, not a literal.
+   *
+   * `/^\d{6}$/` was written here while the constant said six and Supabase said
+   * eight, so this harness agreed with the bug: it asserted the fallback
+   * matched a form that no real code from the live project could satisfy.
+   */
+  check(
+    `the code is ${EMAIL_CODE_LENGTH} digits, matching the project's Email OTP Length`,
+    // Spelled out rather than built with `\d` inside a template literal, where
+    // the backslash is swallowed and the pattern quietly becomes `^d{8}$`.
+    /^[0-9]+$/.test(issued.demoCode ?? '') && issued.demoCode?.length === EMAIL_CODE_LENGTH,
+    issued.demoCode ?? '',
+  )
   check('a resend cooldown comes back with it', issued.cooldownSeconds > 0)
 
-  const wrong = await verifyOtp(target, issued.demoCode === '000000' ? '111111' : '000000')
+  const decoy = (fill: string) => fill.repeat(EMAIL_CODE_LENGTH)
+  const wrong = await verifyOtp(target, issued.demoCode === decoy('0') ? decoy('1') : decoy('0'))
   check('a wrong code is rejected', !wrong.ok && wrong.error === 'wrong_code')
 
   const shortCode = await verifyOtp(target, '123')
   check('a half-typed code is rejected on its shape', !shortCode.ok && shortCode.error === 'code_format')
+
+  /*
+   * A code of a different — but issuable — length reaches the server.
+   *
+   * This is the regression that the eight-digit incident is really about. The
+   * guard was an equality against a number this repository held, so the day the
+   * dashboard's Email OTP Length moved, every correct code was refused in the
+   * browser and the server was never asked. It is a range now: six through ten,
+   * which is what Supabase will issue between, so a setting change costs the
+   * form some empty boxes and never costs anyone their sign-in.
+   */
+  const otherLength = await verifyOtp(target, '123456')
+  check(
+    'a six-digit code is judged by the server, not refused on its shape',
+    !otherLength.ok && otherLength.error === 'wrong_code',
+    otherLength.error ?? '',
+  )
+  const tooLong = await verifyOtp(target, '12345678901')
+  check(
+    'but a length no project could issue is still refused outright',
+    !tooLong.ok && tooLong.error === 'code_format',
+    tooLong.error ?? '',
+  )
 
   // The code belongs to the address it was sent to, not to the browser.
   const otherTarget = { channel: 'email' as const, value: 'someone@else.om' }
@@ -189,10 +227,10 @@ async function main() {
   console.log('\n--- giving up -----------------------------------------------\n')
 
   const second = await startOtp(target)
-  const decoy = second.demoCode === '000000' ? '111111' : '000000'
+  const guess = second.demoCode === decoy('0') ? decoy('1') : decoy('0')
   let lastError: string | undefined
   for (let i = 0; i < MAX_OTP_ATTEMPTS + 1; i++) {
-    lastError = (await verifyOtp(target, decoy)).error
+    lastError = (await verifyOtp(target, guess)).error
   }
   check(
     'repeated wrong guesses stop being accepted at all',

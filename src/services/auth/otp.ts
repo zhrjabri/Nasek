@@ -63,7 +63,50 @@ export const RESEND_COOLDOWN_SECONDS = 45
 export const MAX_OTP_ATTEMPTS = 5
 
 /**
- * The token kinds an emailed six-digit code can be, in the order tried.
+ * How many digits an emailed sign-in code has.
+ *
+ * THIS NUMBER IS NOT OURS. It is Supabase's, and the copy of it here is a
+ * mirror that has already been wrong once — expensively.
+ *
+ * The real value lives in the project's own configuration:
+ *
+ *     Dashboard -> Authentication -> Sign In / Providers -> Email
+ *                                 -> Email OTP Length
+ *
+ * GoTrue's default is 6 and the setting accepts 6 to 10. NASEK's production
+ * project is set to 8. Everything here said 6: six boxes, a validator that
+ * refused anything but six digits, and Arabic and English copy promising six.
+ * A pilgrim received eight digits, could physically enter six of them, and was
+ * told "الرمز غير صحيح" — the code was right, the form would not take it.
+ *
+ * So one constant, imported by the field and by the validator below, and the
+ * copy no longer names a number at all — see `auth.codeSentEmail`, which now
+ * says a code was sent rather than how long it is. Changing the setting in the
+ * dashboard means changing this line and nothing else, and if somebody changes
+ * the setting without changing this line, `verifyOtp` below still accepts the
+ * code: the length check is a range, not an equality, precisely so that a
+ * configuration change can never again make a valid code unenterable.
+ *
+ * TOTP is a different thing with a different length and is not this constant.
+ * An authenticator app's code is six digits by RFC 6238, always, so the MFA
+ * screens keep `TOTP_CODE_LENGTH` from `CodeInput`.
+ */
+export const EMAIL_CODE_LENGTH = 8
+
+/**
+ * The range Supabase itself will issue within.
+ *
+ * The validator uses these rather than `EMAIL_CODE_LENGTH` so a dashboard
+ * change is, at worst, a form with the wrong number of boxes — a nuisance
+ * somebody can paste around — instead of a client that rejects the code before
+ * the server ever sees it. Whether the digits are *right* was never this
+ * function's business; that is decided in Postgres.
+ */
+const MIN_CODE_LENGTH = 6
+const MAX_CODE_LENGTH = 10
+
+/**
+ * The token kinds an emailed code can be, in the order tried.
  *
  * `email` first because returning visitors outnumber first-timers, so the
  * common case costs one round trip. `signup` second, for an address Supabase
@@ -178,10 +221,18 @@ function writeDemo(record: DemoRecord | null) {
   }
 }
 
-/** Six digits, from the CSPRNG rather than Math.random. */
+/**
+ * A code of the same length the real project issues, from the CSPRNG rather
+ * than Math.random.
+ *
+ * The length matters even here. This is the offline fallback, and a fallback
+ * that hands out six digits into a field expecting eight would fail its own
+ * validator — which is the shape of the production bug, reproduced in the one
+ * place that exists to demonstrate the flow working.
+ */
 function generateCode(): string {
-  const buf = crypto.getRandomValues(new Uint32Array(1))
-  return String(buf[0] % 1_000_000).padStart(6, '0')
+  const digits = crypto.getRandomValues(new Uint32Array(EMAIL_CODE_LENGTH))
+  return [...digits].map((d) => d % 10).join('')
 }
 
 // ------------------------------------------------------------------- public
@@ -291,7 +342,13 @@ export async function verifyOtp(target: OtpTarget, code: string): Promise<OtpVer
   if (!normalised) return { ok: false, error: 'invalid' }
 
   const token = code.replace(/\D/g, '')
-  if (token.length !== 6) return { ok: false, error: 'code_format' }
+  // A range rather than `!== EMAIL_CODE_LENGTH`. See that constant: this check
+  // existed as `!== 6` while the project issued eight, so it refused every
+  // valid code without ever asking Supabase. Its job is to catch an empty or
+  // half-typed box, not to second-guess the server about its own token.
+  if (token.length < MIN_CODE_LENGTH || token.length > MAX_CODE_LENGTH) {
+    return { ok: false, error: 'code_format' }
+  }
 
   if (supabase) {
     if (target.channel === 'phone') {

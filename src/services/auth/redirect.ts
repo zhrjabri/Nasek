@@ -3,8 +3,9 @@ import { supabase } from '@/services/supabase/client'
 /**
  * Coming back from a link in an email.
  *
- * NASEK asks for a six-digit code, and on a project with editable email
- * templates that is exactly what arrives. Supabase's *default* templates render
+ * NASEK asks for a typed code, and on a project with editable email templates
+ * that is exactly what arrives — as many digits as `Email OTP Length` says,
+ * which is `EMAIL_CODE_LENGTH` in `services/auth/otp.ts`. Supabase's *default* templates render
  * `{{ .ConfirmationURL }}` and nothing else, and on newer projects those
  * templates cannot be changed without configuring custom SMTP — so the email a
  * pilgrim actually receives is a link. Before this file existed, clicking it

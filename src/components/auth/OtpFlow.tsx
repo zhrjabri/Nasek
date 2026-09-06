@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { useI18n, type MessageKey } from '@/i18n'
 import {
+  EMAIL_CODE_LENGTH,
   RESEND_COOLDOWN_SECONDS,
   cancelOtp,
   isDemoOtp,
@@ -21,7 +22,7 @@ import {
 import { maskEmail, maskPhone } from '@/services/auth/phone'
 import { parseSignInLink, verifyEmailLink } from '@/services/auth/redirect'
 import { Button, Field, Input, Notice, Segmented, Textarea, cx } from '@/components/ui'
-import { CODE_LENGTH, CodeInput } from './CodeInput'
+import { CodeInput } from './CodeInput'
 
 /**
  * Sign in without a password.
@@ -384,6 +385,14 @@ export function OtpFlow({
       >
         <CodeInput
           autoFocus
+          /*
+            The emailed code's length, from the one constant that mirrors the
+            project's `Email OTP Length`. Not `TOTP_CODE_LENGTH`, which this
+            used by default and which is a different code entirely: for a while
+            the project issued eight digits into six boxes, and the two digits
+            that did not fit made every correct code read as a wrong one.
+          */
+          length={EMAIL_CODE_LENGTH}
           label={t('auth.codeLabel')}
           value={code}
           onChange={setCode}
@@ -403,7 +412,7 @@ export function OtpFlow({
           and on newer projects they cannot be edited without custom SMTP. Both
           paths work — this screen accepts a typed code, and clicking the link
           completes the same sign-in — so the copy names both rather than
-          leaving someone staring at six empty boxes wondering what to type.
+          leaving someone staring at a row of empty boxes wondering what to type.
         */}
         {!isDemoOtp && (
           <p className="text-center text-xs leading-relaxed text-ink-500">
@@ -416,7 +425,7 @@ export function OtpFlow({
           size="lg"
           block
           loading={busy}
-          disabled={code.replace(/\D/g, '').length !== CODE_LENGTH}
+          disabled={code.replace(/\D/g, '').length !== EMAIL_CODE_LENGTH}
         >
           {busy ? (busyLabel ?? t('auth.verifying')) : (submitLabel ?? t('auth.verify'))}
         </Button>
@@ -426,7 +435,7 @@ export function OtpFlow({
         Supabase's default templates send a link and no code, and they cannot be
         edited without custom SMTP — so for many projects this is not a fallback
         at all, it is the way in. It is offered rather than forced because a
-        project with editable templates sends a code, and six boxes are far less
+        project with editable templates sends a code, and the boxes are far less
         work than copying a URL.
       */}
       {!isDemoOtp && (

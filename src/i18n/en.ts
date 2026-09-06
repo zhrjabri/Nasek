@@ -385,12 +385,21 @@ export const en = {
   'auth.chooseChannel': 'How would you like to receive your code?',
   'auth.continueEmail': 'Email',
   'auth.continuePhone': 'Phone',
-  'auth.emailHint': 'We’ll send a 6-digit code to this address.',
+  /*
+   * None of these name a number of digits.
+   *
+   * The length is Supabase's `Email OTP Length` setting rather than anything
+   * decided here, and it moved from six to eight without these sentences
+   * moving with it — so the screen promised six digits to people who had
+   * received eight. Copy that names no length stays true whatever the setting
+   * becomes.
+   */
+  'auth.emailHint': 'We’ll send your sign-in code to this address.',
   'auth.phoneHint': 'Omani numbers work as 9123 4567 or +968 9123 4567.',
   'auth.sendCode': 'Send my code',
   'auth.sending': 'Sending…',
-  'auth.codeSentEmail': 'We sent a 6-digit code to',
-  'auth.codeSentPhone': 'We sent a 6-digit code by SMS to',
+  'auth.codeSentEmail': 'We sent your sign-in code to',
+  'auth.codeSentPhone': 'We sent your sign-in code by SMS to',
   'auth.codeLabel': 'Verification code',
   'auth.verify': 'Verify and continue',
   'auth.verifying': 'Verifying…',
@@ -411,7 +420,7 @@ export const en = {
   'auth.errWrongCode': 'That code is not correct.',
   'auth.errExpired': 'That code has expired. Ask for a new one.',
   'auth.errTooMany': 'Too many attempts. Start again with a new code.',
-  'auth.errCodeFormat': 'Enter all six digits.',
+  'auth.errCodeFormat': 'Enter the whole code.',
   'auth.blockedSuspended': 'This account has been suspended. Contact NASEK to restore it.',
   'auth.blockedRemoved': 'This account is no longer active.',
   'auth.sessionFailed': 'We verified your code but couldn’t open your session. Try again.',

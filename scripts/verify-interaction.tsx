@@ -21,7 +21,7 @@
  * caught here through `onUncaughtError` *and* by reading the container back,
  * so an error boundary added later cannot quietly satisfy this file.
  */
-import { StrictMode, act } from 'react'
+import { StrictMode, act, useState } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { I18nProvider } from '@/i18n'
 import { ownerAr } from '@/i18n/ownerAr'
@@ -30,6 +30,11 @@ import { AppStoreProvider } from '@/store/AppStore'
 import { CampaignForm } from '@/components/campaign/CampaignForm'
 import { DashboardPage } from '@/owner/DashboardPage'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { CodeInput, TOTP_CODE_LENGTH } from '@/components/auth/CodeInput'
+import { OtpFlow } from '@/components/auth/OtpFlow'
+import { EMAIL_CODE_LENGTH } from '@/services/auth/otp'
+import { ar } from '@/i18n/ar'
+import { en } from '@/i18n/en'
 import { SERVICE_KEYS } from '@/data/services'
 import type { Provider } from '@/types'
 
@@ -58,6 +63,39 @@ const keystroke = (el: HTMLInputElement | HTMLTextAreaElement, next: string) =>
     setNativeValue(el, next)
     el.dispatchEvent(new window.Event('input', { bubbles: true }))
   })
+
+const press = (el: Element, key: string) =>
+  act(() => {
+    el.dispatchEvent(
+      new window.KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }),
+    )
+  })
+
+/** A paste of `text` into one box, which the field distributes across the row. */
+const paste = (el: Element, text: string) =>
+  act(() => {
+    const event = new window.Event('paste', { bubbles: true, cancelable: true })
+    Object.defineProperty(event, 'clipboardData', {
+      value: { getData: () => text },
+    })
+    el.dispatchEvent(event)
+  })
+
+/*
+ * Let the pending work land.
+ *
+ * `act` flushes React, not the promises React is waiting on. Sending a code is
+ * an `await` — a real network call in production, a key derivation in the
+ * offline fallback — so without this the assertions run while the button still
+ * reads "sending…" and the code screen has not been drawn.
+ */
+const settle = async (rounds = 8) => {
+  for (let i = 0; i < rounds; i += 1) {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10))
+    })
+  }
+}
 
 const click = (el: Element) =>
   act(() => {
@@ -377,54 +415,289 @@ suite('Owner — Add Trip, opened from the dashboard', dashboardForm())
 suite('Administration — Add Trip', bareForm(PROVIDERS))
 
 /*
- * -------------------------------------------------- the wall around a crash
+ * ------------------------------------------------- the one-time code field
  *
- * The boundary is the answer to "why was it a *white page* rather than a
- * broken form", and it is only worth having if it does two things at once:
- * contain the failure, and refuse to hide it. Both are asserted, because a
- * boundary that quietly swallowed the error would make every other check in
- * this file pass on a broken build.
+ * The field promised six digits while the project issued eight. A pilgrim
+ * received a code they could not finish typing and was told it was wrong —
+ * which it was not — and every layer agreed with the mistake: six boxes, a
+ * validator that refused anything but six, and copy in both languages
+ * promising six.
+ *
+ * So what is asserted here is the *agreement* between the constant, the boxes,
+ * the token handed to `verifyOtp`, and the words on the screen. Any one of
+ * them drifting is the bug again, and a check that only counted boxes would
+ * not have caught the version that shipped.
  */
-console.log(`\n--- A crash inside a boundary ${'-'.repeat(27)}\n`)
+console.log(`\n--- The one-time code field ${'-'.repeat(29)}\n`)
 {
-  const Explodes = () => {
-    throw new Error('deliberate: a campaign form that throws')
+  const CODE = '13572468'.slice(0, EMAIL_CODE_LENGTH)
+
+  let value = ''
+  let completed: string[] = []
+  const Harness = ({ length }: { length: number }) => {
+    const [code, setCode] = useState('')
+    value = code
+    return (
+      <CodeInput
+        length={length}
+        label="رمز التحقق"
+        value={code}
+        onChange={setCode}
+        onComplete={(full) => completed.push(full)}
+      />
+    )
   }
-  const ui = mount(
-    <div>
-      <p>الرحلات</p>
-      <ErrorBoundary where="a deliberate test">
-        <Explodes />
-      </ErrorBoundary>
-    </div>,
-  )
-  const text = ui.container.textContent ?? ''
-  check('the page around the failure is still there', text.includes('الرحلات'))
-  check('the boundary says something in the reader’s language', text.includes('توقف هذا الجزء'))
+
+  const ui = mount(<Harness length={EMAIL_CODE_LENGTH} />)
+  const boxes = () =>
+    [...ui.container.querySelectorAll('input')] as HTMLInputElement[]
+
+  // 1. As many boxes as the project issues digits.
   check(
-    'and shows the error rather than swallowing it',
-    text.includes('deliberate: a campaign form that throws'),
-    text.slice(0, 120),
+    `an emailed code of ${EMAIL_CODE_LENGTH} digits gets ${EMAIL_CODE_LENGTH} boxes`,
+    boxes().length === EMAIL_CODE_LENGTH,
+    `${boxes().length} box(es)`,
   )
-  check('React was told it was caught', ui.errors.length > 0)
+
+  // 2. Typed straight through, one box to the next, without touching the mouse.
+  let advanced = true
+  for (let i = 0; i < CODE.length; i += 1) {
+    keystroke(boxes()[i], CODE[i])
+    // Focus should already be on the *next* box, which is what "typing
+    // continuously" means; the last digit has nowhere to go.
+    const expected = Math.min(i + 1, EMAIL_CODE_LENGTH - 1)
+    if (document.activeElement !== boxes()[expected]) advanced = false
+  }
+  check('every digit can be typed continuously across the boxes', advanced)
+  check('and the boxes hold the code that was typed', value === CODE, value)
+
+  // 7. The token that would reach `verifyOtp`, unchanged and complete.
+  check(
+    'the full token is handed on exactly as typed',
+    completed.length === 1 && completed[0] === CODE,
+    completed.join(','),
+  )
+
+  // 5. Backspace in an empty box steps back and clears.
+  act(() => boxes()[EMAIL_CODE_LENGTH - 1].focus())
+  keystroke(boxes()[EMAIL_CODE_LENGTH - 1], '')
+  press(boxes()[EMAIL_CODE_LENGTH - 1], 'Backspace')
+  check(
+    'backspace in an empty box clears the one before it and moves there',
+    value === CODE.slice(0, EMAIL_CODE_LENGTH - 2) &&
+      document.activeElement === boxes()[EMAIL_CODE_LENGTH - 2],
+    value,
+  )
+
+  // 6. Letters and punctuation never land.
+  const before = value
+  keystroke(boxes()[EMAIL_CODE_LENGTH - 2], 'a')
+  keystroke(boxes()[EMAIL_CODE_LENGTH - 2], '-')
+  check('a non-numeric key puts nothing in the box', value === before, value)
+
+  // 4. A short code neither completes nor submits.
+  completed = []
   act(() => ui.root.unmount())
   ui.container.remove()
+
+  const partial = mount(<Harness length={EMAIL_CODE_LENGTH} />)
+  const partialBoxes = () => [...partial.container.querySelectorAll('input')] as HTMLInputElement[]
+  const SIX = '123456'
+  for (let i = 0; i < SIX.length; i += 1) keystroke(partialBoxes()[i], SIX[i])
+  check(
+    `six digits do not complete a ${EMAIL_CODE_LENGTH}-digit code`,
+    completed.length === 0 && value === SIX,
+    `value=${value} completions=${completed.length}`,
+  )
+
+  // 3. Pasting the whole thing, from anywhere in the row.
+  completed = []
+  act(() => partial.root.unmount())
+  partial.container.remove()
+
+  const pasted = mount(<Harness length={EMAIL_CODE_LENGTH} />)
+  const pastedBoxes = () => [...pasted.container.querySelectorAll('input')] as HTMLInputElement[]
+  paste(pastedBoxes()[0], `Your NASEK code is ${CODE}`)
+  check(
+    'pasting the whole code fills every box and completes',
+    value === CODE && completed.length === 1 && completed[0] === CODE,
+    `value=${value} completions=${completed.length}`,
+  )
+
+  act(() => pasted.root.unmount())
+  pasted.container.remove()
+
+  /*
+   * And the other code, which is a different length and must stay one.
+   *
+   * An authenticator's code is six digits by RFC 6238. The tempting fix for
+   * the eight-digit bug was to change the shared constant, which would have
+   * broken administrator two-factor sign-in and the enrolment screen with it —
+   * so the two lengths are asserted apart.
+   */
+  completed = []
+  const totp = mount(<Harness length={TOTP_CODE_LENGTH} />)
+  check(
+    'an authenticator code still gets exactly six boxes',
+    totp.container.querySelectorAll('input').length === 6 && TOTP_CODE_LENGTH === 6,
+    `${totp.container.querySelectorAll('input').length} box(es)`,
+  )
+  act(() => totp.root.unmount())
+  totp.container.remove()
+
+  check('no uncaught error came out of the code field', ui.errors.length === 0)
 }
 
 /*
- * React's own development warnings count as failures.
+ * ------------------------------------------------ what the screen promises
  *
- * "Each child in a list should have a unique key" and "Cannot update a
- * component while rendering a different one" are exactly the class of defect
- * this file exists for, and React prints them rather than throwing them. The
- * runner collects them; this is where they are allowed to fail the run.
+ * The copy is part of the bug, not decoration. "أرسلنا رمزًا من ستة أرقام"
+ * told the pilgrim the eight-digit code in their inbox was the wrong code, and
+ * they believed the screen, because why would they not.
+ *
+ * These read the rendered screen rather than the dictionaries, so a string
+ * reintroduced through a different key is still caught, and they assert the
+ * absence of a *number* rather than of one particular sentence — wording that
+ * says "six" is wrong today and wording that says "eight" is wrong the next
+ * time the setting moves.
  */
-const reactErrors = (globalThis as unknown as { __reactErrors?: string[] }).__reactErrors ?? []
-check('React printed no warnings of its own', reactErrors.length === 0, reactErrors.join(' | '))
+console.log(`\n--- What the sign-in screen promises ${'-'.repeat(20)}\n`)
+for (const [language, dict, forbidden] of [
+  ['Arabic', ar, ['ستة أرقام', 'ثمانية أرقام', 'الأرقام الستة']],
+  ['English', en, ['6-digit', '8-digit', 'six digits', 'eight digits', 'six-digit']],
+] as const) {
+  const claims = (['auth.emailHint', 'auth.codeSentEmail', 'auth.codeSentPhone', 'auth.errCodeFormat'] as const)
+    .map((key) => [key, (dict as Record<string, string>)[key]] as const)
+    .filter(([, text]) => forbidden.some((phrase) => text.includes(phrase)))
 
-console.log(
-  failures === 0
-    ? '\nAll interaction checks passed.\n'
-    : `\n${failures} interaction check(s) failed.\n`,
-)
-process.exit(failures === 0 ? 0 : 1)
+  check(
+    `the ${language} sign-in copy names no number of digits`,
+    claims.length === 0,
+    claims.map(([key, text]) => `${key}: ${text}`).join(' | '),
+  )
+}
+
+/*
+ * The rest of the run is asynchronous, so it lives in a function.
+ *
+ * Sending a code is an `await`, and this harness is built for a browser
+ * target that has no top-level await — so the remaining checks and the
+ * summary are wrapped rather than left at module scope.
+ */
+async function rest() {
+  /*
+   * ----------------------------------------- the whole screen, end to end
+   *
+   * The two checks above are about a component and a dictionary. This is the
+   * thing the pilgrim actually met: type an address, press send, and count the
+   * boxes that appear. It is the only check here that would have failed on the
+   * build that shipped.
+   *
+   * The magic link is asserted alongside it, because it is the other half of
+   * this screen and had to survive the fix untouched. On a project whose email
+   * templates are not editable the message carries a link and no code at all, so
+   * for many deployments it is not a fallback — it is the way in. The redemption
+   * itself belongs to `verify:redirect`, which drives `parseSignInLink` and
+   * `verifyEmailLink` over two dozen URL shapes; what is checked here is that
+   * the screen still offers it and still explains it.
+   */
+  console.log(`\n--- The sign-in screen, end to end ${'-'.repeat(22)}\n`)
+  {
+    const ui = mount(<OtpFlow channels={['email']} onSuccess={() => {}} />)
+    const email = ui.container.querySelector('input[type=email]') as HTMLInputElement | null
+    check('the screen opens asking for an address', !!email)
+
+    if (email) {
+      keystroke(email, 'zahra@nasek.om')
+      const send = byText(ui.container, 'button', ar['auth.sendCode'])
+      check('and offers to send the code', !!send)
+      if (send) click(send)
+      await settle()
+    }
+
+    const boxes = ui.container.querySelectorAll('input[inputmode=numeric]')
+    check(
+      `after sending, the customer gets ${EMAIL_CODE_LENGTH} boxes to type into`,
+      boxes.length === EMAIL_CODE_LENGTH,
+      `${boxes.length} box(es)`,
+    )
+
+    const text = ui.container.textContent ?? ''
+    check(
+      'the screen never tells the pilgrim how many digits to expect',
+      !/ستة أرقام|الأرقام الستة|ثمانية أرقام/.test(text),
+      text.slice(0, 120),
+    )
+
+    /*
+     * The link copy is read off the dictionary rather than the screen, and that
+     * is a limitation worth naming: both link affordances render only when
+     * `isDemoOtp` is false, and this harness runs with no backend, which is
+     * exactly the case that makes it true. So this proves the wording still
+     * exists to be shown; `verify:redirect` proves the arrival still works.
+     */
+    for (const key of ['auth.orUseLink', 'auth.pasteLinkTitle', 'auth.pasteLinkBody'] as const) {
+      check(`the emailed-link path still has its ${key} wording`, (ar[key] ?? '').length > 10)
+    }
+
+    check('drawing the whole flow raised nothing', ui.errors.length === 0, ui.errors.map(describe).join('; '))
+    act(() => ui.root.unmount())
+    ui.container.remove()
+  }
+
+  /*
+   * -------------------------------------------------- the wall around a crash
+   *
+   * The boundary is the answer to "why was it a *white page* rather than a
+   * broken form", and it is only worth having if it does two things at once:
+   * contain the failure, and refuse to hide it. Both are asserted, because a
+   * boundary that quietly swallowed the error would make every other check in
+   * this file pass on a broken build.
+   */
+  console.log(`\n--- A crash inside a boundary ${'-'.repeat(27)}\n`)
+  {
+    const Explodes = () => {
+      throw new Error('deliberate: a campaign form that throws')
+    }
+    const ui = mount(
+      <div>
+        <p>الرحلات</p>
+        <ErrorBoundary where="a deliberate test">
+          <Explodes />
+        </ErrorBoundary>
+      </div>,
+    )
+    const text = ui.container.textContent ?? ''
+    check('the page around the failure is still there', text.includes('الرحلات'))
+    check('the boundary says something in the reader’s language', text.includes('توقف هذا الجزء'))
+    check(
+      'and shows the error rather than swallowing it',
+      text.includes('deliberate: a campaign form that throws'),
+      text.slice(0, 120),
+    )
+    check('React was told it was caught', ui.errors.length > 0)
+    act(() => ui.root.unmount())
+    ui.container.remove()
+  }
+
+  /*
+   * React's own development warnings count as failures.
+   *
+   * "Each child in a list should have a unique key" and "Cannot update a
+   * component while rendering a different one" are exactly the class of defect
+   * this file exists for, and React prints them rather than throwing them. The
+   * runner collects them; this is where they are allowed to fail the run.
+   */
+  const reactErrors = (globalThis as unknown as { __reactErrors?: string[] }).__reactErrors ?? []
+  check('React printed no warnings of its own', reactErrors.length === 0, reactErrors.join(' | '))
+
+  console.log(
+    failures === 0
+      ? '\nAll interaction checks passed.\n'
+      : `\n${failures} interaction check(s) failed.\n`,
+  )
+  process.exit(failures === 0 ? 0 : 1)
+
+}
+
+void rest()

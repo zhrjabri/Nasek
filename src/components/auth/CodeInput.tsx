@@ -2,27 +2,40 @@ import { useEffect, useRef } from 'react'
 import { cx } from '@/components/ui'
 
 /**
- * The six-digit code field.
+ * The one-time code field.
  *
- * Six boxes rather than one text input, because the boxes tell you how long the
- * code is before you start typing and show you where you are while you do.
+ * One box per digit rather than a single text input, because the boxes tell you
+ * how long the code is before you start typing and show you where you are while
+ * you do. That is also why the length is a *prop* and no longer a constant in
+ * this file: the boxes are a promise about the code's length, and a promise
+ * that does not match what the sender issued is worse than having no boxes at
+ * all. NASEK sends two codes, of two different lengths, and this component was
+ * written assuming one:
  *
- * Three details do most of the work and are easy to leave out:
+ *   * An emailed sign-in code. Its length is Supabase's `Email OTP Length`
+ *     setting — 8 on this project — so callers pass `EMAIL_CODE_LENGTH` from
+ *     `services/auth/otp.ts`, which is the single place that mirrors it.
+ *   * An authenticator code. Six digits, by RFC 6238, on every app that
+ *     implements TOTP. That is `TOTP_CODE_LENGTH` below, and the default,
+ *     because it is the one of the two that is a fact rather than a setting.
+ *
+ * Three details do most of the remaining work and are easy to leave out:
  *
  *   * Pasting. Almost nobody types a code they can copy. Any box accepts a
  *     paste of the whole code and distributes it, and `onPaste` strips
- *     non-digits first, so pasting "123 456" or "Your code is 123456" from a
- *     message works rather than filling one box with a space.
+ *     non-digits first, so pasting "1234 5678" or "Your code is 12345678" from
+ *     a message works rather than filling one box with a space.
  *   * `autocomplete="one-time-code"`. iOS and Android offer the code from the
  *     message above the keyboard, and Chrome can pull it from an SMS. The
- *     attribute belongs on the first box only; repeated across all six, the
+ *     attribute belongs on the first box only; repeated across every box, the
  *     platform fills the first and the rest stay empty.
  *   * Direction. The boxes are `dir="ltr"` even in Arabic. A code is a number,
  *     read left to right in both languages, and letting it mirror would put
  *     the first digit you type on the right-hand side of the row.
  */
 
-export const CODE_LENGTH = 6
+/** An authenticator app's code. Six, by RFC 6238, and not a project setting. */
+export const TOTP_CODE_LENGTH = 6
 
 export function CodeInput({
   value,
@@ -32,25 +45,28 @@ export function CodeInput({
   invalid,
   label,
   autoFocus,
+  length = TOTP_CODE_LENGTH,
 }: {
   value: string
   onChange: (next: string) => void
-  /** Fired once the sixth digit lands, so nobody has to press a button. */
+  /** Fired once the last digit lands, so nobody has to press a button. */
   onComplete?: (code: string) => void
   disabled?: boolean
   invalid?: boolean
   label: string
   autoFocus?: boolean
+  /** How many digits this particular code has. See the note above. */
+  length?: number
 }) {
   const refs = useRef<(HTMLInputElement | null)[]>([])
-  const digits = value.padEnd(CODE_LENGTH, ' ').slice(0, CODE_LENGTH).split('')
+  const digits = value.padEnd(length, ' ').slice(0, length).split('')
 
   useEffect(() => {
     if (autoFocus) refs.current[0]?.focus()
   }, [autoFocus])
 
   const set = (index: number, digit: string) => {
-    const next = value.padEnd(CODE_LENGTH, ' ').split('')
+    const next = value.padEnd(length, ' ').split('')
     next[index] = digit || ' '
     const joined = next.join('').replace(/\s+$/, '')
     onChange(joined.trimEnd())
@@ -60,8 +76,8 @@ export function CodeInput({
   const handleChange = (index: number, raw: string) => {
     const digit = raw.replace(/\D/g, '').slice(-1)
     const complete = set(index, digit)
-    if (digit && index < CODE_LENGTH - 1) refs.current[index + 1]?.focus()
-    if (complete.length === CODE_LENGTH) onComplete?.(complete)
+    if (digit && index < length - 1) refs.current[index + 1]?.focus()
+    if (complete.length === length) onComplete?.(complete)
   }
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -76,16 +92,16 @@ export function CodeInput({
     // Arrow keys move by box, and are flipped under RTL so "next" is still the
     // box the eye expects even though the row itself is not mirrored.
     if (e.key === 'ArrowLeft' && index > 0) refs.current[index - 1]?.focus()
-    if (e.key === 'ArrowRight' && index < CODE_LENGTH - 1) refs.current[index + 1]?.focus()
+    if (e.key === 'ArrowRight' && index < length - 1) refs.current[index + 1]?.focus()
   }
 
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, CODE_LENGTH)
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, length)
     if (!pasted) return
     e.preventDefault()
     onChange(pasted)
-    refs.current[Math.min(pasted.length, CODE_LENGTH - 1)]?.focus()
-    if (pasted.length === CODE_LENGTH) onComplete?.(pasted)
+    refs.current[Math.min(pasted.length, length - 1)]?.focus()
+    if (pasted.length === length) onComplete?.(pasted)
   }
 
   return (

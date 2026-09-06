@@ -4,7 +4,7 @@ import { useI18n, type MessageKey } from '@/i18n'
 import { isSupabaseConfigured } from '@/services/supabase/client'
 import { verifyMfaCode } from '@/services/auth/password'
 import { Button, Field, Input, Notice } from '@/components/ui'
-import { CODE_LENGTH, CodeInput } from '@/components/auth/CodeInput'
+import { TOTP_CODE_LENGTH, CodeInput } from '@/components/auth/CodeInput'
 import { AdminAuthShell } from '@/admin/layout/AdminAuthShell'
 import { verifyAdminPassphrase } from '@/admin/access'
 import { redeemAccessCode, type AccessCodeError } from '@/admin/accessCode'
@@ -233,7 +233,7 @@ function RemoteLogin({
           <Button
             block
             loading={verifying}
-            disabled={mfaCode.replace(/\D/g, '').length !== CODE_LENGTH}
+            disabled={mfaCode.replace(/\D/g, '').length !== TOTP_CODE_LENGTH}
             onClick={() => void submitFactor(mfaCode)}
           >
             {t('auth.verify')}

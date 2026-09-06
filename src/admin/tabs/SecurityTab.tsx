@@ -16,7 +16,7 @@ import {
   type MfaEnrolment,
 } from '@/services/auth/password'
 import { Button, Field, Input, Notice, Spinner } from '@/components/ui'
-import { CODE_LENGTH, CodeInput } from '@/components/auth/CodeInput'
+import { TOTP_CODE_LENGTH, CodeInput } from '@/components/auth/CodeInput'
 
 /**
  * The administrator's own account.
@@ -330,7 +330,7 @@ function TwoFactorPanel({
           <Button
             block
             loading={busy}
-            disabled={code.replace(/\D/g, '').length !== CODE_LENGTH}
+            disabled={code.replace(/\D/g, '').length !== TOTP_CODE_LENGTH}
             onClick={() => void confirm(code)}
           >
             {t('admin.mfaConfirm')}

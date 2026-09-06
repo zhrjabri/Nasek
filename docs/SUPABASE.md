@@ -140,7 +140,7 @@ arrives.
 NASEK handles it. `signInWithOtp` sends an `emailRedirectTo` pointing back at
 whichever application the person started from, and `services/auth/redirect.ts`
 completes the session when they land. The sign-in screen says so, so nobody
-sits looking at six empty boxes with only a link in their inbox.
+sits looking at a row of empty boxes with only a link in their inbox.
 
 **Two things you must configure for this to work.**
 
@@ -202,7 +202,7 @@ plan.
 ### The typed code (needs an editable template)
 
 If your plan lets you edit templates — which today means having custom SMTP
-configured — putting `{{ .Token }}` in them gives a six-digit code instead, and
+configured — putting `{{ .Token }}` in them gives a typed code instead, and
 the code screen becomes the primary path. Edit **both**:
 
 - **Magic Link** — used when the address has signed in before
@@ -221,6 +221,32 @@ Editing only one means the very first sign-in still gets a link.
 
 Remove `{{ .ConfirmationURL }}` if you do this — with a code in the email the
 link is redundant, and NASEK accepts either.
+
+### How many digits the code has
+
+**Dashboard → Authentication → Sign In / Providers → Email → Email OTP Length.**
+GoTrue's default is 6; the setting accepts 6 to 10. NASEK's project is set to
+**8**.
+
+That number is mirrored in exactly one place in this repository —
+`EMAIL_CODE_LENGTH` in `src/services/auth/otp.ts` — and it decides how many
+boxes the sign-in screen draws. **Change the setting and you must change that
+constant**, or the form draws the wrong number of boxes.
+
+It has been wrong once, and the failure was not obvious from either side: the
+project was moved to 8, the constant still said 6, and a pilgrim received a
+code they could physically enter only two thirds of. The screen then told them
+"الرمز غير صحيح" — a correct code, refused by the form before Supabase was ever
+asked. Two things were changed so it cannot be that bad again:
+
+- `verifyOtp` accepts any length from 6 to 10 and lets the server decide, so a
+  drifted constant costs some empty boxes rather than every sign-in.
+- No copy in either language names a number of digits any more. "We sent your
+  sign-in code to…" stays true at any setting.
+
+An authenticator code is a different thing — six digits by RFC 6238 — and is
+`TOTP_CODE_LENGTH` in `src/components/auth/CodeInput.tsx`. Do not change one
+to match the other.
 
 ### The default mail service will not do for long
 

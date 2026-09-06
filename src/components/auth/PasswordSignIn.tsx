@@ -7,7 +7,7 @@ import {
   type PasswordError,
 } from '@/services/auth/password'
 import { Button, Field, Input, cx } from '@/components/ui'
-import { CODE_LENGTH, CodeInput } from './CodeInput'
+import { TOTP_CODE_LENGTH, CodeInput } from './CodeInput'
 
 /**
  * Signing in with a password.
@@ -160,7 +160,7 @@ export function PasswordSignIn({
         size="lg"
         block
         loading={busy}
-        disabled={code.replace(/\D/g, '').length !== CODE_LENGTH}
+        disabled={code.replace(/\D/g, '').length !== TOTP_CODE_LENGTH}
       >
         {busy ? t('auth.verifying') : t('auth.verify')}
       </Button>

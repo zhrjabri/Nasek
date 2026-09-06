@@ -38,6 +38,12 @@ globalThis.HTMLInputElement = dom.window.HTMLInputElement
 globalThis.HTMLTextAreaElement = dom.window.HTMLTextAreaElement
 globalThis.Event = dom.window.Event
 globalThis.MouseEvent = dom.window.MouseEvent
+globalThis.KeyboardEvent = dom.window.KeyboardEvent
+// jsdom's, not Node's own experimental pair — Node warns loudly when its
+// versions are touched without `--localstorage-file`, and that warning would
+// be read as a failure by the console hook below.
+globalThis.localStorage = dom.window.localStorage
+globalThis.sessionStorage = dom.window.sessionStorage
 globalThis.Node = dom.window.Node
 globalThis.getComputedStyle = dom.window.getComputedStyle
 globalThis.requestAnimationFrame = (cb) => setTimeout(() => cb(Date.now()), 0)
