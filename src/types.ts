@@ -295,12 +295,50 @@ export interface Campaign {
    * a URL at the moment of rendering.
    */
   images: string[]
-  /** Who a pilgrim contacts about this specific trip. Falls back to the company. */
+  /**
+   * Services the owner typed out, in their own words.
+   *
+   * Alongside `services` rather than instead of it. The six keys in `services`
+   * are what the Campaigns filter facets and Smart Match match on, and free
+   * text cannot be matched on — "يشمل الإفطار" and "وجبة الإفطار" are one
+   * service and no equality test says so. So the six stay for filtering, and
+   * everything they do not cover lives here.
+   */
+  includedServices: string[]
+  /**
+   * Who a pilgrim rings about this specific trip. Falls back to the company.
+   *
+   * A list, because a trip routinely has more than one person on it — the
+   * organiser and the group leader, or one number for Muscat and another for
+   * Salalah — and the form used to have room for exactly one.
+   */
+  contactPersons: ContactPerson[]
+  /**
+   * The single contact this replaces.
+   *
+   * Kept, and still read wherever `contactPersons` is empty, because campaigns
+   * created before the change carry their contact here and there is no reason
+   * to make them lose it. Nothing writes these any more.
+   *
+   * @deprecated Prefer `contactPersons`.
+   */
   contactName?: string
   contactPhone?: string
   contactEmail?: string
-  /** Terms and conditions, as the owner wrote them. */
+  /**
+   * Terms and conditions, as the owner wrote them.
+   *
+   * No longer asked for. Kept because campaigns written before the form
+   * dropped it still have terms worth showing, and deleting somebody's text to
+   * tidy a form is not a trade worth making.
+   */
   terms: Bilingual
+}
+
+/** A person a pilgrim can ring about a trip. No email: it was asked for, and never used. */
+export interface ContactPerson {
+  name: string
+  phone: string
 }
 
 export interface Review {

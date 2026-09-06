@@ -30,6 +30,7 @@ import { OwnerApp } from '@/owner/OwnerApp'
 import { OwnerLoginPage } from '@/owner/LoginPage'
 import { SetPasswordPage } from '@/owner/SetPasswordPage'
 import { DashboardPage as OwnerDashboardPage } from '@/owner/DashboardPage'
+import { CampaignForm } from '@/components/campaign/CampaignForm'
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = '') => {
@@ -172,6 +173,30 @@ render('the set-password screen an invitation lands on', '/', () =>
 )
 render('the owner dashboard, which only a verified owner ever sees', '/', () =>
   ownerScreen(<OwnerDashboardPage />),
+)
+
+/*
+ * The campaign form, in both the shapes it is used in.
+ *
+ * It lives behind a Modal that only opens on a click, so neither the
+ * dashboard entry above nor any build would notice it throwing. That is
+ * exactly the shape of the defect that made the portal a blank page.
+ */
+render('the owner campaign form, new trip', '/', () =>
+  ownerScreen(
+    <CampaignForm campaign={null} providerId="p1" onClose={() => {}} onSave={() => {}} />,
+  ),
+)
+render('the admin campaign form, with a provider picker', '/', () =>
+  ownerScreen(
+    <CampaignForm
+      campaign={null}
+      providerId=""
+      providers={[]}
+      onClose={() => {}}
+      onSave={() => {}}
+    />,
+  ),
 )
 console.log('\n--- what the public site must not contain -------------------\n')
 

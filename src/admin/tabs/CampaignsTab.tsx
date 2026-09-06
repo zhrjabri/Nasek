@@ -7,6 +7,7 @@ import {
   ExternalLink,
   Eye,
   Star,
+  Plus,
   Ticket,
   Trash2,
   Undo2,
@@ -16,7 +17,13 @@ import type { Campaign, CampaignStatus, Provider } from '@/types'
 import { useI18n } from '@/i18n'
 import { wilayahName } from '@/data/geo'
 import { serviceLabel } from '@/data/services'
-import { removeCampaign, setCampaignModeration, setCampaignStatus } from '@/services/data/catalogue'
+import {
+  removeCampaign,
+  saveCampaign,
+  setCampaignModeration,
+  setCampaignStatus,
+} from '@/services/data/catalogue'
+import { CampaignForm } from '@/components/campaign/CampaignForm'
 import { campaignImageUrl } from '@/services/storage/campaignImages'
 import { useSnapshotLoader } from '@/hooks/useRemoteData'
 import { useStore } from '@/store/AppStore'
@@ -77,6 +84,8 @@ export function CampaignsTab({
    * a queue stops being read.
    */
   const [filter, setFilter] = useState<Filter>('pending')
+  /** The trip being created by NASEK itself, rather than by its owner. */
+  const [creating, setCreating] = useState(false)
   const [detail, setDetail] = useState<Campaign | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<Campaign | null>(null)
   /** The refusal in progress, and the reason being written for it. */
@@ -286,6 +295,61 @@ export function CampaignsTab({
           { value: 'all', label: t('admin.filterAll') },
         ]}
       />
+
+      {/*
+        NASEK adding a trip on a company's behalf.
+
+        Owners publish their own trips and that stays the ordinary route; this
+        is for the ones taken over the phone, or entered while an owner is
+        still being set up. The provider is chosen in the form rather than
+        implied, and the choice is checked in Postgres — `campaigns_insert_own`
+        admits `owns_provider(provider_id) or is_admin()`, so an edited bundle
+        cannot write a trip for a company it does not administer.
+      */}
+      <div className="flex justify-end">
+        <Button type="button" size="sm" onClick={() => setCreating(true)}>
+          <Plus className="size-3.5" />
+          {t('admin.addTrip')}
+        </Button>
+      </div>
+
+      {creating && (
+        <CampaignForm
+          campaign={null}
+          providerId=""
+          providers={providers}
+          onClose={() => setCreating(false)}
+          onSave={async (campaign) => {
+            const stored = await saveCampaign(campaign)
+            if (!stored) {
+              toast(t('admin.addTripFailed'), 'warning')
+              return
+            }
+            /*
+             * Approved explicitly, through the same RPC the queue's approve
+             * button uses — not by writing `status` on the insert.
+             *
+             * The row lands `pending_approval` because that is the column's
+             * default, and `set_campaign_status` is the one path that moves it.
+             * It re-checks `is_admin()` inside Postgres and writes the audit
+             * entry, so a trip NASEK entered is approved by exactly the
+             * mechanism, and with exactly the trail, of one it approved for
+             * somebody else. Sending `status: 'active'` on the insert would
+             * have worked for an administrator and left no record of who
+             * decided.
+             */
+            const decided = await setCampaignStatus(stored.id, 'active')
+            if (!decided.ok) {
+              // The trip exists and is in the queue; only the approval failed.
+              toast(t('admin.addTripPending'), 'warning')
+            } else {
+              toast(t('admin.addTripDone'))
+            }
+            setCreating(false)
+            await reload()
+          }}
+        />
+      )}
 
       {visible.length === 0 ? (
         <EmptyState

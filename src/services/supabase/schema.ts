@@ -170,6 +170,10 @@ export type CampaignRow = {
   reviewed_by: string | null
   reviewed_at: string | null
   registration_deadline: string | null
+  /** Free text, in Arabic. Additional to `services`, which holds the filterable keys. */
+  included_services: string[]
+  /** `[{ name, phone }]`. Shape enforced by `campaigns_contact_persons_shape`. */
+  contact_persons: { name: string; phone: string }[]
   excluded_services: string[]
   /** Object paths in the `campaign-images` bucket. Never URLs. */
   images: string[]
@@ -332,7 +336,7 @@ export type Database = {
       wilayat: Table<WilayahRow>
       profiles: Table<ProfileRow, Insertable<ProfileRow, 'created_at' | 'avatar_color' | 'role' | 'suspended' | 'removed' | 'name' | 'nationality'>>
       providers: Table<ProviderRow, Insertable<ProviderRow, 'id' | 'created_at' | 'joined_at' | 'verification' | 'rating' | 'review_count' | 'plan' | 'initials' | 'brand_color' | 'experience_years' | 'verified_by' | 'verified_at' | 'tagline_ar' | 'tagline_en' | 'description_ar' | 'description_en' | 'governorate' | 'address' | 'commercial_registration' | 'permit_number' | 'permit_expiry' | 'licence_mime'>>
-      campaigns: Table<CampaignRow, Insertable<CampaignRow, 'id' | 'created_at' | 'rating' | 'review_count' | 'featured' | 'bookings_count' | 'suspended' | 'deleted' | 'services' | 'description_ar' | 'description_en' | 'hotel_makkah_ar' | 'hotel_makkah_en' | 'hotel_madinah_ar' | 'hotel_madinah_en' | 'haram_distance_m' | 'status' | 'rejection_reason' | 'submitted_at' | 'reviewed_by' | 'reviewed_at' | 'registration_deadline' | 'excluded_services' | 'images' | 'contact_name' | 'contact_phone' | 'contact_email' | 'terms_ar' | 'terms_en'>>
+      campaigns: Table<CampaignRow, Insertable<CampaignRow, 'id' | 'created_at' | 'rating' | 'review_count' | 'featured' | 'bookings_count' | 'suspended' | 'deleted' | 'services' | 'description_ar' | 'description_en' | 'hotel_makkah_ar' | 'hotel_makkah_en' | 'hotel_madinah_ar' | 'hotel_madinah_en' | 'haram_distance_m' | 'status' | 'rejection_reason' | 'submitted_at' | 'reviewed_by' | 'reviewed_at' | 'registration_deadline' | 'excluded_services' | 'included_services' | 'contact_persons' | 'images' | 'contact_name' | 'contact_phone' | 'contact_email' | 'terms_ar' | 'terms_en'>>
       bookings: Table<BookingRow, Insertable<BookingRow, 'id' | 'created_at' | 'booking_date' | 'status' | 'notes'>>
       travellers: Table<TravellerRow, Insertable<TravellerRow, 'id' | 'nationality'>>
       reviews: Table<ReviewRow, Insertable<ReviewRow, 'id' | 'created_at' | 'hidden' | 'comment_ar' | 'comment_en' | 'reply_ar' | 'reply_en' | 'replied_at'>>

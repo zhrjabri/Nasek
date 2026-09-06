@@ -278,6 +278,24 @@ export function CampaignDetailPage() {
                   </span>
                 </li>
               ))}
+              {/*
+                And whatever the six did not cover, in the owner's own words.
+
+                Rendered in the same list rather than a section of its own: a
+                pilgrim reading "what is included" does not care which of these
+                NASEK can filter on. The six are a closed set because the
+                Campaigns facets and Smart Match match on them; these are the
+                rest of the offer, typed by the person running the trip.
+              */}
+              {campaign.includedServices.map((text, i) => (
+                <li
+                  key={`extra-${i}`}
+                  className="flex items-center gap-2.5 rounded-[3px] border border-ivory-300 bg-ivory-50/60 px-3.5 py-2.5"
+                >
+                  <BadgeCheck className="size-4 shrink-0 text-nasek-600" />
+                  <span className="text-sm font-medium text-ink-700">{text}</span>
+                </li>
+              ))}
             </ul>
 
             {/*
@@ -414,15 +432,43 @@ export function CampaignDetailPage() {
             has a real reason to route a specific campaign elsewhere, and a
             pilgrim ringing about a trip should reach whoever runs that trip.
           */}
-          {(campaign.contactPhone || campaign.contactEmail || provider) && (
+          {(campaign.contactPersons.length || campaign.contactPhone || campaign.contactEmail || provider) && (
             <Section title={t('campaign.contact')}>
-              {campaign.contactName && (
+              {/*
+                Everyone the owner listed, each with their own number.
+
+                A trip routinely has more than one person on it — the organiser
+                and the group leader, or one number for Muscat and another for
+                Salalah — and this used to have room for exactly one. Campaigns
+                written before the change carry their single contact in
+                `contactName`/`contactPhone`, and `toCampaign` promotes it into
+                this list, so nothing older loses its contact.
+              */}
+              {campaign.contactPersons.length > 0 && (
+                <ul className="mb-3 space-y-2.5">
+                  {campaign.contactPersons.map((person, i) => (
+                    <li key={`${person.name}-${i}`} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <span className="text-sm font-semibold text-ink-700">{person.name}</span>
+                      {person.phone && (
+                        <a
+                          href={`tel:${person.phone.replace(/\s/g, '')}`}
+                          className="flex items-center gap-2 text-sm font-medium text-nasek-700 hover:underline"
+                        >
+                          <Phone className="size-3.5" />
+                          <span className="nums" dir="ltr">{person.phone}</span>
+                        </a>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {campaign.contactPersons.length === 0 && campaign.contactName && (
                 <p className="mb-2.5 text-sm font-semibold text-ink-700">
                   {campaign.contactName}
                 </p>
               )}
               <div className="flex flex-wrap gap-3">
-                {(campaign.contactPhone || provider?.phone) && (
+                {campaign.contactPersons.length === 0 && (campaign.contactPhone || provider?.phone) && (
                   <a
                     href={`tel:${(campaign.contactPhone || provider?.phone || '').replace(/\s/g, '')}`}
                     className="flex items-center gap-2.5 rounded-[3px] border border-ivory-300 bg-ivory-50 px-4 py-3 text-sm font-semibold text-ink-700 transition-colors hover:border-nasek-300 hover:text-nasek-800"

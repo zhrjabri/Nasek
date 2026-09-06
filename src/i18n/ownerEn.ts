@@ -226,6 +226,17 @@ export const ownerEn = {
   'prov.formExcluded': 'Not included in the price',
   'prov.formExcludedHint':
     'Only tick what you want stated outright. Anything left unticked is simply not mentioned.',
+  'prov.formIncluded': 'Other included services',
+  'prov.formIncludedHint':
+    'Anything the list above does not cover — add as many as you like. Shown exactly as you type it, so keep each one short and concrete.',
+  'prov.addIncluded': 'Add a service',
+  'prov.addContact': 'Add another person',
+  'prov.moveUp': 'Move up',
+  'prov.formProvider': 'Campaign owner',
+  'prov.formProviderPick': 'Choose a company…',
+  'prov.publishCampaign': 'Publish the trip',
+  'prov.publishedPending': 'The trip has been added and will appear once NASEK approves it.',
+  'prov.publishedActive': 'The trip has been added and is live now.',
   'prov.formImages': 'Photographs',
   'prov.formImagesHint': 'Up to {n}. The first one is used on the campaign card.',
   'prov.imageAdd': 'Add a photograph',

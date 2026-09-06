@@ -114,6 +114,18 @@ export function toCampaign(row: CampaignRow): Campaign {
     registrationDeadline: row.registration_deadline ?? undefined,
     excludedServices: (row.excluded_services ?? []) as ServiceKey[],
     images: row.images ?? [],
+    includedServices: row.included_services ?? [],
+    /*
+     * The old single contact is promoted into the list when the list is empty,
+     * so a campaign written before the change still shows somebody to ring
+     * rather than an empty section. Nothing writes the old columns any more.
+     */
+    contactPersons:
+      row.contact_persons?.length
+        ? row.contact_persons
+        : row.contact_name
+          ? [{ name: row.contact_name, phone: row.contact_phone ?? '' }]
+          : [],
     contactName: row.contact_name ?? undefined,
     contactPhone: row.contact_phone ?? undefined,
     contactEmail: row.contact_email ?? undefined,
@@ -146,9 +158,21 @@ export function fromCampaign(campaign: Campaign) {
     registration_deadline: campaign.registrationDeadline || null,
     excluded_services: campaign.excludedServices,
     images: campaign.images,
-    contact_name: campaign.contactName || null,
-    contact_phone: campaign.contactPhone || null,
-    contact_email: campaign.contactEmail || null,
+    included_services: campaign.includedServices,
+    /*
+     * Names trimmed and blanks dropped here rather than left to the check
+     * constraint. `campaigns_contact_persons_shape` refuses a nameless person,
+     * and a half-filled row the owner never meant to add should not come back
+     * as a Postgres error string.
+     */
+    contact_persons: campaign.contactPersons
+      .map((person) => ({ name: person.name.trim(), phone: person.phone.trim() }))
+      .filter((person) => person.name !== ''),
+    /*
+     * The superseded single contact is not written any more, and not cleared
+     * either: an older campaign keeps whatever it had, and `toCampaign` still
+     * reads it when the list above is empty.
+     */
     terms_ar: campaign.terms.ar,
     terms_en: campaign.terms.en,
     // `featured` and `suspended` are absent on purpose: both are the

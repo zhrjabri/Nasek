@@ -26,6 +26,7 @@ export const ar: Record<PublicMessageKey, string> = {
   'common.clear': 'مسح',
   'common.clearAll': 'مسح الكل',
   'common.cancel': 'إلغاء',
+  'common.remove': 'إزالة',
   'common.close': 'إغلاق',
   'common.back': 'رجوع',
   'common.next': 'التالي',

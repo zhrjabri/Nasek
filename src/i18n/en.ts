@@ -26,6 +26,7 @@ export const en = {
   'common.clear': 'Clear',
   'common.clearAll': 'Clear all',
   'common.cancel': 'Cancel',
+  'common.remove': 'Remove',
   'common.close': 'Close',
   'common.back': 'Back',
   'common.next': 'Next',
