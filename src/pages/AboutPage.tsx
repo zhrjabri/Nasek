@@ -1,7 +1,6 @@
 import {
   BadgeCheck,
   Coins,
-  Compass,
   Eye,
   Flag,
   Mail,
@@ -9,11 +8,11 @@ import {
   Phone,
   ShieldCheck,
   Star,
-  Watch,
 } from 'lucide-react'
 import { useI18n, type MessageKey } from '@/i18n'
 import { useCatalogue } from '@/hooks/useCatalogue'
-import { Badge, Card, SectionHeading } from '@/components/ui'
+import { CONTACT } from '@/data/contact'
+import { Card, SectionHeading } from '@/components/ui'
 import { LogoMark } from '@/components/brand/Logo'
 
 
@@ -94,27 +93,21 @@ export function AboutPage() {
           same time.
         */}
 
-        {/* --------------------------------------------------- the roadmap */}
-        <section className="mt-16">
-          <SectionHeading title={t('about.futureTitle')} subtitle={t('about.futureBody')} />
-          <div className="mt-7 grid gap-4 sm:grid-cols-2">
-            {[
-              { icon: Watch, title: t('about.watch'), body: t('about.watchBody') },
-              { icon: Compass, title: t('about.bracelet'), body: t('about.braceletBody') },
-            ].map((item) => (
-              <Card key={item.title} className="p-6">
-                <span className="flex size-11 items-center justify-center rounded-[3px] bg-nasek-50 text-nasek-700">
-                  <item.icon className="size-5" strokeWidth={1.8} />
-                </span>
-                <h3 className="mt-4 text-lg font-bold text-ink-900">{item.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-ink-500">{item.body}</p>
-                <Badge tone="neutral" className="mt-4">
-                  {t('about.conceptNote')}
-                </Badge>
-              </Card>
-            ))}
-          </div>
-        </section>
+        {/*
+          The "on the roadmap" section is gone, and with it the smart watch and
+          the bracelet.
+
+          Two concept products with a "future idea" badge, on the page whose
+          whole subject is what NASEK is honest about. They described hardware
+          nobody is building, and the page reads better without a section whose
+          own label admitted it was not real.
+
+          Removed rather than hidden: the markup, the two icons, and all seven
+          `about.*` strings behind it are deleted in both dictionaries, so
+          nothing ships them. The spacing is unaffected — every section here
+          carries its own `mt-16`, so the one below simply follows the one
+          above.
+        */}
 
         {/* --------------------------------------------------- legal stubs */}
         <section id="privacy" className="mt-16 grid gap-4 sm:grid-cols-2">
@@ -146,8 +139,12 @@ export function AboutPage() {
         <section id="contact" className="mt-16">
           <SectionHeading title={t('footer.contact')} />
           <ul className="mt-6 grid gap-3 sm:grid-cols-3">
-            <ContactRow icon={<Mail className="size-4" />} value="hello@nasek.om" href="mailto:hello@nasek.om" />
-            <ContactRow icon={<Phone className="size-4" />} value="+968 2400 0000" href="tel:+96824000000" />
+            <ContactRow
+              icon={<Mail className="size-4" />}
+              value={CONTACT.email}
+              href={`mailto:${CONTACT.email}`}
+            />
+            <ContactRow icon={<Phone className="size-4" />} value={CONTACT.phone} href={CONTACT.tel} ltr />
             {/* `href="#"` here was worse than a dead link. Under a hash router
                 it is not inert: it clears the route fragment and drops the
                 visitor on the home page, so the one row labelled "contact
@@ -157,7 +154,7 @@ export function AboutPage() {
             <ContactRow
               icon={<MessageSquare className="size-4" />}
               value={t('trust.support')}
-              href="mailto:support@nasek.om"
+              href={`mailto:${CONTACT.email}`}
             />
           </ul>
           {/* The real count, not a constant. This read "Campaigns: 20 · Demo
@@ -186,10 +183,13 @@ function ContactRow({
   icon,
   value,
   href,
+  ltr,
 }: {
   icon: React.ReactNode
   value: string
   href: string
+  /** A telephone number reads left to right whichever way the page does. */
+  ltr?: boolean
 }) {
   return (
     <li>
@@ -198,7 +198,9 @@ function ContactRow({
         className="flex items-center gap-2.5 rounded-[3px] border border-ivory-300 bg-ivory-50 px-4 py-3.5 text-sm font-semibold text-ink-700 transition-colors hover:border-nasek-300 hover:text-nasek-800"
       >
         <span className="text-nasek-600">{icon}</span>
-        <span className="truncate">{value}</span>
+        <span className="truncate" dir={ltr ? 'ltr' : undefined}>
+          {value}
+        </span>
       </a>
     </li>
   )

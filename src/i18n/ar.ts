@@ -508,16 +508,6 @@ export const ar: Record<PublicMessageKey, string> = {
   'about.missionTitle': 'ما الذي يخدمه ناسِك',
   'about.missionBody':
     'أن يكون القرار واضحًا: كل الحملات في مكان واحد، وأسعار صريحة، ومقاعد ظاهرة، وتقييمات ممن سافروا.',
-  'about.futureTitle': 'على خارطة الطريق',
-  'about.futureBody':
-    'تشمل فكرة ناسِك الأصلية أيضًا أجهزة مرافقة للحاج: ساعة ناسِك الذكية التي تحمل أوقات الصلاة وبوصلة القبلة وإشعارات مشرفي الحملة، وسوار ناسِك الذي يخزّن أرقام الطوارئ ويتيح لأحد أفراد الأسرة تحديد موقع من يفقد مجموعته.',
-  'about.watch': 'ساعة ناسِك الذكية',
-  'about.watchBody':
-    'أوقات الصلاة والأذان بحسب المنطقة الزمنية، وبوصلة لتحديد القبلة، وإشعارات يرسلها مشرفو الحملة.',
-  'about.bracelet': 'سوار ناسِك',
-  'about.braceletBody':
-    'مرتبط بالساعة، ويخزّن أرقام التواصل الأساسية، ويتيح لمرافقك تحديد موقعك إذا انفصلت عن المجموعة.',
-  'about.conceptNote': 'فكرة مستقبلية — ليست جزءًا من هذا النموذج الأولي.',
 
   // --------------------------------------------------------- trust & legal
   'trust.title': 'الثقة والأمان',
@@ -544,9 +534,17 @@ export const ar: Record<PublicMessageKey, string> = {
   'footer.explore': 'استكشف',
   'footer.company': 'ناسِك',
   'footer.contact': 'تواصل معنا',
-  'footer.rights': '© {year} ناسِك. منصة عُمانية أسسها طلبة.',
+  /*
+   * The copyright line is two strings and a link, not one sentence.
+   *
+   * The name it credits is a proper noun and stays in Latin script in both
+   * languages, and it has to be an anchor — so it cannot live inside a
+   * translated sentence without the dictionary carrying markup. Splitting it
+   * keeps the strings translatable and the link a link.
+   */
+  'footer.rights': '© {year} ناسِك',
+  'footer.builtBy': 'تم التطوير بواسطة',
   'footer.prototype': 'نموذج أولي ببيانات تجريبية — ليس خدمة حجز فعلية.',
-  'footer.madeIn': 'صُنع في عُمان',
 
   // ------------------------------------------------------------ misc/state
   'state.errorBody': 'حدث خطأ من جانبنا. حاول مرة أخرى بعد قليل.',

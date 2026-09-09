@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { Mail, MapPin, Phone, ShieldCheck } from 'lucide-react'
 import { useI18n, type MessageKey } from '@/i18n'
 import { Logo } from '@/components/brand/Logo'
+import { CONTACT } from '@/data/contact'
 
 /*
  * The footer's link columns — customers only.
@@ -47,17 +48,22 @@ export function Footer() {
             <ul className="mt-5 space-y-2 text-sm text-ivory-200/60">
               <li className="flex items-center gap-2.5">
                 <MapPin className="size-4 shrink-0 text-gold-400/70" />
-                <span>{t('footer.madeIn')} — Muscat, Oman</span>
+                <span>{CONTACT.place}</span>
               </li>
               <li className="flex items-center gap-2.5">
                 <Mail className="size-4 shrink-0 text-gold-400/70" />
-                <a href="mailto:hello@nasek.om" className="hover:text-ivory-50">
-                  hello@nasek.om
+                <a href={`mailto:${CONTACT.email}`} className="hover:text-ivory-50">
+                  {CONTACT.email}
                 </a>
               </li>
               <li className="flex items-center gap-2.5">
                 <Phone className="size-4 shrink-0 text-gold-400/70" />
-                <span className="nums">+968 2400 0000</span>
+                {/* `dir="ltr"` because a telephone number reads left to right
+                    in both languages, and an RTL paragraph would otherwise
+                    reorder the country code to the wrong end. */}
+                <a href={CONTACT.tel} className="nums hover:text-ivory-50" dir="ltr">
+                  {CONTACT.phone}
+                </a>
               </li>
             </ul>
           </div>
@@ -96,7 +102,21 @@ export function Footer() {
         </div>
 
         <div className="mt-8 flex flex-col gap-3 border-t border-gold-500/25 pt-6 text-xs text-ivory-200/45 sm:flex-row sm:items-center sm:justify-between">
-          <p>{t('footer.rights', { year })}</p>
+          <p>
+            {t('footer.rights', { year })} — {t('footer.builtBy')}{' '}
+            {/* A plain external link: the portfolio is somebody else's site,
+                not a route here. `rel` is set with the new tab so the opened
+                page cannot reach back through `window.opener`. */}
+            <a
+              href={CONTACT.portfolio}
+              target="_blank"
+              rel="noreferrer noopener"
+              dir="ltr"
+              className="font-semibold text-ivory-200/70 underline decoration-gold-400/50 underline-offset-2 transition-colors hover:text-ivory-50 hover:decoration-gold-400"
+            >
+              {CONTACT.author}
+            </a>
+          </p>
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
             <span className="rounded-[2px] border border-gold-400/30 px-2.5 py-1 text-2xs font-semibold uppercase tracking-[0.12em] text-gold-400/80">
               {t('footer.prototype')}

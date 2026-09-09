@@ -522,16 +522,6 @@ export const en = {
   'about.missionTitle': 'What NASEK is for',
   'about.missionBody':
     'To make the decision clear: every campaign in one place, honest prices, visible seat counts, and reviews from people who travelled.',
-  'about.futureTitle': 'On the roadmap',
-  'about.futureBody':
-    'The original NASEK concept also includes wearable companions for pilgrims: the NASEK smart watch, carrying prayer times, a qibla compass and notifications from campaign supervisors, and the NASEK bracelet, which stores emergency contacts and lets a family member locate a pilgrim who becomes separated from the group.',
-  'about.watch': 'NASEK smart watch',
-  'about.watchBody':
-    'Prayer times and adhan adjusted to the local timezone, a qibla compass, and notifications pushed by campaign supervisors.',
-  'about.bracelet': 'NASEK bracelet',
-  'about.braceletBody':
-    'Paired to the watch. Stores key contact numbers and allows a companion to locate the wearer if they get separated.',
-  'about.conceptNote': 'Concept — not part of this prototype.',
 
   // --------------------------------------------------------- trust & legal
   'trust.title': 'Trust & safety',
@@ -558,9 +548,10 @@ export const en = {
   'footer.explore': 'Explore',
   'footer.company': 'NASEK',
   'footer.contact': 'Contact',
-  'footer.rights': '© {year} NASEK. A student-founded Omani platform.',
+  /* See the Arabic file: two strings and a link rather than one sentence. */
+  'footer.rights': '© {year} NASEK',
+  'footer.builtBy': 'Developed by',
   'footer.prototype': 'Prototype — demo data only. Not a live booking service.',
-  'footer.madeIn': 'Made in Oman',
 
   // ------------------------------------------------------------ misc/state
   'state.errorBody': 'Something went wrong on our side. Try again in a moment.',
