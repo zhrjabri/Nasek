@@ -384,6 +384,35 @@ const FALLBACK_MACHINERY = [
    */
 ]
 
+/*
+ * ------------------------------------------------- one contact address, retired
+ *
+ * NASEK publishes one address to write to, and `src/data/contact.ts` is where it
+ * lives. It has been rewritten more than once, and each time the copies scattered
+ * through the footer, the About page and the owner portal's status screens had to
+ * be found by hand — which is how the portal came to go on offering an address
+ * the customer site had already stopped using.
+ *
+ * So the retired ones are named here and asserted against the built output of all
+ * three applications. A comment mentioning one is harmless and never reaches a
+ * bundle; a rendered `mailto:` does, and that is what this catches.
+ */
+const RETIRED_CONTACT = ['aljabrialzahra1@gmail.com', 'support@nasek.om', 'hello@nasek.om']
+
+for (const [app, bundle] of [
+  ['public site', publicBundle],
+  ['owner portal', ownerBundle],
+  ['administration', adminBundle],
+]) {
+  if (bundle === null) continue
+  const stale = RETIRED_CONTACT.filter((address) => bundle.includes(address))
+  check(
+    `the built ${app} publishes no retired contact address`,
+    stale.length === 0,
+    stale.length ? `still shipping: ${stale.join(', ')}` : `${RETIRED_CONTACT.length} checked`,
+  )
+}
+
 if (publicBundle !== null) {
   const shipped = FALLBACK_MACHINERY.filter((needle) => publicBundle.includes(needle))
   check(

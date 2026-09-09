@@ -3,6 +3,7 @@ import { Ban, Clock, FileWarning, Mail, ShieldAlert } from 'lucide-react'
 import type { Provider } from '@/types'
 import { useI18n } from '@/i18n'
 import { WILAYAT, wilayahById } from '@/data/geo'
+import { CONTACT } from '@/data/contact'
 import { useStore } from '@/store/AppStore'
 import { useCatalogue } from '@/hooks/useCatalogue'
 import { useSnapshotLoader } from '@/hooks/useRemoteData'
@@ -445,8 +446,11 @@ function StatusFooter() {
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ivory-300 pt-4 text-xs">
+      {/* The same address the rest of NASEK publishes, from the same constant.
+          This was a second literal, and it went on pointing at an address the
+          customer site had already retired. */}
       <a
-        href="mailto:support@nasek.om"
+        href={`mailto:${CONTACT.email}`}
         className="flex items-center gap-1.5 font-semibold text-nasek-700 hover:underline"
       >
         <Mail className="size-3.5" />
