@@ -88,7 +88,18 @@ export function OverviewTab({
       bookings: paid.length,
       pending: providers.filter((p) => isPendingProvider(p.verification)).length,
     }
-  }, [providers])
+    /*
+     * `bookings` belongs here — every figure above but two is computed from it.
+     *
+     * It was missing, so this memo was pinned to `providers` alone: correct
+     * only because the snapshot happens to replace both slices in the same
+     * dispatch, and wrong the moment anything reloads bookings without also
+     * reloading companies. Revenue, GMV and the booking count would then sit at
+     * whatever they were when the page opened, with nothing to show they had
+     * stopped moving. The same omission left this tab's ledger figures frozen
+     * at zero once already; see `BookingsTab`.
+     */
+  }, [providers, bookings])
 
   const revenueSplit = [
     { name: t('admin.revSubscriptions'), value: Math.round(stats.subscriptions) },
@@ -104,7 +115,8 @@ export function OverviewTab({
       { name: t('common.umrah'), value: bookings.length - hajj },
       { name: t('common.hajj'), value: hajj },
     ]
-  }, [campaigns, t])
+    // `bookings` again, for the same reason.
+  }, [campaigns, bookings, t])
 
   const growth = useMemo(() => buildGrowth(lang, bookings), [lang, bookings])
 

@@ -252,7 +252,19 @@ export function OwnersTab({ providers }: { providers: Provider[] }) {
                     </td>
                     <td className="p-3.5">
                       <div className="flex flex-wrap justify-end gap-2">
-                        {!verified && (
+                        {/*
+                          Not for a suspended company, which already has
+                          "Restore" at the end of this row.
+
+                          Both controls called `decide(p, 'verified')` — the
+                          same decision, in the same row, under two different
+                          words — so a suspended company offered an
+                          administrator a choice that was not one, and the two
+                          labels disagreed about what was happening. "Restore"
+                          is the true one: the company was approved before, and
+                          this puts it back.
+                        */}
+                        {!verified && p.verification !== 'suspended' && (
                           <Button size="xs" variant="approve" onClick={() => void decide(p, 'verified')}>
                             <BadgeCheck className="size-3.5" />
                             {t('admin.approve')}
@@ -410,7 +422,10 @@ export function OwnersTab({ providers }: { providers: Provider[] }) {
                   }}
                 >
                   <BadgeCheck className="size-3.5" />
-                  {t('admin.approve')}
+                  {/* The same decision the table draws, under the same word.
+                      Putting a company back is a restoration; only a company
+                      that has never been approved is approved. */}
+                  {t(permit.verification === 'suspended' ? 'admin.restore' : 'admin.approve')}
                 </Button>
               )}
               <Button

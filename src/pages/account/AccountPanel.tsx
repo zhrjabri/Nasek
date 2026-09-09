@@ -149,6 +149,23 @@ export function AccountPanel({ user }: { user: User }) {
     })
     setSaving(false)
 
+    /*
+     * A null answer means two different things, and they must not be conflated.
+     *
+     * With no backend it means "there was nothing to write to", and the typed
+     * values are the whole truth — that is the offline prototype working as it
+     * always has. With one, it means Postgres refused: a policy, a constraint,
+     * a dropped connection. `saved ?? { …the form… }` treated the second as the
+     * first, so a refused save closed the form, said "profile updated" and left
+     * the rejected values sitting in the store until the next snapshot quietly
+     * replaced them. The owner's campaign form was corrected for exactly this;
+     * this is the same defect on the pilgrim's own details.
+     */
+    if (isSupabaseConfigured && !saved) {
+      toast(t('account.saveFailed'), 'warning')
+      return
+    }
+
     dispatch({
       type: 'updateProfile',
       patch: saved ?? {

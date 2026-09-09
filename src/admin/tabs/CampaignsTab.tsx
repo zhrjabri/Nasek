@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
 import {
   Ban,
   Check,
@@ -17,12 +16,14 @@ import type { Campaign, CampaignStatus, Provider } from '@/types'
 import { useI18n } from '@/i18n'
 import { wilayahName } from '@/data/geo'
 import { serviceLabel } from '@/data/services'
+import { publicCampaignUrl } from '@/lib/publicSite'
 import {
   removeCampaign,
   saveCampaign,
   setCampaignModeration,
   setCampaignStatus,
 } from '@/services/data/catalogue'
+import { isSupabaseConfigured } from '@/services/supabase/client'
 import { CampaignForm } from '@/components/campaign/CampaignForm'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { campaignImageUrl } from '@/services/storage/campaignImages'
@@ -157,7 +158,19 @@ export function CampaignsTab({
     patch: { featured?: boolean; suspended?: boolean },
     done: () => void,
   ) => {
-    if (!(await setCampaignModeration(c.id, patch))) {
+    /*
+     * With no backend there is nothing that could have refused, so the store is
+     * the decision.
+     *
+     * `setCampaignModeration` returns `false` when no client was ever
+     * constructed — "the write did not happen", which is true and is what every
+     * other caller wants to know. Read as a refusal it made this control report
+     * failure and record nothing on a clone with no `.env`, which is a
+     * supported way to run NASEK and the way its own approval queue is
+     * demonstrated. `setProviderVerification` and `setCampaignStatus` already
+     * take this branch explicitly, and this is the same argument.
+     */
+    if (isSupabaseConfigured && !(await setCampaignModeration(c.id, patch))) {
       toast(t('admin.campaignModerationFailed'), 'warning')
       return
     }
@@ -198,7 +211,9 @@ export function CampaignsTab({
    * site, bookable, and reappeared in this very table on the next load.
    */
   const remove = async (c: Campaign) => {
-    if (!(await removeCampaign(c.id))) {
+    // Guarded for the reason `moderate` above is, and the same way the owner's
+    // own withdrawal already guards it.
+    if (isSupabaseConfigured && !(await removeCampaign(c.id))) {
       toast(t('admin.campaignModerationFailed'), 'warning')
       return
     }
@@ -207,6 +222,42 @@ export function CampaignsTab({
     setDetail(null)
     toast(t('admin.campaignDeletedToast', { name: bl(c.title) }), 'warning')
     await reload()
+  }
+
+  /**
+   * Why the database refused, in the administrator's own language.
+   *
+   * `set_campaign_status` writes its refusals to be read — "This campaign
+   * belongs to a company that is not approved" is a specific mistake with a
+   * specific fix — but it writes them in English, because a Postgres function
+   * cannot know which language the dashboard is in. Appended to an Arabic
+   * sentence, that was the whole of the explanation an Arabic-reading
+   * administrator got for a button that appeared to do nothing.
+   *
+   * So the refusal is translated here, where the language and the company are
+   * both known, and the message names the company and the screen the problem is
+   * fixed on. Nothing is decided here: the database has already refused, and
+   * this only says why.
+   *
+   * The company's own state is what distinguishes the two blocked cases —
+   * `set_campaign_status` raises `check_violation` for both "no reason given"
+   * and "company not approved", so the SQLSTATE alone cannot tell them apart,
+   * and the reason is already required by the dialog before it will submit.
+   * Anything unanticipated keeps the server's own words rather than being
+   * flattened into a generic failure.
+   */
+  const refusalMessage = (c: Campaign, code: string, detail: string) => {
+    if (code === '42501') return t('admin.campaignBlockedNotAdmin')
+
+    const owner = ownerOf(c.providerId)
+    if (code === '23514' && owner && owner.verification !== 'verified') {
+      const company = bl(owner.name)
+      return owner.verification === 'suspended'
+        ? t('admin.campaignBlockedSuspended', { company })
+        : t('admin.campaignBlockedUnverified', { company })
+    }
+
+    return t('admin.campaignStatusFailed', { detail })
   }
 
   /**
@@ -226,7 +277,7 @@ export function CampaignsTab({
     setDeciding(false)
 
     if (!outcome.ok) {
-      toast(t('admin.campaignStatusFailed', { detail: outcome.error }), 'warning')
+      toast(refusalMessage(c, outcome.code, outcome.error), 'warning')
       return
     }
 
@@ -669,16 +720,25 @@ export function CampaignsTab({
                 </>
               ) : (
                 <>
-                  {/* Only a live trip has a public page to open. */}
-                  {detail.status === 'active' && (
-                    <Link
-                      to={`/campaigns/${detail.id}`}
-                      className="inline-flex items-center gap-1.5 rounded-[3px] border border-ivory-300 px-3 py-2 text-sm font-semibold text-ink-700 transition-colors hover:border-nasek-400 hover:text-nasek-800"
-                    >
-                      <ExternalLink className="size-3.5" />
-                      {t('admin.campOpenPublic')}
-                    </Link>
-                  )}
+                  {/* Only a live trip has a public page to open — and the page
+                      is on the customer site, which is a different application
+                      on a different origin. This was a router `<Link>`, so it
+                      resolved against the dashboard's own routes, matched the
+                      catch-all and quietly returned the administrator to the
+                      overview instead of opening anything. */}
+                  {detail.status === 'active' &&
+                    !isSuspended(detail.id) &&
+                    publicCampaignUrl(detail.id) && (
+                      <a
+                        href={publicCampaignUrl(detail.id)!}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="inline-flex items-center gap-1.5 rounded-[3px] border border-ivory-300 px-3 py-2 text-sm font-semibold text-ink-700 transition-colors hover:border-nasek-400 hover:text-nasek-800"
+                      >
+                        <ExternalLink className="size-3.5" />
+                        {t('admin.campOpenPublic')}
+                      </a>
+                    )}
                   {detail.status === 'active' && (
                     <>
                       <Button size="xs" variant="secondary" onClick={() => toggleFeatured(detail)}>

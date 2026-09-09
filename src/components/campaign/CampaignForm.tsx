@@ -247,6 +247,23 @@ export function CampaignForm({
     if (isAdmin && !form.providerId) next.providerId = t('common.required')
     if (!form.departureDate) next.departureDate = t('common.required')
     if (!form.returnDate) next.returnDate = t('common.required')
+    /*
+     * The price and the seat count, which nothing was checking.
+     *
+     * Both carry a `min` on the input — 20 rial, one seat — and the browser
+     * enforces that for a value somebody types. It does not enforce it for a
+     * field somebody *clears*: an empty number input is valid unless it is
+     * `required`, and neither of these was. `Number('')` is 0, and the column
+     * checks are `price >= 0` and `seats_total >= 0`, so a cleared field
+     * published a trip at 0 OMR with no seats on it — through the approval
+     * queue, in front of a pilgrim, with nothing anywhere having objected.
+     */
+    if (!form.price.trim() || !Number.isFinite(Number(form.price))) {
+      next.price = t('common.required')
+    }
+    if (!form.seatsTotal.trim() || !Number.isFinite(Number(form.seatsTotal))) {
+      next.seatsTotal = t('common.required')
+    }
     // These two used to report "Required" on a field that was filled in,
     // which said nothing about what was actually wrong with it.
     if (form.returnDate && form.departureDate && form.returnDate < form.departureDate) {
@@ -426,7 +443,7 @@ export function CampaignForm({
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label={t('prov.formPrice')}>
+          <Field label={t('prov.formPrice')} required error={errors.price}>
             {(p) => (
               <Input {...p} type="number" min={20} value={form.price} onChange={(e) => set('price', e.target.value)} />
             )}
@@ -487,7 +504,7 @@ export function CampaignForm({
         </Field>
 
         <div className={cx('grid gap-4', isNew ? 'sm:grid-cols-2' : 'sm:grid-cols-3')}>
-          <Field label={t('prov.formSeats')}>
+          <Field label={t('prov.formSeats')} required error={errors.seatsTotal}>
             {(p) => (
               <Input
                 {...p}

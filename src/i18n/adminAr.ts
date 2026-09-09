@@ -100,6 +100,7 @@ export const adminAr: Record<AdminMessageKey, string> = {
   'admin.userAll': 'الكل',
   'admin.roleCustomer': 'عميل',
   'admin.roleOwner': 'صاحب حملة',
+  'admin.roleAdmin': 'مدير',
   'admin.userAccount': 'الحساب',
   'admin.userRole': 'الدور',
   'admin.userJoined': 'تاريخ الانضمام',
@@ -260,6 +261,25 @@ export const adminAr: Record<AdminMessageKey, string> = {
   'admin.campaignRejectConfirm': 'رفض الحملة',
   'admin.campaignReasonRequired': 'الرفض يحتاج سبباً يستطيع صاحب الحملة التصرف بناءً عليه.',
   'admin.campaignStatusFailed': 'رُفض هذا القرار ولم يُحفظ شيء. {detail}',
+  /*
+   * Why an approval was blocked, in the reader's language.
+   *
+   * `set_campaign_status` refuses to publish a trip whose company is not
+   * approved, and says so — in English, because a Postgres function cannot know
+   * which language the dashboard is in. Appended to an Arabic sentence that was
+   * all an administrator got, and it read as a button that had simply failed.
+   *
+   * Two messages rather than one, because the two states need different
+   * actions: a suspended company is restored, a company that has never been
+   * approved is approved. Both name the company and both name the screen it is
+   * done on, so the sentence ends somewhere rather than at "not approved".
+   */
+  'admin.campaignBlockedSuspended':
+    'لا يمكن نشر رحلة تتبع شركة موقوفة. «{company}» موقوفة حالياً — استعِدها من «أصحاب الحملات»، ثم أعد المحاولة.',
+  'admin.campaignBlockedUnverified':
+    'لا يمكن نشر رحلة تتبع شركة غير معتمدة. اعتمِد «{company}» من «أصحاب الحملات» أولاً، ثم أعد المحاولة.',
+  'admin.campaignBlockedNotAdmin':
+    'لم تعد هذه الجلسة تملك صلاحية الإدارة. أعد تسجيل الدخول ثم حاول مرة أخرى.',
   'admin.campaignOwnerUnverified':
     'هذه الحملة تتبع شركة غير معتمدة بعد. اعتمد الشركة أولاً.',
   'admin.campaignBackToQueue': 'إعادة إلى المراجعة',

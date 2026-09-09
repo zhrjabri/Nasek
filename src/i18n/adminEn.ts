@@ -110,6 +110,7 @@ export const adminEn = {
   'admin.userAll': 'All',
   'admin.roleCustomer': 'Customer',
   'admin.roleOwner': 'Owner',
+  'admin.roleAdmin': 'Administrator',
   'admin.userAccount': 'Account',
   'admin.userRole': 'Role',
   'admin.userJoined': 'Joined',
@@ -277,6 +278,13 @@ export const adminEn = {
   'admin.campaignRejectConfirm': 'Refuse the campaign',
   'admin.campaignReasonRequired': 'A refusal needs a reason the owner can act on.',
   'admin.campaignStatusFailed': 'That decision was refused and nothing was saved. {detail}',
+  /* See the Arabic file for why these three exist rather than one. */
+  'admin.campaignBlockedSuspended':
+    'A trip cannot be published for a suspended company. “{company}” is suspended — restore it under Campaign owners, then try again.',
+  'admin.campaignBlockedUnverified':
+    'A trip cannot be published for a company that is not approved. Approve “{company}” under Campaign owners first, then try again.',
+  'admin.campaignBlockedNotAdmin':
+    'This session no longer holds administrator access. Sign in again and try once more.',
   'admin.campaignOwnerUnverified':
     'This campaign belongs to a company that is not approved yet. Approve the company first.',
   'admin.campaignBackToQueue': 'Send back for review',

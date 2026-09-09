@@ -62,7 +62,14 @@ export function PendingPage() {
         <dl className="grid gap-3 rounded-[3px] border border-ivory-300 bg-ivory-50 p-4 text-sm">
           <div className="flex items-center justify-between gap-3">
             <dt className="text-ink-500">{t('auth.companyName')}</dt>
-            <dd className="font-semibold text-ink-900">{provider?.name.en || '—'}</dd>
+            {/* `en || ar`, as every other reader of this field does. NASEK
+                writes one typed name into both columns — see
+                `register_provider` — but a row that carries only the Arabic
+                one would otherwise show this owner a dash where their own
+                company name belongs. */}
+            <dd className="font-semibold text-ink-900">
+              {provider?.name.en || provider?.name.ar || '—'}
+            </dd>
           </div>
           {provider?.submittedAt && (
             <div className="flex items-center justify-between gap-3">
@@ -153,9 +160,12 @@ export function RejectedPage() {
   const provider = user?.providerId ? getProvider(user.providerId) : undefined
 
   const [form, setForm] = useState({
-    companyName: provider?.name.en ?? '',
-    tagline: provider?.tagline.en ?? '',
-    description: provider?.description.en ?? '',
+    // `en || ar` throughout, matching `CompanyProfilePanel`: one typed value
+    // is written to both columns, and a row holding only the Arabic side must
+    // prefill this form rather than blank a required field on it.
+    companyName: provider?.name.en || provider?.name.ar || '',
+    tagline: provider?.tagline.en || provider?.tagline.ar || '',
+    description: provider?.description.en || provider?.description.ar || '',
     experienceYears: provider ? String(provider.experienceYears) : '',
     phone: provider?.phone ?? user?.phone ?? '',
     email: provider?.email ?? user?.email ?? '',

@@ -598,5 +598,6 @@ export const ar: Record<PublicMessageKey, string> = {
   'account.emailSame': 'هذا عنوانك الحالي بالفعل.',
   'account.emailTaken': 'هذا العنوان مستخدم بالفعل في ناسِك.',
   'account.emailFailed': 'تعذّر بدء التغيير. يُرجى المحاولة مرة أخرى.',
+  'account.saveFailed': 'تعذّر حفظ بياناتك الآن. لم يتغيّر شيء — يُرجى المحاولة مرة أخرى.',
 
 }

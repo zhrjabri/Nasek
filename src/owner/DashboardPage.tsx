@@ -36,6 +36,7 @@ import { useI18n, type MessageKey } from '@/i18n'
 import { wilayahName } from '@/data/geo'
 import { CampaignForm } from '@/components/campaign/CampaignForm'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { publicCampaignUrl } from '@/lib/publicSite'
 
 import {
   completePastBookings,
@@ -55,8 +56,8 @@ import {
   EmptyState,
   Input,
   ProgressBar,
+  RuleAnchor,
   RuleButton,
-  RuleLink,
   Rating,
   Select,
   Textarea,
@@ -570,12 +571,37 @@ export function DashboardPage() {
                       </div>
                     ) : (
                       <div className="flex items-center gap-2">
-                        {/* A link to a page that answers "not found" is worse
-                            than no link. An unapproved trip has no public
-                            address yet, so the control says that instead of
-                            offering to show it. */}
-                        {c.status === 'active' ? (
-                          <RuleLink to={`/campaigns/${c.id}`}>{t('prov.viewPublic')}</RuleLink>
+                        {/*
+                          A link to a page that answers "not found" is worse
+                          than no link, and there are three cases rather than
+                          the two this once had.
+
+                          *Suspended* — taken down by an administrator, still
+                          `active` as far as approval goes. The public
+                          catalogue no longer carries it, so its page answers
+                          "not found"; the badge at the top of the row already
+                          says why, and nothing more belongs here.
+
+                          *Approved and live* — an ordinary `<a>` to the
+                          customer site. Not a router link: that page belongs
+                          to a different application on a different origin, and
+                          this portal mounts no `Router` at all, so a `<Link>`
+                          threw the moment an owner had one approved trip and
+                          took the whole tab down with it. See
+                          `lib/publicSite.ts`. Absent when the public site's
+                          address is not configured into this build, because a
+                          link that cannot be built is better not drawn.
+
+                          *Anything else* — waiting or refused, and it says so
+                          rather than offering to open a page that does not
+                          exist yet.
+                        */}
+                        {c.suspended ? null : c.status === 'active' ? (
+                          publicCampaignUrl(c.id) && (
+                            <RuleAnchor href={publicCampaignUrl(c.id)!} newTab>
+                              {t('prov.viewPublic')}
+                            </RuleAnchor>
+                          )
                         ) : (
                           <span className="px-2.5 text-xs font-semibold text-ink-400">
                             {t('prov.viewPublicPending')}

@@ -623,6 +623,7 @@ export const en = {
   'account.emailSame': 'That is already your address.',
   'account.emailTaken': 'That address is already in use on NASEK.',
   'account.emailFailed': 'That change could not be started. Please try again.',
+  'account.saveFailed': 'Your details could not be saved just now. Nothing has changed — please try again.',
 } as const
 
 /**

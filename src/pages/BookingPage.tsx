@@ -39,6 +39,7 @@ import {
   ProgressBar,
   Segmented,
   Select,
+  Spinner,
   cx,
 } from '@/components/ui'
 
@@ -72,7 +73,7 @@ export function BookingPage() {
   const { id } = useParams<{ id: string }>()
   const { t, lang, bl, money, n, date, dateRange } = useI18n()
   const navigate = useNavigate()
-  const { user, dispatch, toast } = useStore()
+  const { user, dispatch, toast, remoteReady } = useStore()
   const { getCampaign, getProvider } = useCatalogue()
   // `book_campaign` decrements the trip's seats inside its own transaction, so
   // every seat count this browser is holding is stale the moment it returns.
@@ -122,6 +123,29 @@ export function BookingPage() {
   }, [travellersCount])
 
   if (!campaign) {
+    /*
+     * "Not in the catalogue" and "the catalogue has not arrived" are different
+     * answers, and only one of them belongs on the screen.
+     *
+     * The trip is read straight out of the catalogue, which is empty until the
+     * snapshot lands — and this page mounts alongside the loader that fetches
+     * it. So every refresh of a booking page, and every link into one, opened
+     * on "We can't find that page" and corrected itself a few hundred
+     * milliseconds later. It resolved on its own, which is why it read as a
+     * flicker rather than as a bug; on a slow connection it is a paragraph
+     * telling somebody their trip does not exist while it loads.
+     *
+     * With no backend there is nothing to wait for, so the answer stands
+     * immediately and the offline prototype is unchanged. `CampaignDetailPage`
+     * makes the same distinction for the same reason.
+     */
+    if (isSupabaseConfigured && !remoteReady) {
+      return (
+        <main className="flex min-h-[60dvh] items-center justify-center px-4">
+          <Spinner className="size-7 text-nasek-600" />
+        </main>
+      )
+    }
     return (
       <main className="mx-auto max-w-3xl px-4 py-20 sm:px-6">
         <EmptyState

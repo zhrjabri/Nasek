@@ -76,11 +76,39 @@ export function DashboardPage() {
   // ones shown. Subscribes to nothing until it is called.
   const { reload } = useSnapshotLoader()
 
-  const tab = (params.get('tab') as Tab) ?? 'bookings'
+  /*
+   * The tab, checked against the four that exist rather than cast to one.
+   *
+   * `params.get('tab') as Tab` believed whatever was in the address bar, and an
+   * address bar is not a thing that can be trusted to hold one of four strings:
+   * a stale bookmark, a truncated link, a typo. None of the four sections then
+   * matched, so the page drew its header and its tab bar over nothing at all —
+   * a screen with no content and no error to explain it. The owner portal reads
+   * its own tab the same way and has always validated it.
+   */
+  const raw = params.get('tab')
+  const tab: Tab = TABS.some((x) => x.id === raw) ? (raw as Tab) : 'bookings'
   const setTab = (next: Tab) => setParams({ tab: next }, { replace: true })
 
   /** The booking whose review form is open, and what has been typed into it. */
   const [reviewing, setReviewing] = useState<string | null>(null)
+  /**
+   * The booking whose cancellation is being confirmed.
+   *
+   * On the row rather than in `window.confirm`, and that is a correction of a
+   * real defect rather than a preference. A native confirm is browser chrome:
+   * its two buttons are worded by the browser, in the browser's language, so a
+   * page reading right-to-left in Arabic asked "Cancel this booking?" over
+   * "OK / Cancel" — where "Cancel" is the button that *does not* cancel. It
+   * also carries no idea which of several bookings it is about. The owner
+   * portal's delete was moved off `window.confirm` for these exact reasons;
+   * this is the same control on the pilgrim's side of the platform.
+   *
+   * And it is not merely cosmetic: `confirm()` is suppressed outright in some
+   * embedded browsers and in-app webviews, where it returns `false` without
+   * asking — a Cancel booking button that silently does nothing.
+   */
+  const [confirmCancel, setConfirmCancel] = useState<string | null>(null)
   const [draft, setDraft] = useState({ rating: 5, comment: '' })
   const [posting, setPosting] = useState(false)
 
@@ -132,7 +160,7 @@ export function DashboardPage() {
    * whole page had.
    */
   const cancel = async (booking: Booking) => {
-    if (!window.confirm(t('dash.cancelConfirm'))) return
+    setConfirmCancel(null)
 
     if (isSupabaseConfigured) {
       if (!(await cancelBooking(booking.id))) {
@@ -319,15 +347,17 @@ export function DashboardPage() {
                               <span className="nums text-lg font-bold text-nasek-900">
                                 {money(booking.totalPrice, { decimals: true })}
                               </span>
-                              {booking.status !== 'cancelled' && key === 'dash.upcoming' && (
-                                <button
-                                  type="button"
-                                  onClick={() => void cancel(booking)}
-                                  className="text-xs font-semibold text-ink-400 transition-colors hover:text-red-700"
-                                >
-                                  {t('dash.cancelBooking')}
-                                </button>
-                              )}
+                              {booking.status !== 'cancelled' &&
+                                key === 'dash.upcoming' &&
+                                confirmCancel !== booking.id && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setConfirmCancel(booking.id)}
+                                    className="text-xs font-semibold text-ink-400 transition-colors hover:text-red-700"
+                                  >
+                                    {t('dash.cancelBooking')}
+                                  </button>
+                                )}
                               {canReview && reviewing !== booking.id && (
                                 <button
                                   type="button"
@@ -345,6 +375,33 @@ export function DashboardPage() {
                               )}
                             </div>
                           </Card>
+
+                          {/* The question, on the booking it is about — the
+                              reference and the trip are right above it, which
+                              is exactly what a browser dialog could not say. */}
+                          {confirmCancel === booking.id && (
+                            <Card className="mt-2 border-red-200 bg-red-50 p-4">
+                              <p className="text-sm font-bold text-red-800">
+                                {t('dash.cancelConfirm')}
+                              </p>
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                <Button
+                                  variant="danger"
+                                  size="sm"
+                                  onClick={() => void cancel(booking)}
+                                >
+                                  {t('dash.cancelBooking')}
+                                </Button>
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={() => setConfirmCancel(null)}
+                                >
+                                  {t('common.back')}
+                                </Button>
+                              </div>
+                            </Card>
+                          )}
 
                           {/* The form opens under the trip it is about rather
                               than in a dialog: the traveller is looking at the

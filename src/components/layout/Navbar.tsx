@@ -277,28 +277,37 @@ export function Navbar() {
             {/* Saved and notifications are icon-only on desktop and hidden
                 outright on a narrow screen — on a phone this drawer is the
                 only way to reach them. */}
+            {/*
+              The same four entries the account menu has, and no role branch.
+
+              There was one — `user.role === 'customer'` around the last three —
+              left behind when the three-application split removed every other
+              one. It meant a campaign owner or an administrator who opened this
+              site on a phone got "My details" and nothing else, while the same
+              account on a laptop got all four from the account menu: two
+              answers to one question, decided by the width of the screen. A
+              campaign owner who books a trip here is a customer while they do
+              it, and their bookings are on the same dashboard as everybody
+              else's.
+            */}
             {user && (
               <>
                 <li className="mt-2 border-t border-ivory-300 pt-2">
                   <MobileLink to="/dashboard?tab=profile">{t('account.title')}</MobileLink>
                 </li>
-                {user.role === 'customer' && (
-                  <>
-                    <li>
-                      <MobileLink to="/dashboard?tab=bookings">{t('nav.myBookings')}</MobileLink>
-                    </li>
-                    <li>
-                      <MobileLink to="/dashboard?tab=saved" count={savedIds.length}>
-                        {t('nav.saved')}
-                      </MobileLink>
-                    </li>
-                    <li>
-                      <MobileLink to="/dashboard?tab=notifications" count={unreadCount}>
-                        {t('nav.notifications')}
-                      </MobileLink>
-                    </li>
-                  </>
-                )}
+                <li>
+                  <MobileLink to="/dashboard?tab=bookings">{t('nav.myBookings')}</MobileLink>
+                </li>
+                <li>
+                  <MobileLink to="/dashboard?tab=saved" count={savedIds.length}>
+                    {t('nav.saved')}
+                  </MobileLink>
+                </li>
+                <li>
+                  <MobileLink to="/dashboard?tab=notifications" count={unreadCount}>
+                    {t('nav.notifications')}
+                  </MobileLink>
+                </li>
               </>
             )}
             {!user && (

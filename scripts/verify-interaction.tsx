@@ -23,7 +23,7 @@
  */
 import { StrictMode, act, useEffect, useRef, useState, type ReactNode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { I18nProvider } from '@/i18n'
 import { ownerAr } from '@/i18n/ownerAr'
 import { ownerEn } from '@/i18n/ownerEn'
@@ -31,15 +31,25 @@ import { AppStoreProvider, useStore } from '@/store/AppStore'
 import { CampaignForm } from '@/components/campaign/CampaignForm'
 import { DashboardPage } from '@/owner/DashboardPage'
 import { DashboardPage as CustomerDashboardPage } from '@/pages/DashboardPage'
+import { CampaignDetailPage } from '@/pages/CampaignDetailPage'
 import { NotificationsPanel } from '@/owner/panels/NotificationsPanel'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { CodeInput, TOTP_CODE_LENGTH } from '@/components/auth/CodeInput'
 import { OtpFlow } from '@/components/auth/OtpFlow'
 import { EMAIL_CODE_LENGTH } from '@/services/auth/otp'
+import { customerRouteUrl } from '@/lib/publicSite'
 import { ar } from '@/i18n/ar'
 import { en } from '@/i18n/en'
 import { SERVICE_KEYS } from '@/data/services'
-import type { Notification, NotificationAudience, Provider, User } from '@/types'
+import type {
+  Booking,
+  Campaign,
+  Notification,
+  NotificationAudience,
+  Provider,
+  Review,
+  User,
+} from '@/types'
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = '') => {
@@ -859,6 +869,381 @@ async function rest() {
     )
     act(() => foreign.root.unmount())
     foreign.container.remove()
+  }
+
+  /*
+   * ------------------------------- every section of the owner portal, with data
+   *
+   * `verify:render` draws this dashboard, and drew it perfectly while "رحلاتي"
+   * was an error page in production. Two things hid the defect, and both are
+   * the reason this block seeds a store rather than mounting an empty one:
+   *
+   *   * the store is empty there, so the trips tab rendered its empty state and
+   *     never reached the row that threw; and
+   *   * the tab is read off `?tab=`, which is `overview` for every render that
+   *     does not set it.
+   *
+   * What threw was a react-router `<Link>` — the "public page" control on an
+   * approved trip. The portal mounts no `Router`, deliberately, so every router
+   * hook and every router component throws the moment it is drawn here:
+   *
+   *     Cannot destructure property 'basename' of React.useContext(...) as it is null
+   *
+   * So this walks all seven sections with a company, four trips in four
+   * different states, bookings, reviews and notifications in the store, and
+   * fails on anything that throws or comes back blank. The store is seeded from
+   * outside the tree and after the mount, for the ordering reason documented
+   * above the other `Seed` in this file.
+   */
+  console.log(`\n--- Every section of the owner portal ${'-'.repeat(19)}\n`)
+  {
+    const COMPANY: Provider = {
+      id: 'p1',
+      name: { ar: 'حملة الجابري', en: 'Al Jabri Campaign' },
+      tagline: { ar: 'رفقة مطمئنة', en: 'A calm road' },
+      description: { ar: 'حملة عُمانية.', en: 'An Omani campaign.' },
+      wilayahId: 'muscat',
+      verification: 'verified',
+      experienceYears: 10,
+      rating: 4.7,
+      reviewCount: 24,
+      phone: '+96891234567',
+      email: 'owner@example.om',
+      initials: 'AJ',
+      brandColor: '#1c5e4c',
+      plan: 'plus',
+      joinedAt: '2026-01-01',
+    }
+
+    const PORTAL_OWNER: User = {
+      id: 'own-1',
+      name: 'الزهراء',
+      nameIsPlaceholder: false,
+      email: 'owner@example.om',
+      phone: '+96891234567',
+      role: 'provider',
+      wilayahId: 'muscat',
+      avatarColor: '#1c5e4c',
+      providerId: 'p1',
+      createdAt: '2026-01-01',
+      suspended: false,
+      removed: false,
+    }
+
+    const trip = (id: string, over: Partial<Campaign> = {}): Campaign => ({
+      id,
+      providerId: 'p1',
+      type: 'umrah',
+      title: { ar: `رحلة ${id}`, en: `Trip ${id}` },
+      description: { ar: 'وصف', en: 'Description' },
+      price: 250,
+      wilayahId: 'muscat',
+      travelMethod: 'air',
+      departureDate: '2026-11-01',
+      returnDate: '2026-11-12',
+      seatsTotal: 40,
+      seatsAvailable: 5,
+      services: ['hotel_makkah'],
+      hotelMakkah: { ar: 'فندق', en: 'Hotel' },
+      hotelMadinah: { ar: 'فندق', en: 'Hotel' },
+      haramDistanceM: 400,
+      rating: 4.5,
+      reviewCount: 3,
+      featured: false,
+      bookingsCount: 12,
+      suspended: false,
+      deleted: false,
+      status: 'active',
+      excludedServices: [],
+      images: [],
+      includedServices: [],
+      contactPersons: [],
+      terms: { ar: '', en: '' },
+      ...over,
+    })
+
+    /*
+     * One approved trip, one waiting, one refused and one taken down.
+     *
+     * The approved one is what draws the public link; the suspended one is what
+     * proves the link is withheld when the page it points at is no longer on
+     * the public site. Both were wrong at the same time.
+     */
+    const TRIPS = [
+      trip('c1'),
+      trip('c2', { status: 'pending_approval', seatsAvailable: 30 }),
+      trip('c3', { status: 'rejected', rejectionReason: 'السعر غير واضح' }),
+      trip('c4', { suspended: true }),
+    ]
+
+    const PORTAL_BOOKINGS: Booking[] = [
+      {
+        id: 'b1',
+        reference: 'NSK-B1',
+        userId: 'cust-1',
+        campaignId: 'c1',
+        travellers: [],
+        travellersCount: 2,
+        contactName: 'سالم',
+        contactPhone: '+96890000001',
+        contactEmail: 'salem@example.om',
+        totalPrice: 500,
+        status: 'confirmed',
+        bookingDate: '2026-09-01',
+        notes: 'muscat',
+      },
+    ]
+
+    const PORTAL_REVIEWS: Review[] = [
+      {
+        id: 'r1',
+        userId: 'cust-1',
+        userName: 'سالم',
+        campaignId: 'c1',
+        providerId: 'p1',
+        rating: 5,
+        comment: { ar: 'ممتاز', en: 'Excellent' },
+        date: '2026-09-02',
+        reply: { ar: '', en: '' },
+        hidden: false,
+      },
+    ]
+
+    const PORTAL_NOTICES: Notification[] = [
+      {
+        id: 'n1',
+        userId: 'own-1',
+        title: { ar: 'تم اعتماد حملتك', en: 'Your trip was approved' },
+        body: { ar: '', en: '' },
+        date: '2026-09-05',
+        read: false,
+        kind: 'system',
+        audience: 'owner',
+      },
+    ]
+
+    let portalDispatch: ((action: { type: string; [k: string]: unknown }) => void) | null = null
+    function PortalSeed({ children }: { children: ReactNode }) {
+      const store = useStore()
+      portalDispatch = store.dispatch as typeof portalDispatch
+      return <>{children}</>
+    }
+
+    const TABS = [
+      'overview',
+      'campaigns',
+      'customers',
+      'reviews',
+      'analytics',
+      'profile',
+      'notifications',
+    ]
+
+    for (const tab of TABS) {
+      window.history.replaceState({}, '', `/?tab=${tab}`)
+      const ui = mount(
+        <PortalSeed>
+          <DashboardPage />
+        </PortalSeed>,
+      )
+      await settle(2)
+      act(() => {
+        portalDispatch?.({ type: 'signIn', user: PORTAL_OWNER })
+        portalDispatch?.({
+          type: 'hydrateRemote',
+          snapshot: {
+            providers: [COMPANY],
+            campaigns: TRIPS,
+            bookings: PORTAL_BOOKINGS,
+            reviews: PORTAL_REVIEWS,
+            notifications: PORTAL_NOTICES,
+            savedIds: [],
+            profiles: [PORTAL_OWNER],
+          },
+        })
+      })
+      await settle(2)
+
+      check(
+        `"?tab=${tab}" draws for an owner who has trips`,
+        ui.errors.length === 0 && !ui.blank(),
+        ui.errors.map(describe).join('; ') || (ui.blank() ? 'blank page' : ''),
+      )
+
+      /*
+       * And the public link is an *anchor to another origin*, not a route.
+       *
+       * The public page belongs to the customer site, which is a different
+       * application on a different host: a router link there is both a crash
+       * and, in the administration where there is a router, an address that
+       * matches the catch-all and silently returns to the overview. Asserted on
+       * the rendered attribute rather than on the component, so reinstating a
+       * `<Link>` under any name still fails.
+       */
+      if (tab === 'campaigns' && !ui.blank()) {
+        const hrefs = ([...ui.container.querySelectorAll('a[href]')] as HTMLAnchorElement[])
+          .map((a) => a.getAttribute('href') ?? '')
+          .filter((href) => href.includes('/campaigns/'))
+        check(
+          'every public-page link leaves this application entirely',
+          hrefs.every((href) => /^https?:\/\//.test(href)),
+          hrefs.join(' | ') || 'none drawn',
+        )
+        check(
+          'and no trip a pilgrim cannot open is offered one',
+          !hrefs.some((href) => /c2|c3|c4/.test(href)),
+          hrefs.join(' | '),
+        )
+      }
+
+      act(() => ui.root.unmount())
+      ui.container.remove()
+    }
+    window.history.replaceState({}, '', '/')
+
+    /*
+     * And the address itself, asserted on the pure function.
+     *
+     * The rendered check above cannot carry this on its own: the harnesses
+     * build with `--mode harness`, which blanks `VITE_SITE_URL` deliberately —
+     * `verify:redirect` depends on it being blank — so no link is drawn here at
+     * all and "every link is absolute" is vacuously true. What has to hold is
+     * the shape of the URL, and that is a pure function of the configured base.
+     */
+    const built = customerRouteUrl('https://nasek.example', '/campaigns/abc')
+    check(
+      'a public campaign address is absolute and lands on the trip, not the home page',
+      built === 'https://nasek.example/#/campaigns/abc',
+      String(built),
+    )
+    check(
+      'a trailing index.html is not carried into it',
+      customerRouteUrl('https://nasek.example/index.html', '/campaigns/abc') ===
+        'https://nasek.example/#/campaigns/abc',
+      String(customerRouteUrl('https://nasek.example/index.html', '/campaigns/abc')),
+    )
+    check(
+      'an unconfigured public site yields no link rather than a broken one',
+      customerRouteUrl(undefined, '/campaigns/abc') === null &&
+        customerRouteUrl('   ', '/campaigns/abc') === null,
+    )
+    check(
+      'and a malformed one is refused rather than thrown',
+      customerRouteUrl('not a url', '/campaigns/abc') === null,
+    )
+  }
+
+  /*
+   * ------------------------------------------ a trip page opened from cold
+   *
+   * The sequence a shared link and a page refresh both produce: the trip page
+   * mounts while the catalogue is still in flight, and the snapshot lands a
+   * moment later. A child's effects run before its parent's, so this is the
+   * ordering every deep link into `/campaigns/:id` actually had.
+   *
+   * It resolved to "الصفحة غير موجودة" and stayed there. The lookup ran once,
+   * keyed on the id alone with `exhaustive-deps` switched off, against an empty
+   * catalogue — and the closure held that empty array for the life of the
+   * request, so even a snapshot arriving mid-flight changed nothing. Navigating
+   * in from the listing worked, because the catalogue was already there, which
+   * is why nothing caught it.
+   *
+   * Seeded after the mount for exactly that reason: seeding first would
+   * reproduce the case that always worked.
+   */
+  console.log(`\n--- A trip page opened from cold ${'-'.repeat(24)}\n`)
+  {
+    const TRIP: Campaign = {
+      id: 'c1',
+      providerId: 'p1',
+      type: 'umrah',
+      title: { ar: 'رحلة العمرة الفضية', en: 'The Silver Umrah' },
+      description: { ar: 'وصف', en: 'Description' },
+      price: 250,
+      wilayahId: 'muscat',
+      travelMethod: 'air',
+      departureDate: '2026-12-01',
+      returnDate: '2026-12-12',
+      seatsTotal: 40,
+      seatsAvailable: 12,
+      services: ['hotel_makkah'],
+      hotelMakkah: { ar: 'فندق', en: 'Hotel' },
+      hotelMadinah: { ar: 'فندق', en: 'Hotel' },
+      haramDistanceM: 400,
+      rating: 4.5,
+      reviewCount: 3,
+      featured: false,
+      bookingsCount: 12,
+      suspended: false,
+      deleted: false,
+      status: 'active',
+      excludedServices: [],
+      images: [],
+      includedServices: [],
+      contactPersons: [],
+      terms: { ar: '', en: '' },
+    }
+
+    let tripDispatch: ((action: { type: string; [k: string]: unknown }) => void) | null = null
+    function TripSeed({ children }: { children: ReactNode }) {
+      const store = useStore()
+      tripDispatch = store.dispatch as typeof tripDispatch
+      return <>{children}</>
+    }
+
+    const ui = mount(
+      <MemoryRouter initialEntries={['/campaigns/c1']}>
+        <TripSeed>
+          <Routes>
+            <Route path="/campaigns/:id" element={<CampaignDetailPage />} />
+          </Routes>
+        </TripSeed>
+      </MemoryRouter>,
+    )
+
+    // The catalogue arrives *after* the page has mounted and asked for the trip.
+    await settle(2)
+    act(() => {
+      tripDispatch?.({
+        type: 'hydrateRemote',
+        snapshot: {
+          providers: [],
+          campaigns: [TRIP],
+          bookings: [],
+          reviews: [],
+          notifications: [],
+          savedIds: [],
+          profiles: [],
+        },
+      })
+    })
+
+    /*
+     * Long enough for the mock API's own latency. `services/api/client.ts`
+     * sleeps 180-520ms on every call, deliberately, so the skeletons are
+     * visible in a demo — a handful of short ticks would leave this asserting
+     * against a skeleton rather than against the page.
+     */
+    for (let i = 0; i < 5; i += 1) {
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 220))
+      })
+    }
+
+    const text = ui.container.textContent ?? ''
+    check(
+      'a trip page opened cold shows the trip rather than "not found"',
+      text.includes('رحلة العمرة الفضية'),
+      text.replace(/\s+/g, ' ').slice(0, 140),
+    )
+    check(
+      'and says nothing about a missing page',
+      !text.includes(ar['state.notFoundTitle']),
+    )
+    check('nothing threw drawing it', ui.errors.length === 0, ui.errors.map(describe).join('; '))
+
+    act(() => ui.root.unmount())
+    ui.container.remove()
   }
 
   /*

@@ -64,9 +64,14 @@ export function Footer() {
 
           {COLUMNS.map((col) => (
             <nav key={col.title} aria-label={t(col.title)}>
-              <h3 className="text-2xs font-bold uppercase tracking-[0.22em] text-gold-400/90">
+              {/* `h2`, not `h3`. These are the footer's own top-level sections,
+                  and on a page whose only other heading is the `h1` — sign-in,
+                  Smart Match — an `h3` here made the document jump two levels
+                  with nothing in between, which is what a screen reader reads
+                  out as a missing section. */}
+              <h2 className="text-2xs font-bold uppercase tracking-[0.22em] text-gold-400/90">
                 {t(col.title)}
-              </h3>
+              </h2>
               <span className="mt-2.5 block h-px w-8 bg-gold-500/50" aria-hidden />
               <ul className="mt-4 space-y-2.5">
                 {col.links.map((link) => (

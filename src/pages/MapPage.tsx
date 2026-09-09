@@ -17,7 +17,9 @@ export function MapPage() {
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-      <SectionHeading title={t('map.title')} subtitle={t('map.subtitle')} />
+      {/* The page's own title, so this page has an `h1` like every other one.
+          Nothing about it changes but the tag. */}
+      <SectionHeading level={1} title={t('map.title')} subtitle={t('map.subtitle')} />
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[1.1fr_1fr]">
         <div className="lg:sticky lg:top-24 lg:self-start">

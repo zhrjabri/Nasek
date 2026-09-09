@@ -4,6 +4,7 @@ import type { Campaign } from '@/types'
 import { useI18n } from '@/i18n'
 
 import { setReviewHidden } from '@/services/data/catalogue'
+import { isSupabaseConfigured } from '@/services/supabase/client'
 import { useSnapshotLoader } from '@/hooks/useRemoteData'
 import { useStore } from '@/store/AppStore'
 import { Badge, Button, Card, EmptyState, Rating, cx } from '@/components/ui'
@@ -169,9 +170,19 @@ export function ReviewsTab({ campaigns }: { campaigns: Campaign[] }) {
                         size="sm"
                         variant="secondary"
                         onClick={async () => {
-                          // Checked rather than fired and forgotten: a refused
-                          // takedown used to look exactly like an applied one.
-                          if (!(await setReviewHidden(review.id, !isHidden))) {
+                          /* Checked rather than fired and forgotten: a refused
+                             takedown used to look exactly like an applied one.
+
+                             Guarded on the configuration, because with no
+                             backend `setReviewHidden` reports `false` for
+                             "there was nothing to write to" — which is not a
+                             refusal, and reading it as one left the only
+                             moderation control on this screen permanently
+                             broken on a clone with no `.env`. */
+                          if (
+                            isSupabaseConfigured &&
+                            !(await setReviewHidden(review.id, !isHidden))
+                          ) {
                             toast(t('admin.reviewModerationFailed'), 'warning')
                             return
                           }

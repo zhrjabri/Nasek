@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -25,6 +25,7 @@ import { useI18n } from '@/i18n'
 import { wilayahName } from '@/data/geo'
 import { serviceLabel } from '@/data/services'
 import { campaignImageUrl } from '@/services/storage/campaignImages'
+import { isSupabaseConfigured } from '@/services/supabase/client'
 
 import { campaignsApi } from '@/services/api/campaigns'
 import { useStore } from '@/store/AppStore'
@@ -49,7 +50,7 @@ export function CampaignDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { t, lang, bl, money, n, date, dateRange } = useI18n()
   const { campaigns, getProvider } = useCatalogue()
-  const { isSaved, hiddenReviewIds, reviews: allReviews } = useStore()
+  const { isSaved, hiddenReviewIds, reviews: allReviews, remoteReady } = useStore()
   const toggleSave = useToggleSaved()
 
   const [campaign, setCampaign] = useState<Campaign | null | undefined>(undefined)
@@ -58,20 +59,67 @@ export function CampaignDetailPage() {
 
   const Arrow = lang === 'ar' ? ArrowLeft : ArrowRight
 
+  /**
+   * The id this page is currently about, so a re-read does not reset the page.
+   *
+   * The lookup below re-runs when the catalogue changes as well as when the
+   * address does, and only the second of those should send the screen back to
+   * its skeleton. Without the distinction, a snapshot landing while somebody
+   * was reading would blank the trip under them for a third of a second.
+   */
+  const shownId = useRef<string | undefined>(undefined)
+
+  /*
+   * Read the trip out of the catalogue — again, when the catalogue arrives.
+   *
+   * This ran once, keyed on `id` alone, with the `exhaustive-deps` warning
+   * switched off. On a cold load that is fatal rather than untidy: `campaigns`
+   * is empty until `useRemoteData` has fetched the snapshot, and this page
+   * mounts alongside it — a child's effects run before its parent's — so the
+   * lookup was made against an empty catalogue, the closure kept that empty
+   * array however long the request took, and the page settled on
+   *
+   *     الصفحة غير موجودة  /  We can't find that page
+   *
+   * for a trip that exists and is live. Every refresh of a trip page, and every
+   * link anyone shared, landed there; navigating in from the listing worked,
+   * because by then the snapshot had arrived, which is why it survived review.
+   *
+   * `campaigns` in the dependency array is the whole fix, and it is exactly
+   * what the disabled rule was asking for.
+   */
   useEffect(() => {
     if (!id) return
+
+    // A different trip is a different page and starts at the skeleton. The same
+    // trip re-read against a fuller catalogue keeps what is on screen.
+    if (shownId.current !== id) {
+      shownId.current = id
+      setCampaign(undefined)
+      setSimilar([])
+    }
+
     let live = true
-    setCampaign(undefined)
     void campaignsApi.get(id, campaigns).then((c) => {
       if (!live) return
+      /*
+       * "Not in the catalogue" and "the catalogue is not here yet" are not the
+       * same answer, and only one of them is worth telling somebody.
+       *
+       * Where there is a database, the catalogue has not arrived until
+       * `remoteReady`; concluding from it before then is how this page told
+       * people a live trip did not exist. With no backend configured there is
+       * nothing to wait for and the local catalogue is the whole truth, so the
+       * answer stands immediately — the offline prototype is unchanged.
+       */
+      if (!c && isSupabaseConfigured && !remoteReady) return
       setCampaign(c)
       if (c) void campaignsApi.similar(c, campaigns).then((s) => live && setSimilar(s))
     })
     return () => {
       live = false
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id])
+  }, [id, campaigns, remoteReady])
 
   if (campaign === undefined) return <DetailSkeleton />
 

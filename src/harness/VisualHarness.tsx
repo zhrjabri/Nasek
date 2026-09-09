@@ -86,11 +86,21 @@ function Seed({ as, children }: { as: 'owner' | 'admin'; children: ReactNode }) 
   return <>{children}</>
 }
 
-/** A labelled band, so a proof sheet says what it is showing. */
-function Band({ title, note }: { title: string; note?: string }) {
+/**
+ * A labelled band, so a proof sheet says what it is showing.
+ *
+ * `heading` marks the frames where this band genuinely *is* the page title —
+ * the administration tabs and the bare campaign form, neither of which the
+ * harness mounts a shell around. Those pages otherwise have no `h1` at all,
+ * and an accessibility sweep then reports the harness rather than the product.
+ * The owner frames do not set it: `OwnerDashboardPage` draws its own `h1` (the
+ * company name), and two of them is its own defect.
+ */
+function Band({ title, note, heading }: { title: string; note?: string; heading?: boolean }) {
+  const Title = heading ? 'h1' : 'p'
   return (
     <div className="border-b border-gold-300/60 bg-nasek-900 px-4 py-2.5 text-ivory-50 sm:px-6">
-      <p className="text-sm font-bold tracking-wide">{title}</p>
+      <Title className="text-sm font-bold tracking-wide">{title}</Title>
       {note && <p className="mt-0.5 text-2xs text-gold-200">{note}</p>}
     </div>
   )
@@ -101,7 +111,7 @@ const isSuspended = (id: string) => CAMPAIGNS.find((c) => c.id === id)?.suspende
 function AdminFrame({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
   return (
     <div className="min-h-dvh bg-ivory-100">
-      <Band title={title} note={note} />
+      <Band title={title} note={note} heading />
       <div className="mx-auto max-w-7xl p-4 sm:p-6">{children}</div>
       <ToastHost />
     </div>
@@ -116,7 +126,7 @@ function Screen({ name }: { name: string }) {
     case 'owner-form':
       return (
         <div className="min-h-dvh bg-ivory-100">
-          <Band title="OWNER · Add Trip" note="CampaignForm — publish / cancel / discard" />
+          <Band title="OWNER · Add Trip" note="CampaignForm — publish / cancel / discard" heading />
           <CampaignForm
             campaign={null}
             providerId="p1"
@@ -220,11 +230,31 @@ export function VisualHarness() {
     <I18nProvider extra={extra}>
       <AppStoreProvider>
         <Seed as={admin ? 'admin' : 'owner'}>
-          {/* AdminShell and some tabs use router hooks; the real applications
-              mount their own router, so the harness supplies one too. */}
-          <MemoryRouter initialEntries={['/']}>
+          {/*
+            A router for the administration, and deliberately none for the owner
+            portal.
+
+            The dashboard mounts `HashRouter` and several of its tabs use router
+            hooks, so the harness supplies a `MemoryRouter` in its place. The
+            Campaign Owner Portal mounts no router at all — that is a decision,
+            not an omission, so that nothing competes with Supabase for the URL
+            fragment an invitation arrives in — and wrapping its screens in one
+            here made the harness kinder than production.
+
+            That is not a hypothetical. "رحلاتي" rendered a react-router `<Link>`
+            for each approved trip, which throws outside a `Router`; the harness
+            supplied one, drew the tab perfectly, and the first owner with an
+            approved trip met an error page. A harness that lends a screen a
+            context the real application withholds certifies exactly the bug it
+            was built to catch.
+          */}
+          {admin ? (
+            <MemoryRouter initialEntries={['/']}>
+              <Screen name={screen} />
+            </MemoryRouter>
+          ) : (
             <Screen name={screen} />
-          </MemoryRouter>
+          )}
         </Seed>
       </AppStoreProvider>
     </I18nProvider>

@@ -78,6 +78,33 @@ interface Draft {
   permitExpiry: string
 }
 
+/**
+ * The draft for a company that is not here yet.
+ *
+ * `useState` runs before the `if (!provider)` guard below can return — hooks
+ * always do — so the initialiser has to have an answer for the case that guard
+ * exists for. It used to give it `draftFrom({} as Provider)`, and the cast was
+ * the bug written down: `p.tagline.en` on an object with no `tagline` throws,
+ * and it threw on every load of the portal that opened on this tab, because the
+ * company row arrives a beat after the session on all of them. An owner who
+ * bookmarked or refreshed `?tab=profile` met an error page rather than their
+ * own company.
+ */
+const EMPTY_DRAFT: Draft = {
+  tagline: '',
+  description: '',
+  governorate: GOVERNORATES[0][0],
+  wilayahId: '',
+  address: '',
+  phone: '',
+  email: '',
+  experienceYears: '0',
+  name: '',
+  commercialRegistration: '',
+  permitNumber: '',
+  permitExpiry: '',
+}
+
 const draftFrom = (p: Provider): Draft => ({
   tagline: p.tagline.en || p.tagline.ar,
   description: p.description.en || p.description.ar,
@@ -107,7 +134,7 @@ export function CompanyProfilePanel({ provider }: { provider?: Provider }) {
   const { reload } = useSnapshotLoader()
 
   const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState<Draft>(() => (provider ? draftFrom(provider) : draftFrom({} as Provider)))
+  const [draft, setDraft] = useState<Draft>(() => (provider ? draftFrom(provider) : EMPTY_DRAFT))
   const [licence, setLicence] = useState<LicenceSelection | null>(null)
   const [errors, setErrors] = useState<Partial<Record<keyof Draft | 'licence', string>>>({})
   const [failure, setFailure] = useState('')

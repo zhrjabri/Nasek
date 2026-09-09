@@ -347,7 +347,9 @@ export async function setCampaignStatus(
   id: string,
   status: CampaignStatus,
   reason?: string,
-): Promise<{ ok: true; campaign?: Campaign } | { ok: false; error: string }> {
+): Promise<
+  { ok: true; campaign?: Campaign } | { ok: false; error: string; code: string }
+> {
   if (!supabase) return { ok: true }
 
   const { data, error } = await supabase.rpc('set_campaign_status', {
@@ -356,7 +358,28 @@ export async function setCampaignStatus(
     p_reason: reason ?? null,
   })
 
-  if (error || !data) return { ok: false, error: error?.message ?? 'Update failed' }
+  /*
+   * The SQLSTATE travels with the message, and the caller needs both.
+   *
+   * `set_campaign_status` refuses three things on purpose — a caller who is not
+   * an administrator (42501), a refusal with no reason and a trip whose company
+   * is not approved (both 23514), and a campaign that does not exist (P0002) —
+   * and its messages are written to be read. But they are written in English,
+   * because a Postgres function has no idea which language the dashboard is in,
+   * and passing one straight into an Arabic sentence is how "اعتماد ونشر"
+   * came to look like a button that does nothing.
+   *
+   * So the code comes back too, and the screen decides what to say. The code is
+   * the contract; the message is the fallback for anything not anticipated,
+   * which is better shown raw than swallowed.
+   */
+  if (error || !data) {
+    return {
+      ok: false,
+      error: error?.message ?? 'Update failed',
+      code: error?.code ?? '',
+    }
+  }
   return { ok: true, campaign: toCampaign(data as CampaignRow) }
 }
 

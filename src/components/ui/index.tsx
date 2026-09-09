@@ -215,7 +215,7 @@ export function LinkButton({
   )
 }
 
-/** Shared by `RuleLink` and `RuleButton` — tier three, drawn once. */
+/** Shared by `RuleLink`, `RuleAnchor` and `RuleButton` — tier three, drawn once. */
 const RULE_BASE =
   'group relative inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap ' +
   'rounded-[3px] px-1 text-sm font-semibold transition-colors duration-200 ease-out-soft ' +
@@ -293,6 +293,48 @@ export function RuleLink({
       <RuleArrow lang={lang} />
       <RuleMark onDark={onDark} />
     </Link>
+  )
+}
+
+/**
+ * Tier three as an ordinary anchor: somewhere that is not this application.
+ *
+ * `RuleLink` above is a router link, and a router link is a promise that the
+ * destination is a route in the application drawing it. The owner portal has
+ * no router at all and the administration dashboard's routes are its own, so
+ * both need a way to say "the public site" that is a plain `href` and not a
+ * navigation this application is expected to service.
+ *
+ * Same three parts and the same pixels as `RuleLink` — the shared `RULE_BASE`,
+ * the arrow and the gold rule — because it is the same tier: an onward link,
+ * not a decision. What differs is only where it goes.
+ */
+export function RuleAnchor({
+  href,
+  children,
+  className,
+  onDark,
+  newTab,
+}: {
+  href: string
+  children: ReactNode
+  className?: string
+  onDark?: boolean
+  /** `rel` is set with it, so an opened tab cannot reach back through `opener`. */
+  newTab?: boolean
+}) {
+  const { lang } = useI18n()
+  return (
+    <a
+      href={href}
+      target={newTab ? '_blank' : undefined}
+      rel={newTab ? 'noreferrer noopener' : undefined}
+      className={cx(RULE_BASE, ruleTone(onDark), className)}
+    >
+      <span className="leading-none">{children}</span>
+      <RuleArrow lang={lang} />
+      <RuleMark onDark={onDark} />
+    </a>
   )
 }
 
@@ -804,10 +846,38 @@ export function Modal({
     document.addEventListener('keydown', onKey)
     const previous = document.body.style.overflow
     document.body.style.overflow = 'hidden'
+
+    /*
+     * Where the focus was before the dialog took it, so it can be given back.
+     *
+     * A dialog that moves focus and does not return it leaves a keyboard reader
+     * at the top of the document every time they close one — in the
+     * administration's campaign table that means tabbing back through the whole
+     * page to reach the next row. Captured here rather than on the click,
+     * because a dialog can be opened from several places and this is the only
+     * one that knows it happened.
+     *
+     * Deliberately narrow: this restores focus and does nothing else. It does
+     * not trap Tab inside the panel, which is the other half of a dialog's
+     * keyboard contract and is not attempted here — the effect above is the one
+     * whose dependency list once put the focus on the panel after every
+     * keystroke, and a trap is a much larger change to make on the same lines.
+     */
+    const opener = document.activeElement
     panelRef.current?.focus()
+
     return () => {
       document.removeEventListener('keydown', onKey)
       document.body.style.overflow = previous
+      // Only if it is still on the page and is not the body itself — a row that
+      // was deleted while the dialog was open has nothing left to focus.
+      if (
+        opener instanceof HTMLElement &&
+        opener !== document.body &&
+        opener.isConnected
+      ) {
+        opener.focus()
+      }
     }
   }, [open])
 
@@ -944,7 +1014,10 @@ export function EmptyState({
           {icon}
         </div>
       )}
-      <h3 className="text-base font-bold text-ink-800">{title}</h3>
+      {/* `h2` for the same reason the footer's column titles are: an empty
+          state is usually the only thing in its section, and following an `h1`
+          with an `h3` skips a level. The size is a class, not the tag. */}
+      <h2 className="text-base font-bold text-ink-800">{title}</h2>
       {body && <p className="max-w-sm text-sm leading-relaxed text-ink-500">{body}</p>}
       {action && <div className="mt-2">{action}</div>}
     </div>
@@ -960,6 +1033,7 @@ export function SectionHeading({
   action,
   align = 'start',
   className,
+  level = 2,
 }: {
   eyebrow?: string
   title: string
@@ -967,7 +1041,18 @@ export function SectionHeading({
   action?: ReactNode
   align?: 'start' | 'center'
   className?: string
+  /**
+   * The heading level, for the one caller where this *is* the page title.
+   *
+   * `h2` everywhere else, which is what a section heading is. The map page uses
+   * this component for its own title and had no `h1` at all as a result — a
+   * page with no top-level heading, which is the first thing a screen reader
+   * looks for. A prop rather than a second component, because the difference
+   * between the two cases is one tag and nothing else.
+   */
+  level?: 1 | 2
 }) {
+  const Heading = level === 1 ? 'h1' : 'h2'
   return (
     <div
       className={cx(
@@ -978,7 +1063,7 @@ export function SectionHeading({
     >
       <div className={cx('max-w-2xl', align === 'center' && 'mx-auto text-center')}>
         {eyebrow && <p className="eyebrow mb-3">{eyebrow}</p>}
-        <h2 className="display text-3xl text-nasek-900 sm:text-5xl">{title}</h2>
+        <Heading className="display text-3xl text-nasek-900 sm:text-5xl">{title}</Heading>
         <div
           className={cx(
             'rule-gold mt-3.5 w-16',

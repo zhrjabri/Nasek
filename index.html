@@ -12,12 +12,20 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <!--
-      Droid Arabic Kufi is only published through the Google Fonts "early
-      access" endpoint, which has no versioning and can be flaky. Noto Kufi
-      Arabic loads from the supported API right behind it as a same-genre
-      fallback, so the page never drops to a non-Kufi Arabic face.
+      Noto Kufi Arabic is the Kufi face, and now the only one.
+
+      Droid Arabic Kufi used to be listed ahead of it, loaded from the Google
+      Fonts "early access" endpoint. Google has retired the files behind that
+      endpoint: the stylesheet still serves, every `@font-face` in it still
+      parses, and every URL it names — .woff2, .woff, .ttf, .eot — answers 404.
+      So each page load fetched a render-blocking stylesheet and then failed six
+      font requests, and Arabic rendered in Noto Kufi anyway, because that is
+      what a failed face falls through to.
+
+      Removing it changes no pixel. It removes a blocking request, six failures
+      in every visitor's network log, and a font stack that named a face nobody
+      has been served since Google withdrew it.
     -->
-    <link href="https://fonts.googleapis.com/earlyaccess/droidarabickufi.css" rel="stylesheet" />
     <link
       href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@400;500;600;700&family=Cormorant+Garamond:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Amiri:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600&display=swap"
       rel="stylesheet"

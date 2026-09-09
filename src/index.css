@@ -55,9 +55,9 @@
   /* --- Type ---
      Arabic is primary and set in Kufi, as specified. Latin display is a
      Garamond so the two scripts share the same classical register. */
-  --font-ar: 'Droid Arabic Kufi', 'Noto Kufi Arabic', 'Segoe UI', ui-sans-serif, sans-serif;
-  --font-sans: 'Plus Jakarta Sans', 'Droid Arabic Kufi', 'Noto Kufi Arabic', ui-sans-serif, sans-serif;
-  --font-display: 'Cormorant Garamond', 'Droid Arabic Kufi', Georgia, serif;
+  --font-ar: 'Noto Kufi Arabic', 'Segoe UI', ui-sans-serif, sans-serif;
+  --font-sans: 'Plus Jakarta Sans', 'Noto Kufi Arabic', ui-sans-serif, sans-serif;
+  --font-display: 'Cormorant Garamond', 'Noto Kufi Arabic', Georgia, serif;
 
   /* --- The home page's own two faces ---
      Scoped to the journey home page and nowhere else, which is why they sit
