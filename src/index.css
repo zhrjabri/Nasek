@@ -59,6 +59,18 @@
   --font-sans: 'Plus Jakarta Sans', 'Droid Arabic Kufi', 'Noto Kufi Arabic', ui-sans-serif, sans-serif;
   --font-display: 'Cormorant Garamond', 'Droid Arabic Kufi', Georgia, serif;
 
+  /* --- The home page's own two faces ---
+     Scoped to the journey home page and nowhere else, which is why they sit
+     beside the site faces rather than replacing them. Kufi is right for the
+     mark and for the small structural labels, and wrong at 80px: its counters
+     interlock and the elegance goes. Amiri is a classical naskh that gets
+     better the larger it is set — which is what a page with no photograph
+     needs — and it carries Latin too, so the English home page is not a
+     different design. Plex Arabic takes the reading sizes, where Kufi's
+     1.95 leading turns a paragraph into a ladder. */
+  --font-journey-display: 'Amiri', 'Cormorant Garamond', Georgia, serif;
+  --font-journey-body: 'IBM Plex Sans Arabic', 'Plus Jakarta Sans', ui-sans-serif, sans-serif;
+
   /* --- Elevation: restrained. Classical layouts rule lines, they don't float. */
   --shadow-soft: 0 1px 2px rgb(20 56 46 / 0.05);
   --shadow-lift: 0 2px 3px rgb(20 56 46 / 0.06), 0 10px 24px -14px rgb(20 56 46 / 0.22);
@@ -152,6 +164,38 @@
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
     }
+  }
+
+  /*
+   * The navigation bar's unscrolled ground, as a variable rather than a class.
+   *
+   * Every page but one wants parchment. The home page wants its own warmer
+   * ivory, and a bar one shade cooler than the page beneath it reads as a
+   * seam across the top of the window. The bar is a child of `body`, so
+   * setting this on `body` reaches it without the bar knowing which route it
+   * is on.
+   */
+  :root {
+    --nasek-nav-ground: var(--color-ivory-100);
+  }
+
+  /* Set by the home page for as long as it is mounted, and only by it. */
+  body[data-canvas='warm'] {
+    background-color: #faf7f0;
+    --nasek-nav-ground: #faf7f0;
+  }
+
+  /* The two grounds the bar can have, as classes rather than an inline style.
+     Kept out of the element for a practical reason as well as a tidy one:
+     `color-mix()` assigned through `style` is rejected by the DOM
+     implementation the interaction harness runs on, which silently took the
+     bar's background with it. */
+  .nav-ground {
+    background-color: var(--nasek-nav-ground);
+  }
+
+  .nav-ground-scrolled {
+    background-color: color-mix(in srgb, var(--nasek-nav-ground) 95%, transparent);
   }
 
   body {
@@ -504,4 +548,103 @@ input[type='range'].nasek-range::-moz-range-thumb {
   border: 1px solid var(--color-ivory-300) !important;
   box-shadow: var(--shadow-lift) !important;
   font-size: 13px;
+}
+
+/* ============================================================================
+   The journey home page
+   Scoped to `.journey`, which only `HomePage` renders. Nothing here reaches
+   another route: the site's own faces, leading and canvas are untouched.
+   ==========================================================================*/
+
+.journey {
+  font-family: var(--font-journey-body);
+  line-height: 1.8;
+}
+
+/* Plex Arabic is a reading face and does not need Kufi's 1.95 — that leading
+   exists to keep Kufi's counters from interlocking, and applied here it opens
+   paragraphs into a ladder. */
+html[dir='rtl'] .journey {
+  font-family: var(--font-journey-body);
+  line-height: 1.85;
+  letter-spacing: 0;
+}
+
+/* The display face. A separate class from `.display` on purpose: the site's
+   own headings keep Garamond and Kufi, and only this page changes. */
+.journey .display-j {
+  font-family: var(--font-journey-display);
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  line-height: 1.14;
+}
+
+html[dir='rtl'] .journey .display-j {
+  letter-spacing: 0;
+  /* Naskh needs more room than Latin at display size — its descenders are
+     long and its dots sit high — but nothing like Kufi's 1.55. */
+  line-height: 1.38;
+}
+
+/*
+ * Section reveals.
+ *
+ * Visible at rest. `data-armed` is written by the client only once it has
+ * decided motion is wanted, so the server-rendered page, a page with no
+ * JavaScript, and a reader who asked for reduced motion all get the final
+ * state on the first frame — there is no configuration in which content waits
+ * on an observer to become readable.
+ */
+.journey .reveal[data-armed='true'] {
+  opacity: 0;
+  transform: translateY(14px);
+}
+
+.journey .reveal[data-armed='true'][data-shown='true'] {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.42s var(--ease-out-soft) var(--reveal-delay, 0ms),
+    transform 0.42s var(--ease-out-soft) var(--reveal-delay, 0ms);
+}
+
+/* The hero headline rises out of its own line box rather than fading. The
+   padding is what keeps the gold rule under the emphasised words inside the
+   mask; without it `overflow: hidden` clips the rule away. */
+.journey .line-mask {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.14em;
+  margin-bottom: -0.14em;
+}
+
+.journey .line-mask > span {
+  display: block;
+}
+
+.journey .line-mask[data-armed='true'] > span {
+  transform: translateY(125%);
+}
+
+.journey .line-mask[data-armed='true'][data-shown='true'] > span {
+  transform: none;
+  transition: transform 0.7s var(--ease-out-soft) var(--reveal-delay, 0ms);
+}
+
+/* The eight-point khatim behind the hero. One turn every two minutes, at an
+   opacity where you feel it and never catch it moving. */
+@keyframes nasek-khatim {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.journey .khatim {
+  animation: nasek-khatim 120s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .journey .khatim {
+    animation: none;
+  }
 }

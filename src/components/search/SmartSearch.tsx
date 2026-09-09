@@ -31,8 +31,19 @@ export function SmartSearch({ variant = 'hero' }: { variant?: 'hero' | 'panel' }
   return (
     <div
       className={cx(
-        'w-full rounded-[3px] border bg-ivory-50/95 p-4 shadow-lift backdrop-blur-sm sm:p-5',
-        variant === 'hero' ? 'border-ivory-300/80' : 'border-ivory-300',
+        // The shadow and the backdrop blur went with the photograph. There is
+        // nothing behind this control any more — it sits on the home page's
+        // ivory — and a lifted card on a flat ground is the one thing that
+        // page is built to avoid. A gold hairline says "this is the control"
+        // without floating it.
+        'w-full rounded-[3px] border p-4 sm:p-5',
+        // On the home page the panel takes the page's own ground, so the one
+        // white surface inside it is the input — which is the thing being
+        // offered. A white slab on ivory reads as a card that arrived from
+        // somewhere else.
+        variant === 'hero'
+          ? 'border-gold-300/70 bg-transparent'
+          : 'border-ivory-300 bg-ivory-50',
       )}
     >
       {/* The mode switch sat right above a filled submit button, so the panel

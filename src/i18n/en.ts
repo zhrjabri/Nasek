@@ -100,13 +100,15 @@ export const en = {
 
   // ------------------------------------------------------------------ hero
   'hero.eyebrow': 'The first platform gathering Oman’s Hajj & Umrah campaigns',
-  'hero.title': 'Your journey begins with the right campaign.',
+  'hero.titlePre': 'Your journey to ',
+  'hero.titleMark': 'the House of God',
+  'hero.titlePost': ',',
+  'hero.titleB': 'begins here',
   'hero.subtitle':
     'Discover Hajj and Umrah campaigns easily, and find the right one for your journey.',
   'hero.trust': 'Every campaign here is trusted and approved by NASEK',
   'hero.ctaPrimary': 'Find your campaign',
   'hero.ctaSecondary': 'Browse campaigns',
-  'hero.imageAlt': 'Pilgrims circling the Kaaba in the courtyard of the Grand Mosque at sunset, the clock tower rising behind',
   'hero.statCampaigns': 'campaigns listed',
   'hero.statProviders': 'campaign owners',
   'hero.statWilayat': 'wilayat covered',
@@ -290,6 +292,17 @@ export const en = {
   'home.mapSub': 'Pick a wilayah to see which campaigns depart from there.',
   'home.finalCta.title': 'Ready to find your campaign?',
   'home.finalCta.body': 'Answer seven short questions and see your best matches in under a minute.',
+  'home.stage1': 'Start your journey',
+  'home.stage2': 'Find what suits you',
+  'home.stage3': 'Discover campaigns',
+  'home.stage4': 'From Oman to your destination',
+  'home.stage5': 'Your journey, step by step',
+  'home.stage6': 'Travel with confidence',
+  'home.stage7': 'Giving',
+  'home.stage8': 'The journey starts now',
+  'home.emptyCampaigns': 'No campaigns are listed right now. They open at the start of each season.',
+  'home.openNow': 'Open for booking now',
+  'home.smartTitle': 'Seven short questions. One result that fits you.',
 
   // ------------------------------------------------------------------- map
   'map.title': 'Campaigns by wilayah',

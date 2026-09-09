@@ -1,20 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowLeft,
   ArrowRight,
   BadgeCheck,
-  Check,
-  Coins,
-  Compass,
-  Eye,
-  HeartHandshake,
   MapPinned,
   Quote,
-  Search,
-  ShieldCheck,
   Sparkles,
-  Ticket,
 } from 'lucide-react'
 import type { Campaign } from '@/types'
 import { useI18n, type MessageKey } from '@/i18n'
@@ -23,31 +15,50 @@ import { WILAYAT } from '@/data/geo'
 import { campaignsApi } from '@/services/api/campaigns'
 import { useCatalogue } from '@/hooks/useCatalogue'
 import { useStore } from '@/store/AppStore'
-import { CampaignCard, CampaignCardSkeleton } from '@/components/campaign/CampaignCard'
 import { SmartSearch } from '@/components/search/SmartSearch'
 import { OmanMap } from '@/components/map/OmanMap'
-import { Badge, LinkButton, Ornament, Rating, RuleLink, SectionHeading } from '@/components/ui'
-
-import heroWide from '@/assets/hero/kaaba-wide.jpg'
-import heroWideWebp from '@/assets/hero/kaaba-wide.webp'
-import heroWideAvif from '@/assets/hero/kaaba-wide.avif'
-import heroWideSm from '@/assets/hero/kaaba-wide-sm.jpg'
-import heroWideSmWebp from '@/assets/hero/kaaba-wide-sm.webp'
-import heroWideSmAvif from '@/assets/hero/kaaba-wide-sm.avif'
-import heroTall from '@/assets/hero/kaaba-tall.jpg'
-import heroTallWebp from '@/assets/hero/kaaba-tall.webp'
-import heroTallAvif from '@/assets/hero/kaaba-tall.avif'
+import { Badge, LinkButton, Rating, RuleLink, cx } from '@/components/ui'
+import { CampaignIndex, CampaignIndexSkeleton } from '@/components/home/CampaignIndex'
+import {
+  CountUp,
+  HeroArch,
+  JourneyLine,
+  JourneyNode,
+  MaskedLine,
+  Reveal,
+} from '@/components/home/Journey'
 
 /**
- * A 32×21 blur of the hero photograph, inlined as a data URI.
+ * The home page, as one journey from Oman to Makkah.
  *
- * Roughly 1.5 KB, which buys the hero its ground from the first frame instead
- * of a white flash under white type. Recut whenever the photograph changes —
- * a blur of the wrong picture is worse than none, because it resolves into
- * something else.
+ * It used to open on a photograph of the Haram — the same photograph every
+ * Hajj and Umrah operator in the region opens on, which is exactly why it
+ * could never make NASEK distinctive. It is gone, and nothing replaced it in
+ * kind. The destination is not shown here at all; it is approached.
+ *
+ * What carries the page instead is a single gold hairline. It begins at the
+ * foot of an arch in the hero and runs the whole length of the document,
+ * drawing itself against scroll position and lighting a marker at each of the
+ * eight stages. The sections are not eight independent blocks that happen to
+ * sit near each other — they are eight places the line passes through, and
+ * the numbering in each eyebrow is the reader's position on it.
+ *
+ * Three things are load-bearing about how this is built:
+ *
+ *   The page is readable before any of that runs. Every reveal starts from its
+ *   final state, and `Journey.tsx` arms them only once the client has decided
+ *   motion is wanted. Reduced motion, no JavaScript and the server render all
+ *   produce the finished page on the first frame.
+ *
+ *   The warm canvas belongs to this route and no other. `data-canvas` is set on
+ *   `body` while this page is mounted and removed when it unmounts, which also
+ *   carries the navigation bar's ground with it — see `--nasek-nav-ground`.
+ *
+ *   Every figure on it is real. The counts are the session catalogue's, the
+ *   campaigns are the ones an owner published and an administrator featured,
+ *   and the quotes are reviews left after trips booked through the platform.
+ *   There is no placeholder number anywhere on this page.
  */
-const LQIP = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABMNDhEODBMRDxEVFBMXHTAfHRoaHToqLCMwRT1JR0Q9Q0FMVm1dTFFoUkFDX4JgaHF1e3x7SlyGkIV3j214e3b/2wBDARQVFR0ZHTgfHzh2T0NPdnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnb/wAARCAAVACADASIAAhEBAxEB/8QAGQAAAgMBAAAAAAAAAAAAAAAAAAMBAgQF/8QAJBAAAgIBAwQCAwAAAAAAAAAAAQIDEQAEEiETIjFBUWFxoeH/xAAWAQEBAQAAAAAAAAAAAAAAAAACAQP/xAAYEQEAAwEAAAAAAAAAAAAAAAAAAQIREv/aAAwDAQACEQMRAD8AgwqQSOfxizGp4AYEfIxS69OnThw3s81mPX69kAET7Qb7vJ/mCt7ac1htkTZGzVdC8SvdCrGhY95zF1k7yLHJPYPoiv3mkAA2zg1fAs8Zp3jPlfTxGSNXLUDIy0B6F5WTSJMz9Qsdj7Rz8gYYYcg1ItHE08jDcDE5Uc+aGMddrRCyd4N/XF4YZchH/9k='
-
 export function HomePage() {
   const { t, lang, isRtl, n, bl } = useI18n()
   const { campaigns, providers, getProvider } = useCatalogue()
@@ -55,8 +66,24 @@ export function HomePage() {
   const [featured, setFeatured] = useState<Campaign[] | null>(null)
   const [popular, setPopular] = useState<Campaign[] | null>(null)
   const [mapWilayah, setMapWilayah] = useState<string | null>(null)
+  const journeyRef = useRef<HTMLDivElement>(null)
 
   const Arrow = isRtl ? ArrowLeft : ArrowRight
+
+  /*
+   * The home page's own canvas, for as long as it is the page.
+   *
+   * An attribute on `body` rather than a class on this component, because the
+   * two things that need to know are outside it: the document background,
+   * which shows through under a short page and behind the overscroll, and the
+   * navigation bar, which is a sibling. Both read `--nasek-nav-ground`.
+   */
+  useEffect(() => {
+    document.body.dataset.canvas = 'warm'
+    return () => {
+      delete document.body.dataset.canvas
+    }
+  }, [])
 
   useEffect(() => {
     let live = true
@@ -84,243 +111,271 @@ export function HomePage() {
     [campaigns, providers, t],
   )
 
-  /** The three five-star quotes the home page pulls out, if there are any. */
-  const testimonials = reviews.filter(
-    (r) => r.rating === 5 && !r.hidden && !hiddenReviewIds.includes(r.id),
-  ).slice(0, 3)
+  /* What is actually open, counted off the catalogue rather than asserted. */
+  const openNow = useMemo(
+    () => [
+      { label: t('common.umrah'), value: campaigns.filter((c) => c.type === 'umrah').length },
+      { label: t('common.hajj'), value: campaigns.filter((c) => c.type === 'hajj').length },
+      {
+        label: t('hero.statWilayat'),
+        value: new Set(campaigns.map((c) => c.wilayahId)).size,
+      },
+    ],
+    [campaigns, t],
+  )
 
-  const mapCampaigns = mapWilayah
-    ? campaigns.filter((c) => c.wilayahId === mapWilayah)
-    : []
+  /** The three five-star quotes the home page pulls out, if there are any. */
+  const testimonials = reviews
+    .filter((r) => r.rating === 5 && !r.hidden && !hiddenReviewIds.includes(r.id))
+    .slice(0, 3)
+
+  const mapCampaigns = mapWilayah ? campaigns.filter((c) => c.wilayahId === mapWilayah) : []
 
   return (
-    <main>
-      {/* ===================================================== hero ===== */}
+    <main className="journey">
       {/*
-        The photograph carries the page, and the type sits in the corner of it.
-
-        This is bottom-anchored rather than centred, and that is the decision
-        the rest follows from. A centred plate has to darken whatever is behind
-        it, because type lands wherever the picture is busiest; type gathered
-        into the bottom-start corner only needs the bottom of the frame dimmed,
-        which leaves the arcade, the courtyard and the Kaaba themselves in open
-        light. The gold rule that used to box this content in is gone with the
-        plate — a border around everything is not an accent.
-
-        `-mt-17` pulls the section up under the navigation bar, which goes
-        transparent here, so the picture starts at the top of the window. The
-        matching `pt-17` inside keeps the content clear of it.
+        Everything the line passes through lives inside this element, and the
+        line is drawn across it. It is the positioning context and the height
+        the scroll progress is measured against, so the footer — which is not
+        part of the journey — sits outside it.
       */}
-      <section className="on-dark relative isolate -mt-17 flex min-h-[88dvh] items-end overflow-hidden sm:min-h-[80dvh]">
-        <HeroBackdrop alt={t('hero.imageAlt')} />
+      <div ref={journeyRef} className="relative">
+        <JourneyLine containerRef={journeyRef} />
 
-        <div className="mx-auto w-full max-w-7xl px-4 pt-17 pb-20 sm:px-6 sm:pb-24 lg:px-8">
-          <div className="max-w-2xl">
-            <p className="eyebrow text-gold-300">{t('hero.eyebrow')}</p>
+        {/* ============================================ 01 · start ===== */}
+        <section className="relative isolate overflow-hidden">
+          {/*
+            The hero's structure, with no photograph in it.
 
-            <h1 className="display on-photo mt-4 text-balance text-[clamp(2.5rem,6vw,4.5rem)] leading-[1.1] text-ivory-50">
-              {t('hero.title')}
-            </h1>
+            An arch and an eight-point khatim, both in gold hairline, both
+            behind the type at an opacity where they read as the paper's own
+            texture rather than as pictures of anything. This is the entire
+            visual device: whitespace, one arch, and very large Arabic.
+          */}
+          <HeroArch
+            className="absolute -top-8 start-[4%] -z-10 hidden h-[560px] w-[min(380px,36vw)] opacity-90 sm:block"
+          />
+          <svg
+            viewBox="0 0 200 200"
+            aria-hidden
+            focusable="false"
+            className="khatim pointer-events-none absolute -top-10 -end-24 -z-10 size-[380px] opacity-[0.045]"
+            fill="none"
+            stroke="var(--color-nasek-900)"
+            strokeWidth="1.4"
+          >
+            <path d="M100 6 L129 71 L194 100 L129 129 L100 194 L71 129 L6 100 L71 71 Z" />
+            <path d="M100 26 L118 82 L174 100 L118 118 L100 174 L82 118 L26 100 L82 82 Z" />
+            <circle cx="100" cy="100" r="58" />
+            <circle cx="100" cy="100" r="34" />
+          </svg>
 
-            <p className="on-photo mt-5 max-w-xl text-md leading-relaxed text-ivory-100/90 sm:text-lg">
-              {t('hero.subtitle')}
-            </p>
+          <div className="mx-auto max-w-6xl px-4 pt-12 pb-6 sm:px-6 sm:pt-16 lg:px-8 lg:pt-20">
+            <div className="grid items-end gap-10 lg:grid-cols-[1.45fr_0.55fr]">
+              <div>
+                <StageLabel index={1} label={t('home.stage1')} />
 
-            {/* A rule, not a box. `border-s` is the start edge, so this sits on
-                the right of the text in Arabic and the left in English without
-                being told which. */}
-            <p className="mt-7 flex items-center gap-2.5 border-s-2 border-gold-400 ps-3.5 text-xs font-semibold text-gold-200">
-              <BadgeCheck className="size-4 shrink-0" strokeWidth={1.9} />
-              {t('hero.trust')}
-            </p>
+                <h1 className="display-j mt-6 text-[clamp(2.25rem,7.2vw,4.75rem)] text-nasek-900">
+                  <MaskedLine delay={100}>
+                    {t('hero.titlePre')}
+                    <span className="relative">
+                      {t('hero.titleMark')}
+                      {/* The one gold mark in the headline. A rule under two
+                          words, not a highlight behind them. */}
+                      <span
+                        aria-hidden
+                        className="absolute inset-x-0 bottom-[0.08em] h-0.5 bg-gold-400/75"
+                      />
+                    </span>
+                    {t('hero.titlePost')}
+                  </MaskedLine>
+                  <MaskedLine delay={190}>
+                    <span className="font-normal text-nasek-700">{t('hero.titleB')}</span>
+                  </MaskedLine>
+                </h1>
 
-            {/* One fill, one frame. Both of these were 50px slabs, which on a
-                390px phone stacked into 112px of solid colour above the fold;
-                they are 44px now, and only the gold one is filled. Gold stays
-                here because this is the brand's one moment on the page — the
-                rest of the site spends it as a hairline. */}
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <LinkButton to="/campaigns" variant="gold">
-                {t('hero.ctaSecondary')}
-                <Arrow className="size-4" />
-              </LinkButton>
-              <LinkButton to="/smart-match" variant="hairlineDark">
-                <Compass className="size-4" />
-                {t('hero.ctaPrimary')}
-              </LinkButton>
-            </div>
-          </div>
-        </div>
-      </section>
+                <Reveal as="p" delay={280} className="mt-7 max-w-lg text-md leading-loose text-ink-500">
+                  {t('hero.subtitle')}
+                </Reveal>
 
-      {/* ================================================== the search === */}
-      {/*
-        Lifted off the photograph and onto the seam between the hero and the
-        page, half on each. It was floating in the middle of a picture before,
-        which is a decorative place for the one control most people came to
-        use; straddling the edge makes it the hinge between looking and doing.
-      */}
-      <div className="relative z-20 mx-auto -mt-12 max-w-5xl px-4 sm:px-6 lg:px-8">
-        <SmartSearch />
-      </div>
-
-      {/* ==================================================== the count === */}
-      {/* Ruled into four columns like a printed table, and back on parchment:
-          numbers this small are unreadable over a photograph. */}
-      <section className="mt-14 border-y border-ivory-300 bg-ivory-100">
-        <ul className="mx-auto grid max-w-3xl grid-cols-2 divide-x divide-ivory-300 px-4 py-6 rtl:divide-x-reverse sm:grid-cols-4 sm:px-6">
-          {stats.map((stat) => (
-            <li key={stat.label} className="px-3 py-2 text-center">
-              <p className="nums display text-4xl text-nasek-700">{n(stat.value)}</p>
-              <p className="mt-1 text-2xs font-medium tracking-wide text-ink-500">{stat.label}</p>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {/* ================================================= how it works == */}
-      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <SectionHeading
-          align="center"
-          eyebrow={t('common.appName')}
-          title={t('how.title')}
-          subtitle={t('how.subtitle')}
-        />
-        <ol className="stagger mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {(
-            [
-              { icon: Search, title: 'how.s1.title', body: 'how.s1.body' },
-              { icon: Eye, title: 'how.s2.title', body: 'how.s2.body' },
-              { icon: Check, title: 'how.s3.title', body: 'how.s3.body' },
-              { icon: Ticket, title: 'how.s4.title', body: 'how.s4.body' },
-            ] as { icon: typeof Search; title: MessageKey; body: MessageKey }[]
-          ).map((step, i) => (
-            <li
-              key={step.title}
-              className="surface relative flex flex-col items-center gap-3 px-5 pb-6 pt-8 text-center transition-colors hover:border-gold-300"
-            >
-              {/* the step number sits in a rotated square, plate-style */}
-              <span className="absolute -top-3.5 start-1/2 flex size-7 -translate-x-1/2 rotate-45 items-center justify-center border border-gold-400 bg-ivory-50 rtl:translate-x-1/2">
-                <span className="nums -rotate-45 text-2xs font-bold text-gold-700">
-                  {i + 1}
-                </span>
-              </span>
-              <span className="flex size-11 items-center justify-center border border-nasek-200 bg-nasek-50 text-nasek-700">
-                <step.icon className="size-5" strokeWidth={1.7} />
-              </span>
-              <h3 className="display text-xl text-nasek-900">{t(step.title)}</h3>
-              <p className="text-sm leading-relaxed text-ink-500">{t(step.body)}</p>
-            </li>
-          ))}
-        </ol>
-      </section>
-
-      {/* =================================================== featured ==== */}
-      <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <SectionHeading
-          eyebrow={t('common.demoData')}
-          title={t('home.featured')}
-          subtitle={t('home.featuredSub')}
-          action={<RuleLink to="/campaigns">{t('common.viewAll')}</RuleLink>}
-        />
-        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {featured
-            ? featured.slice(0, 3).map((c) => <CampaignCard key={c.id} campaign={c} />)
-            : [0, 1, 2].map((i) => <CampaignCardSkeleton key={i} />)}
-        </div>
-      </section>
-
-      {/* ======================================================= why ===== */}
-      <section className="border-y border-ivory-300 bg-ivory-200/50">
-        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-          <SectionHeading title={t('why.title')} subtitle={t('why.subtitle')} />
-          <ul className="stagger mt-10 grid gap-x-8 gap-y-9 sm:grid-cols-2 lg:grid-cols-3">
-            {(
-              [
-                { icon: MapPinned, n: 1 },
-                { icon: Coins, n: 2 },
-                { icon: Ticket, n: 3 },
-                { icon: Quote, n: 4 },
-                { icon: Compass, n: 5 },
-                { icon: ShieldCheck, n: 6 },
-              ] as const
-            ).map((item) => (
-              <li key={item.n} className="flex gap-4">
-                <span className="flex size-10 shrink-0 items-center justify-center border border-gold-300 bg-ivory-50 text-nasek-700">
-                  <item.icon className="size-[18px]" strokeWidth={1.7} />
-                </span>
-                <div>
-                  <h3 className="text-md font-bold text-ink-900">
-                    {t(`why.${item.n}.title` as MessageKey)}
-                  </h3>
-                  <p className="mt-1.5 text-sm leading-relaxed text-ink-500">
-                    {t(`why.${item.n}.body` as MessageKey)}
+                <Reveal delay={340}>
+                  <p className="mt-6 flex items-center gap-2.5 text-xs font-semibold text-gold-700">
+                    <BadgeCheck className="size-4 shrink-0" strokeWidth={1.9} />
+                    {t('hero.trust')}
                   </p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
+                </Reveal>
+              </div>
 
-      {/* ==================================================== popular ==== */}
-      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <SectionHeading title={t('home.popular')} subtitle={t('home.popularSub')} />
-        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {popular
-            ? popular.map((c) => <CampaignCard key={c.id} campaign={c} compact />)
-            : [0, 1, 2, 3].map((i) => <CampaignCardSkeleton key={i} />)}
-        </div>
-      </section>
+              {/* What is open, off the catalogue. Ruled, not boxed. */}
+              <Reveal delay={400} className="lg:pb-2">
+                <p className="eyebrow text-gold-600">{t('home.openNow')}</p>
+                <ul className="mt-4 border-t border-ivory-300">
+                  {openNow.map((item) => (
+                    <li
+                      key={item.label}
+                      className="flex items-baseline justify-between gap-4 border-b border-ivory-200 py-3"
+                    >
+                      <span className="text-sm text-ink-500">{item.label}</span>
+                      <span className="nums display-j text-xl text-nasek-800">{n(item.value)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </Reveal>
+            </div>
 
-      {/* ======================================================== map ==== */}
-      <section className="border-y border-ivory-300 bg-ivory-50">
-        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-          <SectionHeading title={t('home.mapTitle')} subtitle={t('home.mapSub')} />
-          <div className="mt-8 grid gap-8 lg:grid-cols-[1.2fr_1fr]">
-            <OmanMap
-              campaigns={campaigns}
-              selectedId={mapWilayah}
-              onSelect={setMapWilayah}
-              className="rounded-[3px] border border-ivory-300 bg-ivory-50/50 p-4"
-            />
+            {/* The one control most people came to use, on the seam between
+                the opening and the page. */}
+            <Reveal delay={460} className="mt-10 sm:mt-12">
+              <SmartSearch />
+            </Reveal>
 
-            <div>
+            {/* The count, ruled into four columns like a printed table. */}
+            {/* No dividers between these. Four figures on one rule read as a
+                table; four figures in four ruled cells read as four boxes,
+                which is the thing this page is built to avoid. */}
+            <ul className="mt-10 grid grid-cols-2 gap-x-6 gap-y-2 border-t border-ivory-300 pt-5 sm:grid-cols-4">
+              {stats.map((stat) => (
+                <li key={stat.label} className="py-1">
+                  <p className="nums display-j text-3xl text-nasek-800 sm:text-4xl">
+                    <CountUp value={stat.value} format={(v) => n(v)} />
+                  </p>
+                  <p className="mt-1.5 text-2xs tracking-wide text-ink-400">{stat.label}</p>
+                </li>
+              ))}
+            </ul>
+
+            <JourneyNode x={22} />
+          </div>
+        </section>
+
+        {/* ======================================== 02 · smart match ===== */}
+        <Stage index={2} label={t('home.stage2')} nodeX={76} tone="band">
+          <StageHeading title={t('home.smartTitle')} subtitle={t('smart.subtitle')} />
+
+          <div className="mt-10 grid gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-center lg:gap-16">
+            <Reveal as="ol" className="border-t border-ivory-300">
+              {(['smart.q1', 'smart.q2', 'smart.q3', 'smart.q4'] as MessageKey[]).map(
+                (key, i) => (
+                  <li
+                    key={key}
+                    className="grid grid-cols-[2rem_1fr] gap-4 border-b border-ivory-200 py-4"
+                  >
+                    <span className="nums pt-1.5 text-xs font-bold text-gold-400">
+                      {String(i + 1).padStart(2, '0')}
+                    </span>
+                    <span>
+                      <span className="display-j block text-lg text-nasek-900 sm:text-xl">
+                        {t(key)}
+                      </span>
+                      <span className="mt-1 block text-sm text-ink-400">
+                        {t(`${key}hint` as MessageKey)}
+                      </span>
+                    </span>
+                  </li>
+                ),
+              )}
+            </Reveal>
+
+            <Reveal delay={120}>
+              <p className="nums display-j text-[clamp(3rem,9vw,5rem)] leading-none text-nasek-800">
+                <CountUp value={campaigns.length} format={(v) => n(v)} />
+              </p>
+              <p className="mt-3 text-md text-ink-500">{t('hero.statCampaigns')}</p>
+              <p className="mt-5 max-w-sm text-sm leading-relaxed text-ink-400">
+                {t('smart.answeredNote')}
+              </p>
+              <div className="mt-8">
+                <LinkButton to="/smart-match">
+                  <Sparkles className="size-4" />
+                  {t('smart.start')}
+                </LinkButton>
+              </div>
+            </Reveal>
+          </div>
+        </Stage>
+
+        {/* =========================================== 03 · campaigns ===== */}
+        <Stage index={3} label={t('home.stage3')} nodeX={28}>
+          <StageHeading
+            title={t('home.featured')}
+            subtitle={t('home.featuredSub')}
+            action={<RuleLink to="/campaigns">{t('common.viewAll')}</RuleLink>}
+          />
+
+          {/* Three states, not two. The catalogue is empty until an owner
+              publishes something and an administrator approves it, and an
+              index of nothing under a heading promising featured trips reads
+              as a fault rather than as a season that has not opened. */}
+          {!featured ? (
+            <CampaignIndexSkeleton />
+          ) : featured.length > 0 ? (
+            <CampaignIndex campaigns={featured.slice(0, 4)} />
+          ) : (
+            <p className="mt-8 border-t border-ivory-300 pt-6 text-md text-ink-500">
+              {t('home.emptyCampaigns')}
+            </p>
+          )}
+
+          {/* The season's most booked, kept from the old page and set as a
+              second, quieter index rather than a second grid of cards. It is
+              dropped altogether when there is nothing in it — a second empty
+              heading says nothing the first has not. */}
+          {(!popular || popular.length > 0) && (
+            <div className="mt-16">
+              <h3 className="eyebrow text-gold-600">{t('home.popular')}</h3>
+              <p className="mt-2 text-sm text-ink-400">{t('home.popularSub')}</p>
+              {popular ? (
+                <CampaignIndex campaigns={popular.slice(0, 3)} />
+              ) : (
+                <CampaignIndexSkeleton rows={3} />
+              )}
+            </div>
+          )}
+        </Stage>
+
+        {/* ================================================= 04 · map ===== */}
+        <Stage index={4} label={t('home.stage4')} nodeX={78} tone="band">
+          <StageHeading title={t('home.mapTitle')} subtitle={t('home.mapSub')} />
+
+          <Reveal className="mt-10 grid gap-10 lg:grid-cols-[1.2fr_1fr]">
+            {/* The map keeps its real coastline and its real markers, and
+                loses the box it used to sit in. */}
+            <OmanMap campaigns={campaigns} selectedId={mapWilayah} onSelect={setMapWilayah} />
+
+            <div className="lg:border-s lg:border-ivory-300 lg:ps-10">
               {mapWilayah ? (
                 <>
-                  <h3 className="text-lg font-bold text-ink-900">
+                  <h3 className="display-j text-2xl text-nasek-900">
                     {t('map.campaignsIn', {
                       name: WILAYAT.find((w) => w.id === mapWilayah)?.name[lang] ?? '',
                     })}
                   </h3>
-                  <p className="mt-1 text-sm text-ink-400">
+                  <p className="mt-1.5 text-sm text-ink-400">
                     {mapCampaigns.length === 1
                       ? t('map.countOne')
                       : t('map.count', { n: mapCampaigns.length })}
                   </p>
-                  <ul className="mt-4 space-y-2.5">
+                  <ul className="mt-6 border-t border-ivory-300">
                     {mapCampaigns.slice(0, 5).map((c) => {
                       const provider = getProvider(c.providerId)
                       return (
                         <li key={c.id}>
                           <Link
                             to={`/campaigns/${c.id}`}
-                            className="flex items-center gap-3 rounded-[3px] border border-ivory-300 bg-ivory-50 p-3 transition-all hover:-translate-y-px hover:border-nasek-200 hover:shadow-soft"
+                            className="group flex items-center gap-3.5 border-b border-ivory-200 py-3.5 transition-colors hover:bg-ivory-50"
                           >
                             <span
-                              className="flex size-10 shrink-0 items-center justify-center rounded-[3px] text-sm font-bold text-white"
+                              className="flex size-9 shrink-0 items-center justify-center rounded-[2px] text-xs font-bold text-white"
                               style={{ background: provider?.brandColor }}
                               aria-hidden
                             >
                               {provider?.initials}
                             </span>
                             <span className="min-w-0 flex-1">
-                              <span className="block truncate text-base font-bold text-ink-900">
+                              <span className="block truncate text-base font-semibold text-ink-900">
                                 {bl(c.title)}
                               </span>
-                              <span className="flex items-center gap-2 text-2xs text-ink-400">
-                                <Rating value={c.rating} size="sm" />
-                              </span>
+                              <Rating value={c.rating} size="sm" />
                             </span>
                             <Badge tone={c.type === 'hajj' ? 'gold' : 'green'}>
                               {t(c.type === 'hajj' ? 'common.hajj' : 'common.umrah')}
@@ -331,201 +386,251 @@ export function HomePage() {
                     })}
                   </ul>
                   {mapCampaigns.length === 0 && (
-                    <p className="rounded-[3px] border border-dashed border-ivory-400 bg-ivory-50 p-5 text-sm text-ink-500">
+                    <p className="border-t border-ivory-300 pt-5 text-sm text-ink-500">
                       {t('map.noneHint')}
                     </p>
                   )}
                 </>
               ) : (
-                <div className="flex h-full flex-col justify-center rounded-[3px] border border-dashed border-ivory-400 bg-ivory-50/60 p-8 text-center">
-                  <MapPinned className="mx-auto size-8 text-nasek-300" />
-                  <p className="mt-3 text-sm font-semibold text-ink-700">{t('map.selectHint')}</p>
-                  <p className="mt-1.5 text-sm text-ink-400">{t('map.subtitle')}</p>
+                <div className="flex h-full flex-col justify-center">
+                  <MapPinned className="size-7 text-gold-400" aria-hidden />
+                  <p className="display-j mt-4 text-xl text-nasek-900">{t('map.selectHint')}</p>
+                  <p className="mt-2 max-w-xs text-sm leading-relaxed text-ink-400">
+                    {t('map.subtitle')}
+                  </p>
                 </div>
               )}
             </div>
-          </div>
-        </div>
-      </section>
+          </Reveal>
+        </Stage>
 
-      {/* ==================================================== reviews ==== */}
-      {/* Dropped entirely rather than left as a heading over an empty grid. */}
-      {testimonials.length > 0 && (
-        <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-          <SectionHeading title={t('home.reviewsTitle')} subtitle={t('home.reviewsSub')} />
-          <ul className="stagger mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {testimonials.map((review) => (
-              <li key={review.id} className="framed flex flex-col gap-4 p-7">
-                <Quote className="size-6 text-gold-400 rtl:-scale-x-100" />
-                <p className="flex-1 text-base leading-relaxed text-ink-700">
-                  {bl(review.comment)}
-                </p>
-                <div className="flex items-center justify-between border-t border-ivory-300 pt-4">
-                  <span className="text-sm font-bold text-ink-800">
-                    {review.userName || t('review.anonymous')}
+        {/* =============================================== 05 · steps ===== */}
+        <Stage index={5} label={t('home.stage5')} nodeX={48}>
+          <StageHeading title={t('how.title')} subtitle={t('how.subtitle')} />
+
+          <Reveal as="ol" className="mt-10 border-t border-ivory-300">
+            {([1, 2, 3, 4] as const).map((step) => (
+              <li
+                key={step}
+                className="grid grid-cols-[2.75rem_1fr] items-start gap-5 border-b border-ivory-200 py-6 sm:gap-7"
+              >
+                {/* The stage marker, echoing the ones on the line itself. */}
+                <span className="nums flex size-11 items-center justify-center rounded-full border border-gold-300 text-xs font-bold text-gold-700">
+                  {String(step).padStart(2, '0')}
+                </span>
+                <span className="pt-1.5">
+                  <span className="display-j block text-xl text-nasek-900 sm:text-2xl">
+                    {t(`how.s${step}.title` as MessageKey)}
                   </span>
-                  <Rating value={review.rating} size="sm" />
-                </div>
+                  <span className="mt-1.5 block max-w-xl text-sm leading-relaxed text-ink-500">
+                    {t(`how.s${step}.body` as MessageKey)}
+                  </span>
+                </span>
               </li>
             ))}
-          </ul>
-        </section>
-      )}
+          </Reveal>
+        </Stage>
 
-      {/*
-        The campaign-owner band used to sit here.
+        {/* =============================================== 06 · trust ===== */}
+        <Stage index={6} label={t('home.stage6')} nodeX={24} tone="band">
+          <StageHeading title={t('why.title')} subtitle={t('why.subtitle')} />
 
-        It was owner marketing on a customer website: a headline, three
-        selling points, a mock dashboard and a button to "list your
-        campaign". All of it is gone, and not only the button — NASEK has
-        three separate applications now, and a pilgrim reading the home
-        page has no reason to be sold a portal they cannot use or told it
-        exists. Campaign owners are taken on by the NASEK team, who give
-        them the portal address directly.
-      */}
+          <Reveal as="ul" className="mt-10 grid gap-x-10 sm:grid-cols-2 lg:grid-cols-3">
+            {([1, 2, 3, 4, 5, 6] as const).map((item) => (
+              <li key={item} className="border-t border-ivory-300 py-6">
+                <h3 className="display-j text-lg text-nasek-900">
+                  {t(`why.${item}.title` as MessageKey)}
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-ink-500">
+                  {t(`why.${item}.body` as MessageKey)}
+                </p>
+              </li>
+            ))}
+          </Reveal>
 
-      {/* ===================================================== giving ==== */}
-      <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
-        <div className="framed flex flex-col items-start gap-6 p-8 sm:flex-row sm:items-center sm:p-10">
-          <span className="flex size-14 shrink-0 items-center justify-center border border-gold-300 bg-gold-50 text-gold-700">
-            <HeartHandshake className="size-7" strokeWidth={1.6} />
-          </span>
-          <div className="flex-1">
-            <h2 className="display text-2xl text-ink-900">{t('giving.title')}</h2>
-            <p className="mt-2 max-w-2xl text-base leading-relaxed text-ink-500">
-              {t('giving.subtitle')}
-            </p>
+          {/* Reviews sit inside trust rather than in a section of their own:
+              a traveller's sentence is evidence, and it belongs with the
+              claims it is evidence for. */}
+          {testimonials.length > 0 && (
+            <Reveal className="mt-16">
+              <h3 className="eyebrow text-gold-600">{t('home.reviewsTitle')}</h3>
+              <ul className="mt-6 grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
+                {testimonials.map((review) => (
+                  <li key={review.id} className="border-t border-ivory-300 pt-6">
+                    <Quote className="size-5 text-gold-400 rtl:-scale-x-100" aria-hidden />
+                    <p className="display-j mt-4 text-lg leading-relaxed text-nasek-800">
+                      {bl(review.comment)}
+                    </p>
+                    <p className="mt-4 text-xs text-ink-400">
+                      {review.userName || t('review.anonymous')}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </Reveal>
+          )}
+        </Stage>
+
+        {/* ============================================== 07 · giving ===== */}
+        {/*
+          The quiet one. Deep green, one sentence, and more whitespace than
+          anything else on the page — no statistics, no filled button, nothing
+          asking to be clicked. `on-dark` raises the focus ring so the one
+          link in here stays visible against the green.
+        */}
+        <section className="on-dark relative mt-8 bg-nasek-950 py-24 text-ivory-100 sm:py-32">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <svg
+              viewBox="0 0 40 40"
+              aria-hidden
+              focusable="false"
+              className="size-7 text-gold-300"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1"
+            >
+              <path d="M20 2 L25 15 L38 20 L25 25 L20 38 L15 25 L2 20 L15 15 Z" />
+            </svg>
+
+            <Reveal>
+              <p className="eyebrow mt-8 text-gold-300">
+                <span className="nums me-2">07</span>
+                {t('home.stage7')}
+              </p>
+              <h2 className="display-j mt-6 max-w-2xl text-[clamp(1.75rem,4.2vw,3rem)] font-normal text-ivory-50">
+                {t('giving.subtitle')}
+              </h2>
+              {/* The planned-programme notice rather than the fuller
+                  description, and not only because the longer one names
+                  campaign owners in wording the public site keeps clear of.
+                  This is the first place most people meet Giving, and the
+                  first thing it should say is that it cannot yet take money. */}
+              <p className="mt-6 max-w-md text-md leading-loose text-ivory-100/70">
+                {t('giving.plannedBody')}
+              </p>
+              <div className="mt-10">
+                <RuleLink to="/giving" onDark>
+                  {t('giving.interest')}
+                </RuleLink>
+              </div>
+            </Reveal>
+            <JourneyNode x={72} />
           </div>
-          <RuleLink to="/giving" className="shrink-0">
-            {t('common.view')}
-          </RuleLink>
-        </div>
-      </section>
+        </section>
 
-      {/* ================================================== final CTA ==== */}
-      <section className="mx-auto max-w-3xl px-4 pb-20 text-center sm:px-6">
-        <Ornament className="mb-8" />
-        <h2 className="display text-4xl text-nasek-900 sm:text-6xl">
-          {t('home.finalCta.title')}
-        </h2>
-        <p className="mt-3 text-md leading-relaxed text-ink-500">{t('home.finalCta.body')}</p>
-        <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <LinkButton to="/smart-match">
-            <Sparkles className="size-4" />
-            {t('smart.start')}
-          </LinkButton>
-          <LinkButton to="/campaigns" variant="hairline">
-            {t('hero.ctaSecondary')}
-          </LinkButton>
-        </div>
-      </section>
+        {/* =============================================== 08 · close ===== */}
+        <section className="relative overflow-hidden py-24 text-center sm:py-32">
+          <HeroArch
+            className="absolute inset-x-0 top-16 -z-10 mx-auto h-[240px] w-[min(320px,72vw)] opacity-70"
+          />
+          <div className="mx-auto max-w-3xl px-4 sm:px-6">
+            <Reveal>
+              <p className="eyebrow justify-center text-gold-600">
+                <span className="nums me-2">08</span>
+                {t('home.stage8')}
+              </p>
+              <h2 className="display-j mt-6 text-[clamp(1.9rem,5.5vw,3.5rem)] text-nasek-900">
+                {t('home.finalCta.title')}
+              </h2>
+              <p className="mx-auto mt-4 max-w-md text-md leading-loose text-ink-500">
+                {t('home.finalCta.body')}
+              </p>
+              <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
+                <LinkButton to="/smart-match">
+                  <Sparkles className="size-4" />
+                  {t('smart.start')}
+                </LinkButton>
+                <LinkButton to="/campaigns" variant="hairline">
+                  {t('hero.ctaSecondary')}
+                  <Arrow className="size-4" />
+                </LinkButton>
+              </div>
+            </Reveal>
+
+            <JourneyNode x={50} />
+
+            {/* The terminus. The line arrives at this star and stops. */}
+            <svg
+              viewBox="0 0 40 40"
+              aria-hidden
+              focusable="false"
+              className="mx-auto mt-14 size-5 text-gold-400"
+              fill="currentColor"
+            >
+              <path d="M20 0 L25.5 14.5 L40 20 L25.5 25.5 L20 40 L14.5 25.5 L0 20 L14.5 14.5 Z" />
+            </svg>
+          </div>
+        </section>
+      </div>
     </main>
   )
 }
 
-/**
- * The Makkah photograph behind the hero, and everything that makes text
- * survive on top of it.
- *
- * Three sources rather than one. A 16:9 crop is the wrong shape for a phone
- * held upright — `object-cover` on a wide file throws away the courtyard and
- * leaves a band of sky — so a 3:4 crop of the same frame is served below
- * 640px, where the Kaaba sits in the middle of the frame at any height the
- * plate grows to. WebP is offered first and a JPEG follows for anything that
- * cannot take it.
- *
- * The blurred thumbnail underneath is inlined rather than fetched: it is the
- * ground the headline is read against for the few hundred milliseconds before
- * a 300 KB photograph arrives, and a request for it would land in the same
- * queue as the photograph itself.
- */
-function HeroBackdrop({ alt }: { alt: string }) {
+// ------------------------------------------------------------------ pieces
+
+/** The numbered stage label. The number is the reader's position on the line. */
+function StageLabel({ index, label }: { index: number; label: string }) {
   return (
-    <div className="absolute inset-0 -z-10" style={{ backgroundColor: '#0d0c0b' }}>
-      <div
-        aria-hidden
-        className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: `url("${LQIP}")` }}
-      />
+    <p className="eyebrow flex items-center gap-3 text-gold-600">
+      <span className="nums text-gold-500">{String(index).padStart(2, '0')}</span>
+      {label}
+      <span aria-hidden className="h-px w-14 bg-gold-300 sm:w-24" />
+    </p>
+  )
+}
 
-      {/* `<picture>` is an inline wrapper with no box of its own, so it has to
-          be stretched explicitly — the `<img>` inside it fills this, not the
-          positioned parent. */}
-      <picture className="absolute inset-0 block size-full">
-        <source media="(max-width: 640px)" type="image/avif" srcSet={heroTallAvif} />
-        <source media="(max-width: 640px)" type="image/webp" srcSet={heroTallWebp} />
-        <source media="(max-width: 640px)" srcSet={heroTall} />
-        <source
-          type="image/avif"
-          srcSet={`${heroWideSmAvif} 1100w, ${heroWideAvif} 1536w`}
-          sizes="100vw"
-        />
-        <source
-          type="image/webp"
-          srcSet={`${heroWideSmWebp} 1100w, ${heroWideWebp} 1536w`}
-          sizes="100vw"
-        />
-        <img
-          src={heroWide}
-          srcSet={`${heroWideSm} 1100w, ${heroWide} 1536w`}
-          sizes="100vw"
-          alt={alt}
-          // The hero image is the largest paint on the page; letting it load
-          // lazily would be optimising away the one image worth waiting for.
-          loading="eager"
-          fetchPriority="high"
-          decoding="async"
-          // 65% down rather than centred. The Kaaba sits low in this frame —
-          // its base is at 88% of the height — and a centred crop lifts that
-          // base out of shot on a wide, short window. Biasing down holds the
-          // whole cube and the courtyard; there is sky enough to spare.
-          className="size-full object-cover object-[50%_65%]"
-        />
-      </picture>
+/**
+ * One stage of the journey.
+ *
+ * `tone="band"` is the alternating warmer ground that separates a stage from
+ * its neighbours without drawing a box around either. It is the only surface
+ * treatment on the page.
+ */
+function Stage({
+  index,
+  label,
+  nodeX,
+  tone = 'canvas',
+  children,
+}: {
+  index: number
+  label: string
+  nodeX: number
+  tone?: 'canvas' | 'band'
+  children: ReactNode
+}) {
+  return (
+    <section className={cx('py-20 sm:py-28', tone === 'band' && 'bg-[#f4f0e6]')}>
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <StageLabel index={index} label={label} />
+        {children}
+        <JourneyNode x={nodeX} />
+      </div>
+    </section>
+  )
+}
 
-      {/*
-        One gradient, where the type is — and nothing anywhere else.
-
-        There used to be a flat 45% green wash across the whole frame with a
-        second gradient over it, and between them and the text plate roughly a
-        quarter of the photograph was reaching the eye. The wash is gone.
-
-        The values below carry over unchanged from the previous photograph,
-        and they still fit this one — worth stating, because the two frames are
-        lit in opposite directions. Measured off the source: the bottom fifth,
-        where the type sits, averages 65/255. The crowd there is backlit and
-        already dark, so 0.82 at the very edge is comfortable rather than
-        necessary; it thins to a third of that by a third of the way up and is
-        gone by 60%. The Kaaba, its door and the calligraphy all sit above that
-        line, untouched.
-
-        The bright end of this frame is the top, not the bottom — a sunset sky
-        at 103/255 where the old picture had black cloth. That is what the 0.42
-        scrim over the first 160px is for: it is the transparent navigation's
-        ground, and without it the ivory wordmark would sit on open sky.
-
-        Near-black rather than green, because the photograph has no green in it
-        and multiplying green over gold only dulls the gold. NASEK's green
-        resumes immediately below, in the search card's ground and in the
-        navigation the moment it leaves the picture.
-      */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            'linear-gradient(to top, rgb(9 12 11 / 0.82) 0%, rgb(9 12 11 / 0.26) 34%, transparent 60%)',
-        }}
-        aria-hidden
-      />
-      <div
-        className="absolute inset-x-0 top-0 h-40"
-        style={{ background: 'linear-gradient(to bottom, rgb(9 12 11 / 0.42), transparent)' }}
-        aria-hidden
-      />
-      {/* Brand grain rather than a pattern — at 3% you feel it and never see it.
-          Lower than before: this frame carries its own gold, and the lattice
-          has nothing to add on top of the kiswah's. */}
-      <div className="girih-gold absolute inset-0 opacity-[0.03]" aria-hidden />
+/** A stage's title, its standfirst, and an optional link on the same rule. */
+function StageHeading({
+  title,
+  subtitle,
+  action,
+}: {
+  title: string
+  subtitle?: string
+  action?: ReactNode
+}) {
+  return (
+    <div className="mt-6 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <h2 className="display-j max-w-2xl text-[clamp(1.6rem,4vw,2.75rem)] text-nasek-900">
+          {title}
+        </h2>
+        {subtitle && (
+          <p className="mt-4 max-w-xl text-md leading-loose text-ink-500">{subtitle}</p>
+        )}
+      </div>
+      {action && <div className="shrink-0 sm:pb-2">{action}</div>}
     </div>
   )
 }

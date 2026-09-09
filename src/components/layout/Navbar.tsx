@@ -65,34 +65,27 @@ export function Navbar() {
   const scrolled = scrollY > 8
 
   /*
-   * Over the home page's photograph, this bar has no ground of its own.
+   * The bar has one ground now, and it is a variable.
    *
-   * The home page opens with a full-bleed image of the Haram that runs up
-   * underneath here, and an opaque parchment strip across the top of it cut
-   * the page in half before anybody had read a word. Transparent while it is
-   * over the picture, parchment from the moment it is not.
+   * There used to be a second, transparent state for the home page, which
+   * opened on a full-bleed photograph of the Haram running up underneath
+   * here; ivory type on the picture was the only way the wordmark survived.
+   * The journey home page has no photograph — it opens on ivory — so the
+   * dark state had nothing left to sit on and is gone, along with the
+   * `overHero` branch every control in here carried for it.
    *
-   * The threshold is 120px rather than the 8px that decides `scrolled`,
-   * because these are different questions: `scrolled` asks "has this moved at
-   * all", which is when the bar should gain its blur and its rule; this asks
-   * "is there still photograph behind me", and a nudge of the wheel does not
-   * change the answer.
-   *
-   * The mobile drawer is the one exception. It opens as a parchment panel
-   * hanging off the bottom of this bar, and a transparent header above an
-   * opaque drawer looks like a rendering fault.
+   * What replaced it is `--nasek-nav-ground`: parchment everywhere, and the
+   * home page's warmer ivory while that page is mounted. The bar never learns
+   * which route it is on.
    */
-  const overHero = location.pathname === '/' && scrollY < 120 && !mobileOpen
 
   return (
     <header
       className={cx(
         'sticky top-0 z-50 border-b transition-colors duration-300',
-        overHero
-          ? 'on-dark border-transparent bg-transparent'
-          : scrolled
-            ? 'border-gold-300/60 bg-ivory-100/95 backdrop-blur-md'
-            : 'border-ivory-300 bg-ivory-100',
+        scrolled
+          ? 'nav-ground-scrolled border-gold-300/60 backdrop-blur-md'
+          : 'nav-ground border-ivory-300',
       )}
     >
       <nav
@@ -100,7 +93,7 @@ export function Navbar() {
         aria-label={t('common.menu')}
       >
         <Link to="/" className="shrink-0 rounded-[3px]" aria-label={t('common.appName')}>
-          <Logo size="sm" showWordmark tone={overHero ? 'ivory' : 'green'} />
+          <Logo size="sm" showWordmark tone="green" />
         </Link>
 
         {/* -------------------------------------------------- desktop links */}
@@ -112,13 +105,9 @@ export function Navbar() {
                 className={({ isActive }) =>
                   cx(
                     'relative rounded-[2px] px-3.5 py-2 text-base font-semibold tracking-wide transition-colors',
-                    overHero
-                      ? isActive
-                        ? 'text-ivory-50'
-                        : 'text-ivory-100/80 hover:bg-ivory-50/12 hover:text-ivory-50'
-                      : isActive
-                        ? 'text-nasek-800'
-                        : 'text-ink-500 hover:bg-ivory-200/70 hover:text-ink-800',
+                    isActive
+                      ? 'text-nasek-800'
+                      : 'text-ink-500 hover:bg-ivory-200/70 hover:text-ink-800',
                   )
                 }
               >
@@ -126,12 +115,7 @@ export function Navbar() {
                   <>
                     {t(link.key)}
                     {isActive && (
-                      <span
-                        className={cx(
-                          'absolute inset-x-3 -bottom-[9px] h-px',
-                          overHero ? 'bg-gold-300' : 'bg-gold-500',
-                        )}
-                      />
+                      <span className="absolute inset-x-3 -bottom-[9px] h-px bg-gold-500" />
                     )}
                   </>
                 )}
@@ -145,12 +129,7 @@ export function Navbar() {
           <button
             type="button"
             onClick={toggleLang}
-            className={cx(
-              'flex items-center gap-1.5 rounded-[3px] px-2.5 py-2 text-sm font-semibold transition-colors',
-              overHero
-                ? 'text-ivory-100/85 hover:bg-ivory-50/12 hover:text-ivory-50'
-                : 'text-ink-600 hover:bg-ivory-200 hover:text-ink-900',
-            )}
+            className="flex items-center gap-1.5 rounded-[3px] px-2.5 py-2 text-sm font-semibold text-ink-600 transition-colors hover:bg-ivory-200 hover:text-ink-900"
             aria-label={t('common.language')}
           >
             <Globe className="size-4" strokeWidth={2} />
@@ -168,7 +147,7 @@ export function Navbar() {
                 label={t('nav.saved')}
                 count={savedIds.length}
                 icon={<Bookmark className="size-[18px]" strokeWidth={2} />}
-                className={cx('hidden sm:inline-flex', overHero && 'text-ivory-100/85 hover:bg-ivory-50/12 hover:text-ivory-50')}
+                className="hidden sm:inline-flex"
               />
               <IconLink
                 to="/dashboard?tab=notifications"
@@ -176,7 +155,7 @@ export function Navbar() {
                 count={unreadCount}
                 tone="gold"
                 icon={<Bell className="size-[18px]" strokeWidth={2} />}
-                className={cx('hidden sm:inline-flex', overHero && 'text-ivory-100/85 hover:bg-ivory-50/12 hover:text-ivory-50')}
+                className="hidden sm:inline-flex"
               />
             </>
           )}
@@ -189,12 +168,7 @@ export function Navbar() {
                 onClick={() => setMenuOpen((v) => !v)}
                 aria-expanded={menuOpen}
                 aria-haspopup="menu"
-                className={cx(
-                  'flex items-center gap-2 rounded-[3px] border ps-1.5 pe-2.5 py-1.5 transition-colors',
-                  overHero
-                    ? 'border-ivory-50/30 bg-ivory-50/10 backdrop-blur-sm hover:border-gold-300'
-                    : 'border-ivory-400 bg-ivory-50 hover:border-nasek-600',
-                )}
+                className="flex items-center gap-2 rounded-[3px] border border-ivory-400 bg-ivory-50 ps-1.5 pe-2.5 py-1.5 transition-colors hover:border-nasek-600"
               >
                 <span
                   className="flex size-7 items-center justify-center rounded-[2px] text-xs font-bold text-ivory-50"
@@ -203,15 +177,10 @@ export function Navbar() {
                 >
                   {user.name.trim().charAt(0)}
                 </span>
-                <span
-                  className={cx(
-                    'hidden max-w-28 truncate text-sm font-semibold sm:block',
-                    overHero ? 'text-ivory-50' : 'text-ink-700',
-                  )}
-                >
+                <span className="hidden max-w-28 truncate text-sm font-semibold text-ink-700 sm:block">
                   {user.name.split(' ')[0]}
                 </span>
-                <ChevronDown className={cx('size-3.5', overHero ? 'text-ivory-100/70' : 'text-ink-400')} />
+                <ChevronDown className="size-3.5 text-ink-400" />
               </button>
 
               {menuOpen && (
@@ -271,18 +240,13 @@ export function Navbar() {
               )}
             </div>
           ) : (
-            <SignInLink overHero={overHero} onClick={() => navigate('/signin')} />
+            <SignInLink onClick={() => navigate('/signin')} />
           )}
 
           <button
             type="button"
             onClick={() => setMobileOpen((v) => !v)}
-            className={cx(
-              'rounded-[3px] p-2 transition-colors lg:hidden',
-              overHero
-                ? 'text-ivory-50 hover:bg-ivory-50/12'
-                : 'text-ink-600 hover:bg-ivory-200',
-            )}
+            className="rounded-[3px] p-2 text-ink-600 transition-colors hover:bg-ivory-200 lg:hidden"
             aria-expanded={mobileOpen}
             aria-label={t('common.menu')}
           >
@@ -382,12 +346,13 @@ export function Navbar() {
  *   centre inside a 40px control and shove the gold rule into the descender of
  *   the ج in تسجيل.
  *
- * Gold rather than glass over the photograph, reversing what the filled button
- * used to do. A hairline is not a second gold button, so it no longer competes
- * with the hero — and `gold-400` is too dark to survive against a bright sky,
- * hence `gold-300` in that state.
+ * Gold rather than a filled button. A hairline is not a second gold button,
+ * so it does not compete with the page it sits over. There used to be a
+ * lighter `gold-300` variant for the home page's photographic hero, where
+ * `gold-400` was too dark to survive against a bright sky; the photograph is
+ * gone and the control has one state again.
  */
-function SignInLink({ overHero, onClick }: { overHero: boolean; onClick: () => void }) {
+function SignInLink({ onClick }: { onClick: () => void }) {
   const { t, lang } = useI18n()
 
   return (
@@ -399,9 +364,7 @@ function SignInLink({ overHero, onClick }: { overHero: boolean; onClick: () => v
         'rounded-[3px] px-1 text-sm font-semibold',
         'transition-colors duration-200 ease-out-soft',
         'focus-visible:outline-2 focus-visible:outline-offset-2',
-        overHero
-          ? 'text-ivory-50/90 hover:text-ivory-50 focus-visible:outline-gold-300'
-          : 'text-ink-700 hover:text-nasek-800 focus-visible:outline-nasek-800',
+        'text-ink-700 hover:text-nasek-800 focus-visible:outline-nasek-800',
       )}
     >
       {/* The full phrase wherever the bar has room for it, and only there. On a
@@ -432,7 +395,7 @@ function SignInLink({ overHero, onClick }: { overHero: boolean; onClick: () => v
           'transition-[width] duration-300 ease-out-soft',
           'group-hover:w-[calc(100%-0.5rem)]',
           '[@media(hover:none)]:w-[calc(100%-0.5rem)]',
-          overHero ? 'bg-gold-300' : 'bg-gold-400',
+          'bg-gold-400',
         )}
       />
     </button>
