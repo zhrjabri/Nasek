@@ -189,8 +189,23 @@ export const ownerEn = {
   'owner.logoRemove': 'Remove Logo',
   'owner.logoHint':
     'PNG, JPG or WebP, up to 2 MB. A square image works best; it is never stretched or cropped.',
+  /*
+   * Five ways a logo can fail to save, and five different things to do about
+   * it. A single "something went wrong" makes the owner retry the one thing
+   * that cannot work. `owner.logoInvalid` — the old catch-all — is kept because
+   * it is the one the file picker shows before an upload is attempted, where
+   * type and size genuinely are one message.
+   */
+  'owner.logoWrongType': 'That file is not a PNG, JPG or WebP image. Please choose one of those.',
+  'owner.logoTooBig': 'That image is larger than 2 MB. Please choose a smaller one.',
+  'owner.logoUploadFailed':
+    'The image could not be uploaded. Check your connection and try again — nothing has changed.',
+  'owner.logoSignedOut': 'Your session has expired. Sign in again and re-upload the logo.',
+  'owner.logoNotAllowed':
+    'NASEK would not accept that file for your company. Upload the image again from this page rather than reusing an old link.',
+  'owner.logoSaveFailed':
+    'The logo was uploaded but could not be saved to your company. Nothing has changed — please try again.',
   'owner.logoInvalid': 'Please upload a PNG, JPG or WebP image no larger than 2 MB.',
-  'owner.logoFailed': 'The logo could not be saved. Nothing has changed — please try again.',
   'owner.logoSaved': 'Your campaign logo has been updated',
   'owner.logoRemoved': 'Your campaign logo has been removed',
   'owner.notApprovedToPublish': 'Your company must be approved by Admin before you can publish trips.',

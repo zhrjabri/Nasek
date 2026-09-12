@@ -51,6 +51,30 @@ const EXTENSION: Record<string, string> = {
 }
 
 /**
+ * Where a company's logo goes, as one exported function.
+ *
+ * Exported so the tests can assert the *real* path against the *real* database
+ * validation rather than against a string somebody typed into a test file. Two
+ * independent rules have to accept whatever this returns, and neither of them
+ * lives in this repository's TypeScript:
+ *
+ *   * the `campaign-images` storage policy, which compares
+ *     `(storage.foldername(name))[1]` against `auth.uid()::text`;
+ *   * `set_provider_logo`, which compares `split_part(path,'/',1)` against the
+ *     caller and requires the whole value to match
+ *     `^[0-9a-fA-F-]{36}/[A-Za-z0-9._-]+\.(png|jpg|jpeg|webp)$`.
+ *
+ * A test that invents its own path proves the regex accepts that invention.
+ * `verify:security` calls this function instead.
+ *
+ * The timestamp is a parameter so a test is deterministic; production never
+ * passes one.
+ */
+export function providerLogoPath(ownerId: string, mime: string, now = Date.now()): string {
+  return `${ownerId}/logo-${now}.${EXTENSION[mime] ?? 'png'}`
+}
+
+/**
  * Is this a file NASEK will take?
  *
  * Exported so the form can say why before uploading anything, and so the checks
@@ -95,7 +119,7 @@ export async function uploadProviderLogo(
   const owner = auth.session?.user?.id
   if (!owner) return { ok: false, error: 'unauthenticated' }
 
-  const path = `${owner}/logo-${Date.now()}.${EXTENSION[file.type] ?? 'png'}`
+  const path = providerLogoPath(owner, file.type)
   const { error } = await supabase.storage.from(PROVIDER_LOGO_BUCKET).upload(path, file, {
     upsert: false,
     contentType: file.type,

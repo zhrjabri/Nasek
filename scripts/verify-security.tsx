@@ -34,7 +34,11 @@ import path from 'node:path'
 import { I18nProvider } from '@/i18n'
 import { AppStoreProvider } from '@/store/AppStore'
 import { buildInvoice, invoiceWhatsappUrl, whatsappDigits } from '@/lib/invoice'
+import { providerLogoPath } from '@/services/storage/providerLogo'
 import { ProviderMark } from '@/components/brand/ProviderMark'
+import { CompanyProfilePanel } from '@/owner/panels/CompanyProfilePanel'
+import { ownerAr } from '@/i18n/ownerAr'
+import { ownerEn } from '@/i18n/ownerEn'
 import type { Booking, Campaign, Provider } from '@/types'
 
 let failures = 0
@@ -161,6 +165,129 @@ check('anon holds no execute grant on it',
   /revoke all on function public\.set_provider_logo\(uuid, text\) from public, anon/.test(FIX))
 check('only authenticated may call it',
   /grant execute on function public\.set_provider_logo\(uuid, text\)\s*\n?\s*to authenticated/.test(FIX))
+
+// ============== the path production actually generates, against the real rule
+
+head('the real upload path, against the real database validation')
+
+/*
+ * The bug this section exists for.
+ *
+ * `set_provider_logo`'s regex and the `campaign-images` storage policy both have
+ * to accept whatever `uploadProviderLogo` builds, and neither of them lives in
+ * this repository's TypeScript — one is in a migration, the other in a policy
+ * written a week earlier. A test that types its own path string proves the
+ * regex accepts *that string*. So the path here comes from `providerLogoPath`,
+ * the same exported function production calls, and the pattern comes out of the
+ * migration file rather than being restated.
+ */
+const OWNER_A = '3f2b9c14-7a55-4d81-9e02-6c1b8ad4e7f9'
+const OWNER_B = 'a17c4e02-9b31-4f6a-8d55-2e90c7fb1a43'
+
+/** The anchored pattern, lifted out of the migration so the two cannot drift. */
+const sqlPattern = (() => {
+  const m = SET_LOGO.match(/cleaned !~ '([^']+)'/)
+  if (!m) throw new Error('the extension check is not where this test expects it')
+  return new RegExp(m[1])
+})()
+console.log(`  pattern read from the migration: ${sqlPattern.source}`)
+
+check('the migration really does anchor the pattern at both ends',
+  sqlPattern.source.startsWith('^') && sqlPattern.source.endsWith('$'))
+
+for (const mime of ['image/png', 'image/jpeg', 'image/webp']) {
+  const real = providerLogoPath(OWNER_A, mime, 1_757_683_200_000)
+  check(`a ${mime} upload produces ${real.slice(37)}`, real.startsWith(`${OWNER_A}/`), real)
+  check(`...and set_provider_logo's pattern accepts it`, sqlPattern.test(real), real)
+  /*
+   * The storage policy's half. `(storage.foldername(name))[1]` is everything
+   * before the first slash, and it is compared against `auth.uid()::text` — so
+   * the folder has to be the uploader's own id, exactly.
+   */
+  check(`...and the storage policy's folder segment is the owner's own id`,
+    real.split('/')[0] === OWNER_A)
+  check(`...which is also what split_part(path,'/',1) gives the RPC`,
+    real.split('/')[0] === OWNER_A)
+}
+
+/*
+ * An unknown MIME falls back to `.png`, which still has to satisfy the pattern
+ * — otherwise a browser reporting an unusual type would produce a path the
+ * database silently refuses after the file is already in the bucket.
+ */
+check('an unexpected MIME still produces an acceptable path',
+  sqlPattern.test(providerLogoPath(OWNER_A, 'image/avif', 1_757_683_200_000)))
+
+head('Owner A’s path is accepted for A and refused for B')
+
+const aPath = providerLogoPath(OWNER_A, 'image/png', 1_757_683_200_000)
+/** The RPC's ownership test, as the migration states it. */
+const ownedBy = (path: string, caller: string) => path.split('/')[0] === caller
+
+check('Owner A’s own path passes the ownership test for Owner A',
+  ownedBy(aPath, OWNER_A) && sqlPattern.test(aPath))
+check('and fails it for Owner B',
+  !ownedBy(aPath, OWNER_B),
+  'Owner B pointing at Owner A’s file is exactly what the check exists to stop')
+check('Owner B cannot construct a path into Owner A’s folder either',
+  providerLogoPath(OWNER_B, 'image/png', 1).split('/')[0] === OWNER_B)
+
+head('and the shapes that must stay refused')
+
+for (const [label, bad] of [
+  ['an external URL', 'https://attacker.example/logo.png'],
+  ['an external URL under a uuid-looking host', `https://${OWNER_A}/logo.png`],
+  ['a protocol-relative URL', '//attacker.example/logo.png'],
+  ['a data URI', 'data:image/png;base64,iVBORw0KGgo='],
+  ['parent traversal', '../../logo.png'],
+  ['traversal after a valid folder', `${OWNER_A}/../${OWNER_B}/logo.png`],
+  ['a nested path', `${OWNER_A}/sub/logo.png`],
+  ['a bare file name with no folder', 'logo.png'],
+  ['an SVG', `${OWNER_A}/logo.svg`],
+  ['no extension', `${OWNER_A}/logo`],
+  ['a double extension ending wrong', `${OWNER_A}/logo.png.svg`],
+  ['a folder that is not a uuid', `not-a-uuid/logo.png`],
+  ['an empty string', ''],
+]) {
+  check(`${label} is refused by the pattern`, !sqlPattern.test(bad), bad.slice(0, 48))
+}
+
+/*
+ * The one shape the pattern alone lets through: a well-formed path in somebody
+ * else's uuid folder. That is what the separate `split_part` ownership test is
+ * for, and this asserts the two checks together rather than either alone.
+ */
+const otherFolder = `${OWNER_B}/logo-1.png`
+check('a well-formed path in another owner’s folder passes the pattern',
+  sqlPattern.test(otherFolder), 'so the pattern alone is not the protection')
+check('...and is caught by the ownership test instead',
+  !ownedBy(otherFolder, OWNER_A),
+  'both checks are needed; neither is redundant')
+
+head('the upload gate that runs before any of it')
+
+check('the file input accepts only the three raster types',
+  /accept="image\/png,image\/jpeg,image\/webp"/.test(src('src/owner/panels/CompanyProfilePanel.tsx')))
+check('and the logo card is not inside the profile form',
+  (() => {
+    const panel = src('src/owner/panels/CompanyProfilePanel.tsx')
+    const card = panel.indexOf('<LogoCard')
+    const form = panel.indexOf('<form onSubmit={submit}')
+    return card > 0 && form > 0 && card < form
+  })(),
+  'inside the form its buttons submitted it instead of opening the file dialog')
+check('nor behind the edit-mode branch',
+  (() => {
+    const panel = src('src/owner/panels/CompanyProfilePanel.tsx')
+    return panel.indexOf('<LogoCard') < panel.indexOf('{editing ? (')
+  })(),
+  'it was invisible until the owner pressed Edit')
+check('its buttons say type="button" explicitly',
+  (src('src/owner/panels/CompanyProfilePanel.tsx').match(/type="button"/g) ?? []).length >= 2)
+check('and the shared Button defaults to type="button" rather than submit',
+  /type = 'button',/.test(src('src/components/ui/index.tsx')))
+check('while every real submit in the codebase still says so explicitly',
+  /type={type}/.test(src('src/components/ui/index.tsx')))
 
 // ==================================== 5. the booking-scoped contact lookup
 
@@ -387,6 +514,50 @@ const drawn = renderToStaticMarkup(
 )
 check('a company with no logo draws its initials, not a stand-in image',
   drawn.includes('HC') && !drawn.includes('<img'))
+
+head('the logo card as the owner portal actually renders it')
+
+/*
+ * Rendered, not grepped.
+ *
+ * The bug was structural — the card sat inside `{editing ? (<form>` — and a
+ * source-position check would still pass if someone later wrapped the whole
+ * panel in a form. So the panel is drawn with a real company and the output is
+ * read: the upload control has to exist, and it has to appear before the form
+ * opens rather than between its tags.
+ */
+const panel = renderToStaticMarkup(
+  <MemoryRouter>
+    <I18nProvider extra={{ en: ownerEn, ar: ownerAr }}>
+      <AppStoreProvider>
+        <CompanyProfilePanel provider={{ ...COMPANY, logoPath: undefined }} />
+      </AppStoreProvider>
+    </I18nProvider>
+  </MemoryRouter>,
+)
+
+/*
+ * Arabic, because that is what the panel renders. `initialLang()` has no
+ * `window` under `renderToStaticMarkup` and falls back to NASEK's primary
+ * language — so asserting the English label would be asserting a locale this
+ * code path never takes. The strings are read from the dictionary rather than
+ * retyped, so a reworded label moves the test with it.
+ */
+check('the panel draws the logo card', panel.includes(ownerAr['owner.logoTitle']),
+  `${panel.length} chars, looking for "${ownerAr['owner.logoTitle']}"`)
+check('with an upload control', panel.includes(ownerAr['owner.logoUpload']))
+check('and a file input restricted to the three raster types',
+  panel.includes('accept="image/png,image/jpeg,image/webp"'))
+const uploadAt = panel.indexOf(ownerAr['owner.logoUpload'])
+const before = panel.slice(0, uploadAt)
+check('the upload button is type="button", so it cannot submit anything',
+  uploadAt > 0 && before.lastIndexOf('type="button"') > before.lastIndexOf('type="submit"'),
+  'a submit button here is what broke it')
+check('the card is drawn without the owner pressing Edit',
+  panel.includes(ownerAr['owner.logoTitle']) && !panel.includes('<form'),
+  'the panel opens in read mode, and the logo is still there')
+check('and no logo is invented for a company that has none',
+  panel.includes('HC') && !/<img[^>]*logo/.test(panel))
 
 console.log(
   failures === 0

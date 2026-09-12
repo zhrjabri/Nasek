@@ -154,12 +154,38 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = 'primary', size = 'md', loading, block, className, children, disabled, ...rest },
+  {
+    variant = 'primary',
+    size = 'md',
+    /*
+     * `button`, not the HTML default.
+     *
+     * A bare `<button>` inside a `<form>` is a submit button, and every control
+     * in this kit that lands in a form and is not the save button — a file
+     * picker, a remove, a toggle, an "add another" — then submits the form
+     * instead of doing its own job. That is not hypothetical: the company logo
+     * upload shipped broken for exactly this reason. Pressing "Upload Logo"
+     * inside the profile form submitted the profile and never opened the file
+     * dialog, and nothing threw, so it read as a control that did nothing.
+     *
+     * Every real submit in this codebase already says `type="submit"` — all
+     * fourteen of them — so this changes no existing behaviour and removes the
+     * whole class of mistake.
+     */
+    type = 'button',
+    loading,
+    block,
+    className,
+    children,
+    disabled,
+    ...rest
+  },
   ref,
 ) {
   return (
     <button
       ref={ref}
+      type={type}
       disabled={disabled || loading}
       // Disabling alone tells a screen reader the control is unavailable, not
       // that it is working — and the two call for very different reactions.

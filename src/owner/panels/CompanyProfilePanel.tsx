@@ -26,6 +26,7 @@ import {
   checkProviderLogo,
   removeProviderLogoObject,
   uploadProviderLogo,
+  type ProviderLogoError,
 } from '@/services/storage/providerLogo'
 import { ProviderMark } from '@/components/brand/ProviderMark'
 import { useStore } from '@/store/AppStore'
@@ -321,6 +322,22 @@ export function CompanyProfilePanel({ provider }: { provider?: Provider }) {
         </div>
       )}
 
+      {/*
+        The logo, outside the profile form and outside edit mode.
+
+        It was inside both, and that is why it never worked. Inside `{editing ?
+        (<form>` it was invisible until the owner pressed Edit, and once they
+        did, its buttons were `<button>` elements inside a `<form>` — which
+        default to `type="submit"`, so pressing "Upload Logo" submitted the
+        company profile and never opened the file dialog. Nothing threw; the
+        control simply appeared to do nothing.
+
+        It belongs out here on its own terms anyway. The logo has its own save
+        path — `set_provider_logo`, applied immediately — and is not part of the
+        profile form's data, none of which is sent when a logo changes.
+      */}
+      <LogoCard provider={provider} onChanged={reload} />
+
       {editing ? (
         <form onSubmit={submit} className="space-y-6" noValidate>
           {failure && (
@@ -328,9 +345,6 @@ export function CompanyProfilePanel({ provider }: { provider?: Provider }) {
               {failure}
             </Notice>
           )}
-
-          {/* -------------------------------------------------------- logo */}
-          <LogoCard provider={provider} onChanged={reload} />
 
           {/* ------------------------------------------------ public details */}
           <Card className="p-6">
@@ -846,6 +860,29 @@ function LogoCard({
 
   if (!provider) return null
 
+  /**
+   * Which sentence the owner sees, and it is never "something went wrong".
+   *
+   * Five different things can stop a logo being saved and they have five
+   * different fixes — pick a smaller file, pick a PNG, sign in again, try
+   * again. A single generic message makes the owner retry the one thing that
+   * cannot work. None of these leaks a SQL error or an internal identifier.
+   */
+  const message = (reason: ProviderLogoError | 'permission' | 'save') =>
+    t(
+      reason === 'type'
+        ? 'owner.logoWrongType'
+        : reason === 'size'
+          ? 'owner.logoTooBig'
+          : reason === 'unauthenticated'
+            ? 'owner.logoSignedOut'
+            : reason === 'permission'
+              ? 'owner.logoNotAllowed'
+              : reason === 'save'
+                ? 'owner.logoSaveFailed'
+                : 'owner.logoUploadFailed',
+    )
+
   const choose = async (file: File | undefined) => {
     if (!file) return
     setError('')
@@ -857,7 +894,7 @@ function LogoCard({
      */
     const invalid = checkProviderLogo(file)
     if (invalid) {
-      setError(t('owner.logoInvalid'))
+      setError(message(invalid))
       return
     }
 
@@ -866,9 +903,7 @@ function LogoCard({
     const uploaded = await uploadProviderLogo(file)
     if (!uploaded.ok) {
       setBusy(false)
-      setError(t(uploaded.error === 'type' || uploaded.error === 'size'
-        ? 'owner.logoInvalid'
-        : 'owner.logoFailed'))
+      setError(message(uploaded.error))
       return
     }
 
@@ -878,7 +913,15 @@ function LogoCard({
       // Take it back out rather than leaving it in the bucket for ever.
       await removeProviderLogoObject(uploaded.path)
       setBusy(false)
-      setError(t('owner.logoFailed'))
+      /*
+       * A refusal from the RPC and a broken connection are different problems.
+       * `insufficient_privilege` and `check_violation` are the two the function
+       * raises deliberately — the caller does not own the company, or the path
+       * is not theirs — and both mean "this will not work", not "try again".
+       */
+      setError(message(/permission|not yours|must be a file|must be a PNG/i.test(saved.error)
+        ? 'permission'
+        : 'save'))
       return
     }
 
@@ -899,7 +942,7 @@ function LogoCard({
     const saved = await setProviderLogo(provider.id, null)
     if ('error' in saved) {
       setBusy(false)
-      setError(t('owner.logoFailed'))
+      setError(message('save'))
       return
     }
     await removeProviderLogoObject(previous)
@@ -945,7 +988,11 @@ function LogoCard({
               e.target.value = ''
             }}
           />
+          {/* Explicit, even though the kit now defaults to it and this card is
+              no longer inside a form. Two of the three reasons this failed were
+              defaults nobody had looked at. */}
           <Button
+            type="button"
             variant="secondary"
             size="sm"
             loading={busy}
@@ -955,7 +1002,13 @@ function LogoCard({
             {t(has ? 'owner.logoChange' : 'owner.logoUpload')}
           </Button>
           {has && (
-            <Button variant="danger" size="sm" disabled={busy} onClick={() => void remove()}>
+            <Button
+              type="button"
+              variant="danger"
+              size="sm"
+              disabled={busy}
+              onClick={() => void remove()}
+            >
               <Trash2 className="size-4" />
               {t('owner.logoRemove')}
             </Button>

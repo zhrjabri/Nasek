@@ -175,8 +175,16 @@ export const ownerAr: Record<OwnerMessageKey, string> = {
   'owner.logoRemove': 'حذف الشعار',
   'owner.logoHint':
     'PNG أو JPG أو WebP بحجم لا يتجاوز 2 ميجابايت. الصورة المربعة أنسب، ولا يُمدّ الشعار أو يُقتطع أبدًا.',
+  'owner.logoWrongType': 'هذا الملف ليس صورة PNG أو JPG أو WebP. يرجى اختيار أحد هذه الأنواع.',
+  'owner.logoTooBig': 'حجم الصورة أكبر من 2 ميجابايت. يرجى اختيار صورة أصغر.',
+  'owner.logoUploadFailed':
+    'تعذّر رفع الصورة. تحقق من اتصالك وحاول مرة أخرى — لم يتغيّر شيء.',
+  'owner.logoSignedOut': 'انتهت جلستك. سجّل الدخول مرة أخرى ثم أعد رفع الشعار.',
+  'owner.logoNotAllowed':
+    'لم يقبل ناسِك هذا الملف لشركتك. أعد رفع الصورة من هذه الصفحة بدلًا من استخدام رابط قديم.',
+  'owner.logoSaveFailed':
+    'تم رفع الصورة لكن تعذّر حفظها في شركتك. لم يتغيّر شيء — يرجى المحاولة مرة أخرى.',
   'owner.logoInvalid': 'يرجى رفع صورة PNG أو JPG أو WebP بحجم لا يتجاوز 2 ميجابايت.',
-  'owner.logoFailed': 'تعذّر حفظ الشعار. لم يتغيّر شيء — يرجى المحاولة مرة أخرى.',
   'owner.logoSaved': 'تم تحديث شعار الحملة',
   'owner.logoRemoved': 'تم حذف شعار الحملة',
   'owner.notApprovedToPublish': 'يجب اعتماد حساب صاحب الحملة من الإدارة قبل نشر الرحلات.',
