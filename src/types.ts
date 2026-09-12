@@ -158,9 +158,19 @@ export interface Provider {
   reviewCount: number
   phone: string
   email: string
-  /** Monogram shown in place of a logo file. */
+  /** Monogram shown when the company has no logo. */
   initials: string
   brandColor: string
+  /**
+   * The company's own logo, as an object path in the public `campaign-images`
+   * bucket — never a URL, and never the image itself.
+   *
+   * One logo per company, not one per trip: every campaign this company runs
+   * draws it. Undefined means the company has not uploaded one, and every
+   * surface falls back to the `initials` monogram above rather than to a
+   * stand-in image. See `20260911000100`.
+   */
+  logoPath?: string
   /** Business model: provider's plan on NASEK. */
   plan: 'basic' | 'plus' | 'premium'
   joinedAt: string

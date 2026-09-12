@@ -47,6 +47,9 @@ export function toProvider(row: ProviderRow | ProviderPublicRow): Provider {
     phone: full.phone ?? '',
     email: full.email ?? '',
     initials: row.initials,
+    // `?? undefined`, never a placeholder path: a company with no logo draws
+    // its monogram, and a stand-in image would be a logo nobody chose.
+    logoPath: row.logo_path ?? undefined,
     brandColor: row.brand_color,
     plan: row.plan,
     joinedAt: row.joined_at,

@@ -175,6 +175,25 @@ export const ownerEn = {
     'That invitation link has expired or has already been used. Ask NASEK to send another.',
 
   // ------------------------------------------------------------- portal tabs
+  // ------------------------------------------------------- the company logo
+  /*
+   * One logo per company, not per trip. It applies immediately: a logo is
+   * presentation, not the evidence NASEK verified the company against, so it
+   * does not join the profile-change review queue and it moves no trip.
+   */
+  'owner.logoTitle': 'Campaign Logo',
+  'owner.logoNote':
+    'Your company logo appears on every trip you publish, on the NASEK site and in the administration. Upload it once — you do not add it to each trip.',
+  'owner.logoUpload': 'Upload Logo',
+  'owner.logoChange': 'Change Logo',
+  'owner.logoRemove': 'Remove Logo',
+  'owner.logoHint':
+    'PNG, JPG or WebP, up to 2 MB. A square image works best; it is never stretched or cropped.',
+  'owner.logoInvalid': 'Please upload a PNG, JPG or WebP image no larger than 2 MB.',
+  'owner.logoFailed': 'The logo could not be saved. Nothing has changed — please try again.',
+  'owner.logoSaved': 'Your campaign logo has been updated',
+  'owner.logoRemoved': 'Your campaign logo has been removed',
+  'owner.notApprovedToPublish': 'Your company must be approved by Admin before you can publish trips.',
   'owner.tabProfile': 'Company profile',
   'owner.tabNotifications': 'Notifications',
 
@@ -222,21 +241,19 @@ export const ownerEn = {
   'owner.markRead': 'Mark read',
 
   // ============================================================ campaign status
-  'campaignStatus.pending_approval': 'Under review',
+  // A trip can only be in this state if it predates 20260911000100 and its
+  // company is not eligible to publish. Nothing new ever lands here.
+  'campaignStatus.pending_approval': 'Not published',
   'campaignStatus.active': 'Live',
-  'campaignStatus.rejected': 'Not approved',
+  'campaignStatus.rejected': 'Off the site',
   'campaignStatus.suspended': 'Suspended',
-  'campaignStatus.pendingNote': 'Under review by NASEK. It is not visible to pilgrims yet.',
   'campaignStatus.activeNote': 'Live on NASEK and open for bookings.',
-  'campaignStatus.rejectedNote':
-    'Not approved. Correct it and save to send it back for review.',
   'campaignStatus.suspendedNote':
     'Suspended by a NASEK administrator. It is not on the public site.',
-  'campaignStatus.reason': 'Why it was not approved',
-  'campaignStatus.resubmitNote':
-    'Changing the price, dates, services, photographs or terms sends this campaign back to NASEK for review. Seat counts do not.',
+  'campaignStatus.reason': 'Why it was taken off the site',
+  'campaignStatus.editsGoLiveNote':
+    'This trip is live. Anything you change here — the price, the dates, the services — is on the NASEK site as soon as you save it.',
   'campaignStatus.submittedOn': 'Sent for review',
-  'campaignStatus.reviewedOn': 'Decided',
 
   // ==================================================== campaign form additions
   'prov.formDeadline': 'Registration deadline',
@@ -254,7 +271,6 @@ export const ownerEn = {
   'prov.formProvider': 'Campaign owner',
   'prov.formProviderPick': 'Choose a company…',
   'prov.publishCampaign': 'Publish the trip',
-  'prov.publishedPending': 'The trip has been added and will appear once NASEK approves it.',
   'prov.publishedActive': 'The trip has been added and is live now.',
   'prov.formImages': 'Photographs',
   'prov.formImagesHint': 'Up to {n}. The first one is used on the campaign card.',
@@ -273,7 +289,6 @@ export const ownerEn = {
   'prov.formTermsHint':
     'Cancellation, payment, what a pilgrim is agreeing to. Shown on the campaign page.',
   'prov.sectionMedia': 'Photographs and terms',
-  'prov.submitForReview': 'Send for review',
   'prov.viewPublicPending': 'Not public yet',
 
   // ------------------------------------------ recovered working-tree keys

@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import {
   Ban,
-  Check,
   Clock,
   ExternalLink,
   Eye,
@@ -33,7 +32,16 @@ import { CampaignStatusBadge } from '@/components/campaign/CampaignStatusBadge'
 import { Badge, Button, EmptyState, Field, Modal, Rating, Textarea, cx } from '@/components/ui'
 import { BodyRow, DetailRow, HeadRow, IconAction, Kpi, TableShell, Th, Toolbar, useCountLabel } from './shared'
 
-type Filter = 'pending' | 'active' | 'rejected' | 'suspended' | 'featured' | 'all'
+/*
+ * No 'pending' any more.
+ *
+ * There is no trip queue to filter to. What was 'rejected' is now shown as
+ * "deactivated", because that is what the status means once approval has moved
+ * to the company: a trip an administrator took off the site, not one they
+ * declined to let on. The enum value is unchanged — renaming a stored status to
+ * match a label would be a migration for a word.
+ */
+type Filter = 'active' | 'deactivated' | 'suspended' | 'featured' | 'all'
 
 /**
  * Campaign management, and the approval queue that is now the point of it.
@@ -85,7 +93,7 @@ export function CampaignsTab({
    * reference makes the job something you have to go and look for, which is how
    * a queue stops being read.
    */
-  const [filter, setFilter] = useState<Filter>('pending')
+  const [filter, setFilter] = useState<Filter>('active')
   /** The trip being created by NASEK itself, rather than by its owner. */
   const [creating, setCreating] = useState(false)
   const [detail, setDetail] = useState<Campaign | null>(null)
@@ -117,9 +125,7 @@ export function CampaignsTab({
         if (!down) return false
       } else if (filter === 'featured') {
         if (!c.featured) return false
-      } else if (filter === 'pending') {
-        if (c.status !== 'pending_approval') return false
-      } else if (filter === 'rejected') {
+      } else if (filter === 'deactivated') {
         if (c.status !== 'rejected') return false
       } else if (filter === 'active') {
         if (c.status !== 'active' || down) return false
@@ -136,7 +142,7 @@ export function CampaignsTab({
 
   const stats = useMemo(
     () => ({
-      pending: campaigns.filter((c) => c.status === 'pending_approval').length,
+      deactivated: campaigns.filter((c) => c.status === 'rejected').length,
       live: campaigns.filter((c) => c.status === 'active' && !isSuspended(c.id)).length,
       rejected: campaigns.filter((c) => c.status === 'rejected').length,
       suspended: campaigns.filter((c) => isSuspended(c.id)).length,
@@ -261,15 +267,15 @@ export function CampaignsTab({
   }
 
   /**
-   * Approve or refuse, then reflect what the database actually did.
+   * Take a trip down, or put it back — then reflect what the database did.
    *
-   * `set_campaign_status` is the only route: it writes the status, the reason,
-   * the audit entry, the owner's notification and the queued email in one
-   * transaction, and refuses outright if the reason is missing or the company
-   * behind the trip is not approved. Its message is passed through rather than
-   * flattened, because "this campaign belongs to a company that is not approved"
-   * is a specific mistake with a specific fix and the administrator is the only
-   * person who can make it.
+   * This used to be "approve or refuse". Approval moved to the company, so the
+   * only decisions left here are moderation ones, and both directions still go
+   * through `set_campaign_status`: it writes the status, the reason, the audit
+   * entry and the owner's notification in one transaction, refuses a
+   * deactivation with no reason, and refuses to reinstate a trip whose company
+   * is no longer verified. Its message is passed through rather than flattened,
+   * because that last case is a specific mistake with a specific fix.
    */
   const decide = async (c: Campaign, status: CampaignStatus, why?: string) => {
     setDeciding(true)
@@ -287,8 +293,8 @@ export function CampaignsTab({
     dispatch({ type: 'setCampaignStatus', campaignId: c.id, status, reason: why })
     toast(
       status === 'active'
-        ? t('admin.campaignApproved', { name: bl(c.title) })
-        : t('admin.campaignRejected', { name: bl(c.title) }),
+        ? t('admin.campReinstated', { name: bl(c.title) })
+        : t('admin.campDeactivated_toast', { name: bl(c.title) }),
       status === 'active' ? 'success' : 'warning',
     )
     setDetail(null)
@@ -300,19 +306,19 @@ export function CampaignsTab({
   return (
     <section className="space-y-5">
       <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* The queue first, and flagged when it is not empty. This is the only
-            figure on the screen that represents outstanding work. */}
-        <Kpi
-          label={t('admin.campaignQueue')}
-          value={n(stats.pending)}
-          icon={<Clock className="size-4" />}
-          tone={stats.pending > 0 ? 'alert' : undefined}
-        />
+        {/*
+          Live first, because nothing here is outstanding work any more.
+          The queue KPI led this row and was the only figure on the screen
+          representing a decision somebody owed. Approving trips is not a job
+          NASEK does now; approving companies is, and that count lives on the
+          Campaign owners tab where it always did.
+        */}
         <Kpi label={t('admin.campLive')} value={n(stats.live)} icon={<Ticket className="size-4" />} />
         <Kpi
-          label={t('admin.filterRejected')}
-          value={n(stats.rejected)}
+          label={t('admin.campDeactivated')}
+          value={n(stats.deactivated)}
           icon={<XCircle className="size-4" />}
+          tone={stats.deactivated > 0 ? 'alert' : undefined}
         />
         <Kpi
           label={t('admin.campSuspended')}
@@ -320,13 +326,16 @@ export function CampaignsTab({
           icon={<Ban className="size-4" />}
           tone={stats.suspended > 0 ? 'alert' : undefined}
         />
+        <Kpi
+          label={t('admin.kpiCampaigns')}
+          value={n(campaigns.length)}
+          icon={<Clock className="size-4" />}
+        />
       </ul>
 
-      {filter === 'pending' && stats.pending > 0 && (
-        <p className="rounded-[3px] border border-gold-300 bg-gold-50 px-4 py-3 text-sm leading-relaxed text-gold-900">
-          {t('admin.campaignQueueBody')}
-        </p>
-      )}
+      <p className="rounded-[3px] border border-ivory-300 bg-ivory-50 px-4 py-3 text-xs leading-relaxed text-ink-500">
+        {t('admin.campModerationNote')}
+      </p>
 
       <Toolbar<Filter>
         query={query}
@@ -339,9 +348,8 @@ export function CampaignsTab({
         options={[
           // Ordered as the lifecycle runs, so the list reads as a pipeline
           // rather than as an alphabetised set of flags.
-          { value: 'pending', label: t('admin.filterPending') },
           { value: 'active', label: t('admin.filterActive') },
-          { value: 'rejected', label: t('admin.filterRejected') },
+          { value: 'deactivated', label: t('admin.campDeactivated') },
           { value: 'suspended', label: t('admin.filterSuspended') },
           { value: 'featured', label: t('admin.campFeatured') },
           { value: 'all', label: t('admin.filterAll') },
@@ -381,25 +389,15 @@ export function CampaignsTab({
                 return
               }
               /*
-               * Approved explicitly, through the same RPC the queue's approve
-               * button uses — not by writing `status` on the insert.
+               * Nothing to approve any more — but the reload still matters.
                *
-               * The row lands `pending_approval` because that is the column's
-               * default, and `set_campaign_status` is the one path that moves it.
-               * It re-checks `is_admin()` inside Postgres and writes the audit
-               * entry, so a trip NASEK entered is approved by exactly the
-               * mechanism, and with exactly the trail, of one it approved for
-               * somebody else. Sending `status: 'active'` on the insert would
-               * have worked for an administrator and left no record of who
-               * decided.
+               * `guard_campaign_moderation` writes 'active' on insert for an
+               * eligible company, and an administrator's insert bypasses the
+               * guard entirely, so the row is already live by the time this
+               * runs. The second step that used to move it out of
+               * `pending_approval` is gone with the queue.
                */
-              const decided = await setCampaignStatus(stored.id, 'active')
-              if (!decided.ok) {
-                // The trip exists and is in the queue; only the approval failed.
-                toast(t('admin.addTripPending'), 'warning')
-              } else {
-                toast(t('admin.addTripDone'))
-              }
+              toast(t('admin.addTripDone'))
               setCreating(false)
               await reload()
             }}
@@ -481,53 +479,30 @@ export function CampaignsTab({
                           them here would be five controls where two are needed
                           on the screen whose whole job is clearing a queue.
 
-                          "Review" opens the detail dialog rather than approving
-                          from the row. Approving a trip you have not read is the
-                          one thing this queue must not make easy.
+                          "Inspect" opens the detail dialog. Taking a trip down is
+                          a decision about a listing you have read, not one to
+                          make from a truncated title in a table row.
                         */}
-                        {c.status === 'pending_approval' ? (
-                          <>
-                            <Button size="xs" variant="secondary" onClick={() => setDetail(c)}>
+                        <Button size="xs" variant="secondary" onClick={() => setDetail(c)}>
                               <Eye className="size-3.5" />
-                              {t('admin.reviewDetail')}
-                            </Button>
-                            <Button
-                              size="xs"
-                              variant="approve"
-                              disabled={deciding}
-                              onClick={() => void decide(c, 'active')}
-                            >
-                              <Check className="size-3.5" />
-                              {t('admin.campaignApprove')}
-                            </Button>
-                            <Button
-                              size="xs"
-                              variant="danger"
-                              disabled={deciding}
-                              onClick={() => {
-                                setRefusing(c)
-                                setReason('')
-                              }}
-                            >
-                              <XCircle className="size-3.5" />
-                              {t('admin.campaignReject')}
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            {/* A refused trip can be put back in the queue —
-                                usually because the owner rang and explained, and
-                                waiting for them to re-save the form would be
-                                theatre. */}
+                          {t('admin.reviewDetail')}
+                        </Button>
+                        {/*
+                              A trip an administrator took down can be put back.
+                              This is the inverse of deactivating, not an
+                              approval: the company was already approved, and
+                              nothing about the trip is being let onto the
+                              platform for the first time.
+                            */}
                             {c.status === 'rejected' && (
                               <Button
                                 size="xs"
                                 variant="secondary"
                                 disabled={deciding}
-                                onClick={() => void decide(c, 'pending_approval')}
+                                onClick={() => void decide(c, 'active')}
                               >
                                 <Undo2 className="size-3.5" />
-                                {t('admin.campaignBackToQueue')}
+                                {t('admin.campReinstate')}
                               </Button>
                             )}
                             {c.status === 'active' && (
@@ -557,16 +532,29 @@ export function CampaignsTab({
                                   {down ? <Undo2 className="size-3.5" /> : <Ban className="size-3.5" />}
                                   {t(down ? 'admin.campRestore' : 'admin.campSuspend')}
                                 </Button>
+                                {/* Off the site with a reason the owner reads.
+                                    Suspension is the quick lever; this is the
+                                    one that explains itself. */}
+                                <Button
+                                  size="xs"
+                                  variant="danger"
+                                  disabled={deciding}
+                                  onClick={() => {
+                                    setRefusing(c)
+                                    setReason('')
+                                  }}
+                                >
+                                  <XCircle className="size-3.5" />
+                                  {t('admin.campDeactivate')}
+                                </Button>
                               </>
                             )}
-                            <IconAction
-                              icon={<Trash2 className="size-3.5" />}
-                              label={t('admin.campDelete')}
-                              onClick={() => setConfirmDelete(c)}
-                              danger
-                            />
-                          </>
-                        )}
+                        <IconAction
+                          icon={<Trash2 className="size-3.5" />}
+                          label={t('admin.campDelete')}
+                          onClick={() => setConfirmDelete(c)}
+                          danger
+                        />
                       </div>
                     </td>
                   </BodyRow>
@@ -694,31 +682,7 @@ export function CampaignsTab({
             )}
 
             <div className="flex flex-wrap gap-2 border-t border-ivory-300 pt-4">
-              {detail.status === 'pending_approval' ? (
-                <>
-                  <Button
-                    size="sm"
-                    variant="approve"
-                    disabled={deciding}
-                    onClick={() => void decide(detail, 'active')}
-                  >
-                    <Check className="size-3.5" />
-                    {t('admin.campaignApprove')}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    disabled={deciding}
-                    onClick={() => {
-                      setRefusing(detail)
-                      setReason('')
-                    }}
-                  >
-                    <XCircle className="size-3.5" />
-                    {t('admin.campaignReject')}
-                  </Button>
-                </>
-              ) : (
+              {
                 <>
                   {/* Only a live trip has a public page to open — and the page
                       is on the customer site, which is a different application
@@ -761,19 +725,36 @@ export function CampaignsTab({
                       </Button>
                     </>
                   )}
+                  {/* Off the site, with a reason the owner reads. The
+                      administrator has the whole listing in front of them
+                      here, which is where this decision belongs. */}
+                  {detail.status === 'active' && (
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      disabled={deciding}
+                      onClick={() => {
+                        setRefusing(detail)
+                        setReason('')
+                      }}
+                    >
+                      <XCircle className="size-3.5" />
+                      {t('admin.campDeactivate')}
+                    </Button>
+                  )}
                   {detail.status === 'rejected' && (
                     <Button
                       size="sm"
                       variant="secondary"
                       disabled={deciding}
-                      onClick={() => void decide(detail, 'pending_approval')}
+                      onClick={() => void decide(detail, 'active')}
                     >
                       <Undo2 className="size-3.5" />
-                      {t('admin.campaignBackToQueue')}
+                      {t('admin.campReinstate')}
                     </Button>
                   )}
                 </>
-              )}
+              }
             </div>
           </div>
         )}

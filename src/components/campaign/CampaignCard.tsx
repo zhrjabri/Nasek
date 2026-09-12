@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import type { Campaign } from '@/types'
 import { useI18n } from '@/i18n'
+import { ProviderMark } from '@/components/brand/ProviderMark'
 import { wilayahName } from '@/data/geo'
 import { serviceLabel } from '@/data/services'
 import { useStore } from '@/store/AppStore'
@@ -78,13 +79,10 @@ export function CampaignCard({
 
       {/* ------------------------------------------------------- header band */}
       <div className="girih relative flex items-start gap-3 border-b border-ivory-300 bg-ivory-100/70 p-4">
-        <div
-          className="flex size-11 shrink-0 items-center justify-center rounded-[2px] text-lg font-bold text-ivory-50"
-          style={{ background: provider?.brandColor ?? '#244a3f' }}
-          aria-hidden
-        >
-          {provider?.initials ?? '؟'}
-        </div>
+        {/* The company's own logo, or its monogram when it has none. Every
+            trip a company runs draws the same mark — it belongs to the
+            company, not to the trip. */}
+        <ProviderMark provider={provider} size="sm" className="size-11" />
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">

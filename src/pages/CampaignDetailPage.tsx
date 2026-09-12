@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import type { Campaign } from '@/types'
 import { useI18n } from '@/i18n'
+import { ProviderMark } from '@/components/brand/ProviderMark'
 import { wilayahName } from '@/data/geo'
 import { serviceLabel } from '@/data/services'
 import { campaignImageUrl } from '@/services/storage/campaignImages'
@@ -242,13 +243,7 @@ export function CampaignDetailPage() {
             {/* provider strip */}
             {provider && (
               <div className="flex items-center gap-3.5 border-b border-ivory-300 bg-ivory-50/70 p-5">
-                <span
-                  className="flex size-12 shrink-0 items-center justify-center rounded-[3px] text-xl font-bold text-white shadow-soft"
-                  style={{ background: provider.brandColor }}
-                  aria-hidden
-                >
-                  {provider.initials}
-                </span>
+                <ProviderMark provider={provider} size="md" />
                 <div className="min-w-0 flex-1">
                   <p className="text-2xs font-semibold uppercase tracking-wider text-ink-400">
                     {t('campaign.byProvider')}

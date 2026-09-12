@@ -707,6 +707,33 @@ export async function confirmBookingPayment(
   return { booking: toBooking(data as BookingRow, []) }
 }
 
+/**
+ * Set, replace or remove a company's logo.
+ *
+ * An RPC rather than a column update because `guard_provider_privileges` does
+ * not revert `logo_path` — so a direct PATCH would let an owner point their
+ * company's logo at any object path they liked, including one in another
+ * company's folder. `set_provider_logo` checks the path is under the caller's
+ * own storage folder, which is the same rule the bucket's policies enforce on
+ * the upload itself.
+ *
+ * Passing null clears it. This touches no campaign and opens no profile-change
+ * review: a logo is presentation, not verification evidence.
+ */
+export async function setProviderLogo(
+  providerId: string,
+  path: string | null,
+): Promise<{ provider: Provider } | { error: string }> {
+  if (!supabase) return { error: 'offline' }
+
+  const { data, error } = await supabase.rpc('set_provider_logo', {
+    p_provider_id: providerId,
+    p_path: path,
+  })
+  if (error || !data) return { error: error?.message ?? '' }
+  return { provider: toProvider(data as ProviderRow) }
+}
+
 /** Cancel, returning the seats to the trip in the same transaction. */
 export async function cancelBooking(id: string): Promise<boolean> {
   if (!supabase) return false

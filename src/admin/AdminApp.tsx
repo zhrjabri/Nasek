@@ -1,6 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
-import { isPendingCampaign, isPendingProvider } from '@/types'
+import { isPendingProvider } from '@/types'
 import { useI18n } from '@/i18n'
 import { buildDirectory } from '@/data/users'
 import { useStore } from '@/store/AppStore'
@@ -209,12 +209,16 @@ function AdminRoutes() {
    * sidebar is the number of decisions outstanding: a badge that counts work
    * done is decoration next to one that counts work owed.
    */
-  const pendingCampaigns = adminCampaigns.filter((c) => isPendingCampaign(c.status)).length
-
-  // Keyed by path so the shell needs no knowledge of what a section contains.
+  /*
+   * No badge on Campaigns any more.
+   *
+   * It counted trips awaiting a decision, and no trip awaits one: an approved
+   * company publishes directly. The badge on Campaign owners stays exactly as
+   * it was — companies are still approved by NASEK, and that count is still the
+   * work an administrator owes.
+   */
   const badges = {
     '/owners': pendingOwners,
-    '/campaigns': pendingCampaigns,
     '/users': suspendedUsers,
   }
 

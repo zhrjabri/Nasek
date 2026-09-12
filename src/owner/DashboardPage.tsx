@@ -615,11 +615,6 @@ export function DashboardPage() {
                           {c.rejectionReason || t('prov.reasonMissing')}
                         </p>
                       )}
-                      {c.status === 'pending_approval' && (
-                        <p className="mt-2 text-xs leading-relaxed text-gold-800">
-                          {t('campaignStatus.pendingNote')}
-                        </p>
-                      )}
 
                       <div className="mt-2.5 max-w-xs">
                         <ProgressBar
@@ -1123,26 +1118,15 @@ export function DashboardPage() {
               const saved = stored ?? campaign
               dispatch({ type: 'upsertCampaign', campaign: saved })
               /*
-               * Say what happened, in the owner's terms.
+               * Say what happened.
                *
-               * A new trip goes to `pending_approval` — the database decides that,
-               * not this screen — so the confirmation names the wait rather than
-               * the queue that causes it. "Send for review" told an owner their
-               * trip had gone into somebody's workflow; this tells them it is
-               * added and when people will see it, which is the thing they
-               * actually wanted to know.
-               *
-               * `saved.status` and not a guess: it is whatever Postgres returned,
-               * so an administrator's own trip reads "live now" without this
-               * having to know it was an administrator.
+               * There is no wait to name any more: an approved company's trip is
+               * live the moment it is saved, and this is the sentence the brief
+               * asked for. An edit keeps its own wording — the trip was already
+               * published and stays that way, which is the other half of
+               * retiring the queue.
                */
-              toast(
-                editing === 'new'
-                  ? saved.status === 'active'
-                    ? t('prov.publishedActive')
-                    : t('prov.publishedPending')
-                  : t('prov.campaignSaved'),
-              )
+              toast(editing === 'new' ? t('prov.publishedActive') : t('prov.campaignSaved'))
               setEditing(null)
               await reload()
             }}

@@ -46,6 +46,24 @@ export const adminEn = {
   'admin.noAccounts': 'No accounts yet',
   'admin.noAccountsBody': 'Accounts appear here as people register on NASEK.',
   'admin.campTotal': 'All campaigns',
+  // ------------------------------------------- trip moderation, after the queue
+  /*
+   * Individual trips are no longer approved — the company is. What is left here
+   * is moderation, so the wording is moderation's rather than approval's: a
+   * trip is taken down or put back, not refused or let in.
+   *
+   * Retired with the queue: `admin.campaignQueue`, `admin.campaignQueueBody`,
+   * `admin.campaignApprove`, `admin.campaignApproved`, `admin.campaignReject`,
+   * `admin.campaignRejected`, `admin.campaignBackToQueue`, `admin.filterPending`,
+   * `admin.campaignReviewed`, `admin.addTripPending`.
+   */
+  'admin.campDeactivate': 'Take off the site',
+  'admin.campDeactivated': 'Off the site',
+  'admin.campDeactivated_toast': '“{name}” has been taken off the site',
+  'admin.campReinstate': 'Put back on the site',
+  'admin.campReinstated': '“{name}” is back on the site',
+  'admin.campModerationNote':
+    'Companies are approved by NASEK; their trips are not. An approved company publishes a trip and it goes live immediately. Use these controls to take a trip off the site if something is wrong with it.',
   'admin.campLive': 'Live',
   'admin.campFeatured': 'Featured',
   'admin.campSuspended': 'Suspended',
@@ -53,7 +71,6 @@ export const adminEn = {
   'admin.campFilter': 'Filter campaigns',
   'admin.addTrip': 'Add trip',
   'admin.addTripDone': 'The trip has been added and approved.',
-  'admin.addTripPending': 'The trip was added but could not be approved — it is in the queue.',
   'admin.addTripFailed': 'The trip could not be saved. Nothing was created.',
   'admin.campFeature': 'Feature on the home page',
   'admin.campUnfeature': 'Remove from the home page',
@@ -278,19 +295,12 @@ export const adminEn = {
     'The code is checked on the server. Holding it grants a session, not authority — what this dashboard can read is still decided by is_admin() inside Postgres.',
   'admin.codeSignOut': 'Sign out',
 
-  // ======================================================= campaign approval
-  'admin.campaignQueue': 'Awaiting review',
-  'admin.campaignQueueBody':
-    'No campaign is visible to pilgrims until it is approved here.',
-  'admin.campaignApprove': 'Approve and publish',
-  'admin.campaignReject': 'Refuse',
-  'admin.campaignApproved': '“{name}” is approved and live',
-  'admin.campaignRejected': '“{name}” was refused, and the owner has been told why',
-  'admin.campaignRejectTitle': 'Refuse this campaign',
+  // ====================================================== trip moderation
+  'admin.campaignRejectTitle': 'Take this trip off the site',
   'admin.campaignRejectBody':
-    'The owner sees this word for word, and corrects the campaign against it. Say what is wrong and what would fix it.',
+    'The trip comes off the public site and the owner sees this word for word. Say what is wrong and what would put it right — they can correct the trip and it goes back up when you reinstate it.',
   'admin.campaignRejectReason': 'Reason',
-  'admin.campaignRejectConfirm': 'Refuse the campaign',
+  'admin.campaignRejectConfirm': 'Take it off the site',
   'admin.campaignReasonRequired': 'A refusal needs a reason the owner can act on.',
   'admin.campaignStatusFailed': 'That decision was refused and nothing was saved. {detail}',
   /* See the Arabic file for why these three exist rather than one. */
@@ -302,15 +312,12 @@ export const adminEn = {
     'This session no longer holds administrator access. Sign in again and try once more.',
   'admin.campaignOwnerUnverified':
     'This campaign belongs to a company that is not approved yet. Approve the company first.',
-  'admin.campaignBackToQueue': 'Send back for review',
-  'admin.filterPending': 'Awaiting review',
   'admin.filterActive': 'Live',
   'admin.filterRejected': 'Refused',
   'admin.filterSuspended': 'Suspended',
   'admin.filterAll': 'All',
   'admin.reviewDetail': 'Review',
   'admin.campaignSubmitted': 'Submitted',
-  'admin.campaignReviewed': 'Decided',
   'admin.campaignNoImages': 'No photographs',
   'admin.campaignDeadline': 'Registration closes',
   'admin.campaignExcluded': 'Not included',

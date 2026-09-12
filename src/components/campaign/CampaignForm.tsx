@@ -152,24 +152,14 @@ export function CampaignForm({
    *
    * A mirror of the `material` expression in `guard_campaign_moderation`, and
    * mirrors are a liability, so it is worth saying exactly why this one earns
-   * its place. Against a database it decides nothing: the trigger runs, the row
-   * comes back, and `onSave` reloads. Without one — a clone with no setup, which
-   * is a supported way to run NASEK — the store *is* the platform, and the
-   * alternative to this is a demo where approval visibly does nothing.
+   * its place.
    *
-   * What is deliberately absent is `seatsTotal` and `seatsAvailable` — capacity
-   * is operational rather than a claim about the trip, and sending a campaign
-   * back to review because somebody added five seats would teach owners to
-   * route around the queue.
+   * `movesMaterially` used to live here — a list of the fields whose change
+   * sent a live trip back to the review queue. It went with the queue. An
+   * approved company may correct its own price, dates or hotels and the trip
+   * stays live, which is the same trust the company's approval already
+   * extended. See `20260911000100`.
    */
-  const movesMaterially =
-    !campaign ||
-    (['titleAr', 'descAr', 'type', 'price', 'wilayahId', 'travelMethod',
-      'departureDate', 'returnDate', 'registrationDeadline', 'hotelMakkah',
-      'hotelMadinah', 'haramDistanceM', 'services', 'excludedServices',
-      'included', 'images', 'contacts'] as const).some(
-      (key) => JSON.stringify(form[key]) !== JSON.stringify(initialForm.current[key]),
-    )
 
   const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) =>
     setForm((f) => ({ ...f, [key]: value }))
@@ -338,15 +328,19 @@ export function CampaignForm({
       /*
        * The optimistic guess, not the decision.
        *
-       * `guard_campaign_moderation` decides for real: a new trip is always
-       * `pending_approval` unless an administrator wrote it, and a material
-       * edit to one that is live or refused puts it back in the queue.
+       * `guard_campaign_moderation` decides for real: an approved company's new
+       * trip is written 'active', an ineligible company's insert is refused
+       * outright, and an edit never moves the status in either direction.
        * `onSave` reloads and shows whatever the database returned.
+       *
+       * An edit therefore keeps the status the trip already has — including
+       * 'rejected', which only an administrator can lift. Guessing 'active'
+       * there would show an owner a live trip that no pilgrim can see.
        */
-      status: campaign && !movesMaterially ? campaign.status : ('pending_approval' as const),
-      rejectionReason: movesMaterially ? undefined : campaign?.rejectionReason,
+      status: campaign ? campaign.status : ('active' as const),
+      rejectionReason: campaign?.rejectionReason,
       submittedAt: campaign?.submittedAt,
-      reviewedAt: movesMaterially ? undefined : campaign?.reviewedAt,
+      reviewedAt: campaign?.reviewedAt,
     })
   }
 
@@ -743,13 +737,14 @@ export function CampaignForm({
           discovered after it.
 
           A live campaign returning to the queue because somebody corrected a
-          price is correct behaviour and an unpleasant surprise, so the form
-          says so. The sentence is deliberately specific about what does *not*
-          trigger it — seat counts — because that is the edit owners make most
-          often and the one they would otherwise avoid making.
+          price used to send a live trip back into a review queue, and this
+          notice warned about it. It no longer happens — approval is the
+          company's, not the trip's — so the notice says the opposite, which is
+          the thing an owner about to change a price actually wants to know:
+          the change is public as soon as it is saved.
         */}
         {!isAdmin && campaign && campaign.status === 'active' && (
-          <Notice tone="info">{t('campaignStatus.resubmitNote')}</Notice>
+          <Notice tone="info">{t('campaignStatus.editsGoLiveNote')}</Notice>
         )}
         {campaign && campaign.status === 'rejected' && campaign.rejectionReason && (
           <Notice tone="danger" title={t('campaignStatus.reason')}>

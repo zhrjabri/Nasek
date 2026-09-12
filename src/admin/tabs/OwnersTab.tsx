@@ -12,6 +12,7 @@ import {
 import { isPendingProvider, type Provider, type VerificationStatus } from '@/types'
 import { useI18n, type MessageKey } from '@/i18n'
 import { wilayahName } from '@/data/geo'
+import { ProviderMark } from '@/components/brand/ProviderMark'
 import { licenceUrl, setProviderVerification } from '@/services/data/catalogue'
 import { useSnapshotLoader } from '@/hooks/useRemoteData'
 import { useStore } from '@/store/AppStore'
@@ -213,13 +214,9 @@ export function OwnersTab({ providers }: { providers: Provider[] }) {
                   <BodyRow key={p.id}>
                     <td className="max-w-56 p-3.5">
                       <div className="flex items-center gap-2.5">
-                        <span
-                          className="flex size-8 shrink-0 items-center justify-center rounded-[3px] text-xs font-bold text-white"
-                          style={{ background: p.brandColor }}
-                          aria-hidden
-                        >
-                          {p.initials}
-                        </span>
+                        {/* An administrator scanning this table recognises a
+                            company by its mark before its name. */}
+                        <ProviderMark provider={p} size="sm" className="size-8 text-xs" />
                         <span className="min-w-0">
                           <span className="block truncate font-semibold text-ink-800">
                             {bl(p.name)}

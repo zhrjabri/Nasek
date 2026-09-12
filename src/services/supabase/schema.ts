@@ -84,6 +84,8 @@ export type ProviderRow = {
   email: string | null
   initials: string
   brand_color: string
+  /** Object path in `campaign-images`. Null when the company has no logo. */
+  logo_path: string | null
   plan: ProviderPlanRow
   joined_at: string
   licence_image: string | null
@@ -507,6 +509,18 @@ export type Database = {
         Returns: BookingRow
       }
       cancel_booking: { Args: { p_booking_id: string }; Returns: BookingRow }
+      /**
+       * Set, replace or remove a company's logo. Owner-of-company or admin;
+       * the path must be under the caller's own storage folder.
+       *
+       * Deliberately not part of `submit_provider_profile`: a logo is
+       * presentation, so it applies immediately and opens no profile-change
+       * review — and it touches no campaign, so it moves no trip.
+       */
+      set_provider_logo: {
+        Args: { p_provider_id: string; p_path?: string | null }
+        Returns: ProviderRow
+      }
       /** Advances the caller's own past-dated bookings; returns how many moved. */
       complete_past_bookings: { Args: Record<string, never>; Returns: number }
     }

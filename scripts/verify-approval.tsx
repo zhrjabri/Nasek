@@ -1,21 +1,33 @@
 /*
- * Admin → الحملات → بانتظار المراجعة → اعتماد ونشر, end to end.
+ * Admin → الحملات → إيقاف العرض / إعادة العرض, end to end.
  *
- * The campaign approval chain is the most consequential thing the
- * administration does — nothing reaches a pilgrim without passing through it —
- * and it had no coverage at all. `verify:render` draws the tab, `verify:admin`
- * checks the access gate, and neither presses the button.
+ * This suite used to drive the trip approval queue: بانتظار المراجعة → اعتماد
+ * ونشر. That queue is gone. Approval moved to the company — NASEK verifies a
+ * commercial registration and a ministry permit, and a company that has passed
+ * that publishes its own timetable without asking again — so what is left for
+ * an administrator to do with an individual trip is moderation, and that is
+ * what this now covers.
+ *
+ * The three properties it exists to hold on to:
+ *
+ *   1. there is no approval control anywhere on the tab, and no queue to filter
+ *      to. A retired workflow that quietly comes back is the failure mode this
+ *      file is best placed to catch.
+ *   2. an administrator can still take a live trip off the site, and it still
+ *      costs them a written reason the owner will read.
+ *   3. and can put it back.
  *
  * WHAT THIS RUNS AGAINST, AND WHY
  *
  * The real `CampaignsTab`, the real store, the real `useRemoteData` loader and
  * the real `@supabase/supabase-js` query builder — pointed at a stand-in
- * PostgREST that implements `set_campaign_status` with the rules the migration
- * actually gives it:
+ * PostgREST that implements `set_campaign_status` with the rules 20260911000100
+ * gives it:
  *
  *   * refuse anyone `is_admin()` says no to               (insufficient_privilege)
- *   * refuse a rejection with no reason                   (check_violation)
- *   * refuse approving a trip whose company is not verified (check_violation)
+ *   * refuse a takedown with no reason                    (check_violation)
+ *   * refuse `pending_approval` outright — there is no queue (check_violation)
+ *   * refuse reinstating a trip whose company is not verified (check_violation)
  *   * otherwise write status, reason, reviewed_by, reviewed_at,
  *     an `admin_audit` row, an owner-audience notification and a queued email,
  *     all in one transaction, and return the campaign row
@@ -72,6 +84,15 @@ const LIVE = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
 const REFUSED = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
 /** Waiting, but behind a company nobody has approved. */
 const ORPHANED = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd'
+/**
+ * Off the site, and behind that same suspended company.
+ *
+ * Reinstating this is the refusal an administrator is most likely to meet and
+ * least likely to understand: the trip looks ordinary and the objection is to
+ * its owner. It replaces the "approve a trip whose company is not verified"
+ * case, which went with approval — the rule it tested did not.
+ */
+const ORPHANED_OFF = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
 
 interface Row {
   [key: string]: unknown
@@ -177,6 +198,11 @@ function resetDb() {
     campaignRow(LIVE, { status: 'active', reviewed_at: '2026-08-01T00:00:00Z' }),
     campaignRow(REFUSED, { status: 'rejected', rejection_reason: 'السعر غير واضح' }),
     campaignRow(ORPHANED, { provider_id: SUSPENDED_CO }),
+    campaignRow(ORPHANED_OFF, {
+      provider_id: SUSPENDED_CO,
+      status: 'rejected',
+      rejection_reason: 'سبب سابق',
+    }),
   ]
   db.notifications = []
   db.admin_audit = []
@@ -252,10 +278,15 @@ function setCampaignStatusRpc(args: Record<string, unknown>) {
         id: `n-${db.notifications.length + 1}`,
         user_id: owner,
         kind: 'trip',
-        title_ar: status === 'active' ? 'تم اعتماد حملتك' : 'تم رفض الحملة',
-        title_en: status === 'active' ? 'Your campaign is approved' : 'Your campaign was refused',
-        body_ar: status === 'active' ? 'تم اعتماد حملتك وإضافتها إلى منصة ناسك.' : (campaign.rejection_reason ?? ''),
-        body_en: status === 'active' ? 'Your campaign has been approved.' : (campaign.rejection_reason ?? ''),
+        // Moderation's wording, not approval's — see 20260911000100.
+        title_ar: status === 'active' ? 'تمت إعادة تفعيل رحلتك' : 'تم إيقاف رحلتك',
+        title_en: status === 'active' ? 'Your trip has been reinstated' : 'Your trip has been deactivated',
+        body_ar: status === 'active'
+          ? 'أعادت إدارة ناسِك تفعيل رحلتك، وهي الآن معروضة للحجز.'
+          : (campaign.rejection_reason ?? ''),
+        body_en: status === 'active'
+          ? 'NASEK has reinstated your trip.'
+          : (campaign.rejection_reason ?? ''),
         read: false,
         created_at: new Date().toISOString(),
         // `notify_user`'s default, which is what the five callers take.
@@ -264,7 +295,7 @@ function setCampaignStatusRpc(args: Record<string, unknown>) {
       db.email_outbox.push({
         id: `e-${db.email_outbox.length + 1}`,
         to_email: company?.email,
-        template: status === 'active' ? 'campaign_approved' : 'campaign_rejected',
+        template: status === 'active' ? 'campaign_reinstated' : 'campaign_deactivated',
         status: 'queued',
         created_at: new Date().toISOString(),
       })
@@ -494,42 +525,88 @@ async function main() {
     process.exit(1)
   }
 
-  // =================================================== 1. approve, end to end
-  console.log(`\n--- بانتظار المراجعة → اعتماد ونشر ${'-'.repeat(20)}\n`)
+  // ============================== 1. the approval queue is gone, and stays gone
+  console.log(`\n--- there is no trip approval queue ${'-'.repeat(20)}\n`)
   resetDb()
   seen.length = 0
   {
     const ui = mount()
     await settle()
 
+    const everyButton = ([...ui.container.querySelectorAll('button')] as HTMLElement[])
+      .map((b) => (b.textContent ?? '').trim())
+
     check(
-      'the queue opens on the trips awaiting a decision',
-      rowTitles(ui).length === 2,
-      rowTitles(ui).join(' | '),
+      'no control anywhere on the tab approves a trip',
+      !everyButton.some((label) => label.includes('اعتماد')),
+      everyButton.filter((l) => l.includes('اعتماد')).join(' | '),
     )
     check(
-      'the queue counter shows both',
-      kpi(ui, 'بانتظار المراجعة') === 2,
+      'and there is no بانتظار المراجعة filter to stand a queue up in',
+      !filterChip(ui, 'بانتظار المراجعة'),
+    )
+    check(
+      'nor a counter for it',
+      Number.isNaN(kpi(ui, 'بانتظار المراجعة')) || kpi(ui, 'بانتظار المراجعة') === 0,
       String(kpi(ui, 'بانتظار المراجعة')),
     )
     check(
-      'and the live counter shows the one that is already published',
+      'the tab opens on what is live instead',
       kpi(ui, 'منشورة') === 1,
       String(kpi(ui, 'منشورة')),
     )
-
-    // -------------------------------------------------------- 1. the click
-    const approve = ([...ui.container.querySelectorAll('tbody button')] as HTMLElement[]).find(
-      (b) => (b.textContent ?? '').trim() === 'اعتماد ونشر',
+    /*
+     * Nothing was sent to the database by drawing the page.
+     *
+     * The old suite's first act was a decision; this one's is that no decision
+     * is on offer, which is only meaningful if the page did not make one.
+     */
+    check(
+      'and drawing it decided nothing',
+      seen.filter((x) => x.path.includes('rpc/set_campaign_status')).length === 0,
     )
-    check('a pending trip offers "اعتماد ونشر"', !!approve)
-    if (!approve) {
+    unmount(ui)
+  }
+
+  // ================================ 2. an administrator takes a live trip down
+  console.log(`\n--- منشورة → إيقاف العرض ${'-'.repeat(28)}\n`)
+  resetDb()
+  seen.length = 0
+  {
+    const ui = mount()
+    await settle()
+
+    const stop = ([...ui.container.querySelectorAll('tbody button')] as HTMLElement[]).find(
+      (b) => (b.textContent ?? '').trim() === 'إيقاف العرض',
+    )
+    check('a live trip offers "إيقاف العرض"', !!stop)
+    if (!stop) {
       unmount(ui)
       return finish()
     }
 
+    click(stop)
+    await settle(2)
+
+    const dialog = ui.container.querySelector('[role=dialog]')
+    check('which asks for a reason before it will do anything', !!dialog)
+    const box = ui.container.querySelector('[role=dialog] textarea') as HTMLTextAreaElement | null
+    const confirm = dialog && byText(dialog, 'button', 'إيقاف العرض')
+    check('there is a box to write the reason in', !!box)
+    if (!box || !confirm) {
+      unmount(ui)
+      return finish()
+    }
+    check(
+      'and it refuses to submit an empty reason',
+      (confirm as HTMLButtonElement).disabled,
+      'the confirm button was enabled with no reason typed',
+    )
+    typeInto(box, 'السعر أعلى من السقف المسموح به')
+    await settle(2)
+
     seen.length = 0
-    click(approve)
+    click(confirm)
     await settle(8)
 
     // ------------------------------------------- 2. the request on the wire
@@ -546,22 +623,24 @@ async function main() {
         `${rpc.method} ${JSON.stringify(args)}`,
       )
       check(
-        'naming this campaign, the status "active", and no reason',
-        args.p_campaign_id === PENDING && args.p_status === 'active' && args.p_reason === null,
+        'naming this campaign, the status "rejected", and the reason typed',
+        args.p_campaign_id === LIVE &&
+          args.p_status === 'rejected' &&
+          String(args.p_reason).includes('السقف'),
         JSON.stringify(args),
       )
     }
 
     // ------------------------------------------------ 3. the row actually moved
-    const stored = db.campaigns.find((c) => c.id === PENDING)!
-    check('the campaign row is now active', stored.status === 'active', String(stored.status))
+    const stored = db.campaigns.find((c) => c.id === LIVE)!
+    check('the trip is off the site', stored.status === 'rejected', String(stored.status))
     check('with the decision recorded against an administrator', stored.reviewed_by === ADMIN_ID)
     check('and the time it was taken', !!stored.reviewed_at)
-    check('and no rejection reason left behind', stored.rejection_reason === null)
+    check('and the reason kept for the owner to read', !!stored.rejection_reason)
     check(
       'the decision is written to the audit trail',
       db.admin_audit.some(
-        (a) => a.entity_id === PENDING && (a.detail as Row).to === 'active',
+        (a) => a.entity_id === LIVE && (a.detail as Row).to === 'rejected',
       ),
       JSON.stringify(db.admin_audit.map((a) => a.detail)),
     )
@@ -574,10 +653,20 @@ async function main() {
       notice?.audience === 'owner',
       String(notice?.audience),
     )
-    check('and it says the campaign was approved', notice?.title_ar === 'تم اعتماد حملتك')
+    /*
+     * The wording is moderation's, and this is the check that keeps it that
+     * way. "تم اعتماد حملتك" described a queue; announcing an approval for a
+     * trip nobody approved would be the old model leaking back through a
+     * string.
+     */
+    check('and it says the trip was taken down, not refused approval',
+      notice?.title_ar === 'تم إيقاف رحلتك', String(notice?.title_ar))
+    check('no approval notification is produced anywhere',
+      !db.notifications.some((x) => String(x.title_ar).includes('اعتماد')),
+      db.notifications.map((x) => x.title_ar).join(' | '))
     check(
-      'the approval email is queued in the same transaction',
-      db.email_outbox.some((e) => e.template === 'campaign_approved'),
+      'the email is queued in the same transaction',
+      db.email_outbox.some((e) => e.template === 'campaign_deactivated'),
     )
 
     // ----------------------------------------- 4 & 5. the screen catches up
@@ -586,34 +675,29 @@ async function main() {
       seen.filter((s) => s.path.startsWith('/rest/v1/campaigns')).length > 0,
     )
     check(
-      'the queue counter has gone down',
-      kpi(ui, 'بانتظار المراجعة') === 1,
-      String(kpi(ui, 'بانتظار المراجعة')),
-    )
-    check(
-      'and the live counter has gone up',
-      kpi(ui, 'منشورة') === 2,
+      'the live counter has gone down',
+      kpi(ui, 'منشورة') === 0,
       String(kpi(ui, 'منشورة')),
     )
     check(
-      'the approved trip has left بانتظار المراجعة',
-      !rowTitles(ui).some((t) => t.includes(PENDING.slice(0, 4))),
-      rowTitles(ui).join(' | '),
+      'and the off-the-site counter has gone up',
+      kpi(ui, 'موقوفة عن العرض') === 3,
+      String(kpi(ui, 'موقوفة عن العرض')),
     )
 
-    const live = filterChip(ui, 'منشورة')
-    check('there is a منشورة filter to look under', !!live)
-    if (live) {
-      click(live)
+    const off = filterChip(ui, 'موقوفة عن العرض')
+    check('there is a موقوفة عن العرض filter to look under', !!off)
+    if (off) {
+      click(off)
       await settle(2)
       check(
-        'and the approved trip is now under it',
-        rowTitles(ui).some((t) => t.includes(PENDING.slice(0, 4))),
+        'and the trip that was taken down is under it',
+        rowTitles(ui).some((t) => t.includes(LIVE.slice(0, 4))),
         rowTitles(ui).join(' | '),
       )
     }
 
-    check('the administrator is told it worked', toastText(ui).includes('تم اعتماد'), toastText(ui))
+    check('the administrator is told it worked', toastText(ui).includes('إيقاف'), toastText(ui))
 
     // ------------------------------------- 6. and a pilgrim can now see it
     const publicList = deriveCatalogue({
@@ -629,17 +713,25 @@ async function main() {
       campaignStatusOverrides: {},
     })
     check(
-      'the customer catalogue now carries the approved trip',
-      publicList.campaigns.some((c) => c.id === PENDING),
+      'the customer catalogue has dropped the trip that was taken down',
+      !publicList.campaigns.some((c) => c.id === LIVE),
       publicList.campaigns.map((c) => c.id.slice(0, 4)).join(','),
     )
+    /*
+     * The company gate, from the customer's side.
+     *
+     * ORPHANED belongs to a company nobody approved. Retiring trip approval
+     * must not have made it visible — company approval is the whole of what
+     * stands between an unverified business and the public catalogue now, so
+     * this is the check that matters most in the file.
+     */
     check(
-      'and still withholds the one that is only waiting',
+      'and never carried the trip of a company nobody approved',
       !publicList.campaigns.some((c) => c.id === ORPHANED),
     )
     check(
       'while the administration keeps seeing every one of them',
-      publicList.adminCampaigns.length === 4,
+      publicList.adminCampaigns.length === 5,
       String(publicList.adminCampaigns.length),
     )
 
@@ -653,73 +745,57 @@ async function main() {
     unmount(ui)
   }
 
-  // ======================================================== 2. refuse
-  console.log(`\n--- بانتظار المراجعة → رفض ${'-'.repeat(28)}\n`)
+  // ============================== 3. and can put a trip back on the site
+  console.log(`
+--- موقوفة عن العرض → إعادة العرض ${'-'.repeat(20)}
+`)
   resetDb()
   {
     const ui = mount()
     await settle()
 
-    const reject = ([...ui.container.querySelectorAll('tbody button')] as HTMLElement[]).find(
-      (b) => (b.textContent ?? '').trim() === 'رفض',
-    )
-    check('a pending trip offers رفض', !!reject)
-    if (reject) {
-      click(reject)
+    /*
+     * REFUSED is seeded 'rejected'. Reinstating is the inverse of the takedown
+     * above and emphatically not an approval — the company was verified all
+     * along, and nothing is reaching the public for the first time.
+     */
+    const off = filterChip(ui, 'موقوفة عن العرض')
+    check('the off-the-site trips can be filtered to', !!off)
+    if (off) {
+      click(off)
       await settle(2)
+    }
 
-      const dialog = ui.container.querySelector('[role=dialog]')
-      check('which asks for a reason before it will do anything', !!dialog)
+    const back = ([...ui.container.querySelectorAll('tbody button')] as HTMLElement[]).find(
+      (b) => (b.textContent ?? '').trim() === 'إعادة العرض',
+    )
+    check('a trip that was taken down offers "إعادة العرض"', !!back)
+    if (back) {
+      seen.length = 0
+      click(back)
+      await settle(8)
 
-      const confirm = dialog && byText(dialog, 'button', 'رفض الحملة')
-      check('the confirm button is there', !!confirm)
-      if (confirm) {
-        // Refusing with no reason must not reach the database at all — the
-        // control is disabled, exactly as `set_campaign_status` would refuse it.
-        check(
-          'and refuses to submit an empty reason',
-          (confirm as HTMLButtonElement).disabled,
-          'the confirm button was enabled with no reason typed',
-        )
-      }
+      const rpc = seen.find((x) => x.path.includes('/rpc/set_campaign_status'))
+      const args = rpc ? JSON.parse(rpc.body || '{}') : {}
+      check(
+        'which asks the database for "active", with no reason',
+        args.p_status === 'active' && args.p_reason === null,
+        JSON.stringify(args),
+      )
+      check(
+        'and never for "pending_approval" — there is no queue to send it to',
+        args.p_status !== 'pending_approval',
+        String(args.p_status),
+      )
 
-      const box = ui.container.querySelector('[role=dialog] textarea') as HTMLTextAreaElement | null
-      check('there is a box to write the reason in', !!box)
-      if (box && confirm) {
-        typeInto(box, 'السعر أعلى من السقف المسموح به')
-        await settle(2)
-        check('which enables the refusal once written', !(confirm as HTMLButtonElement).disabled)
+      const stored = db.campaigns.find((c) => c.id === REFUSED)!
+      check('the trip is live again', stored.status === 'active', String(stored.status))
+      check('and the reason it came down is cleared', stored.rejection_reason === null)
 
-        seen.length = 0
-        click(confirm)
-        await settle(8)
-
-        const rpc = seen.find((s) => s.path.includes('/rpc/set_campaign_status'))
-        const args = rpc ? JSON.parse(rpc.body || '{}') : {}
-        check(
-          'the refusal carries the reason to the database',
-          args.p_status === 'rejected' && args.p_reason === 'السعر أعلى من السقف المسموح به',
-          JSON.stringify(args),
-        )
-
-        const stored = db.campaigns.find((c) => c.id === PENDING)!
-        check('the campaign is refused', stored.status === 'rejected', String(stored.status))
-        check(
-          'and the reason is stored where the owner will read it',
-          stored.rejection_reason === 'السعر أعلى من السقف المسموح به',
-          String(stored.rejection_reason),
-        )
-        const notice = db.notifications.find((n) => n.title_ar === 'تم رفض الحملة')
-        check('the owner is told, in the Owner Portal', notice?.audience === 'owner')
-        check(
-          'and the refusal names the reason in the notification body',
-          notice?.body_ar === 'السعر أعلى من السقف المسموح به',
-          String(notice?.body_ar),
-        )
-        check('the refusal email is queued', db.email_outbox.some((e) => e.template === 'campaign_rejected'))
-        check('the administrator is told', toastText(ui).includes('رُفضت'), toastText(ui))
-        check('nothing threw', ui.errors.length === 0, ui.errors.map(describe).join('; '))
-      }
+      const notice = db.notifications.find((x) => x.title_ar === 'تمت إعادة تفعيل رحلتك')
+      check('the owner is told, in the Owner Portal', notice?.audience === 'owner')
+      check('the administrator is told', toastText(ui).includes('إعادة عرض'), toastText(ui))
+      check('nothing threw', ui.errors.length === 0, ui.errors.map(describe).join('; '))
     }
     unmount(ui)
   }
@@ -779,21 +855,46 @@ async function main() {
      * campaign looks ordinary, and the objection is to its owner. The message
      * has to reach the screen, or the button reads as broken.
      */
+    const all = filterChip(ui, 'الكل')
+    if (all) {
+      click(all)
+      await settle(2)
+    }
     const rows = [...ui.container.querySelectorAll('tbody tr')]
-    const orphanRow = rows.find((tr) => (tr.textContent ?? '').includes(ORPHANED.slice(0, 4)))
-    check('the queue shows the trip behind an unapproved company', !!orphanRow)
+
+    /*
+     * First, the property that matters most now that trip approval is gone.
+     *
+     * A trip behind an unapproved company is still sitting there, and there
+     * must be no control on its row that puts it on the public site.
+     */
+    const stillWaiting = rows.find((tr) => (tr.textContent ?? '').includes(ORPHANED.slice(0, 4)))
+    check('the administration can still see the trip of an unapproved company', !!stillWaiting)
+    if (stillWaiting) {
+      const labels = ([...stillWaiting.querySelectorAll('button')] as HTMLElement[])
+        .map((b) => (b.textContent ?? '').trim())
+      check(
+        'and offers nothing on its row that would publish it',
+        !labels.some((l) => l.includes('اعتماد') || l === 'إعادة العرض'),
+        labels.join(' | '),
+      )
+    }
+
+    const orphanRow = rows.find((tr) => (tr.textContent ?? '').includes(ORPHANED_OFF.slice(0, 4)))
+    check('and the one it took down', !!orphanRow)
     if (orphanRow) {
       const approve = ([...orphanRow.querySelectorAll('button')] as HTMLElement[]).find(
-        (b) => (b.textContent ?? '').trim() === 'اعتماد ونشر',
+        (b) => (b.textContent ?? '').trim() === 'إعادة العرض',
       )
+      check('which does offer to put it back', !!approve)
       if (approve) {
         click(approve)
         await settle(8)
 
-        const stored = db.campaigns.find((c) => c.id === ORPHANED)!
+        const stored = db.campaigns.find((c) => c.id === ORPHANED_OFF)!
         check(
-          'approving it changes nothing in the database',
-          stored.status === 'pending_approval',
+          'but the database refuses, and the row is untouched',
+          stored.status === 'rejected',
           String(stored.status),
         )
 
@@ -839,14 +940,19 @@ async function main() {
   {
     const ui = mount('en')
     await settle()
+    const allEn = filterChip(ui, 'All')
+    if (allEn) {
+      click(allEn)
+      await settle(2)
+    }
     const rows = [...ui.container.querySelectorAll('tbody tr')]
-    const orphanRow = rows.find((tr) => (tr.textContent ?? '').includes(ORPHANED.slice(0, 4)))
+    const orphanRow = rows.find((tr) => (tr.textContent ?? '').includes(ORPHANED_OFF.slice(0, 4)))
     const approve =
       orphanRow &&
       ([...orphanRow.querySelectorAll('button')] as HTMLElement[]).find(
-        (b) => (b.textContent ?? '').trim() === 'Approve and publish',
+        (b) => (b.textContent ?? '').trim() === 'Put back on the site',
       )
-    check('the English dashboard offers "Approve and publish"', !!approve)
+    check('the English dashboard offers "Put back on the site"', !!approve)
     if (approve) {
       click(approve)
       await settle(8)
@@ -860,7 +966,7 @@ async function main() {
       check('and the screen it is fixed on', said.includes('Campaign owners'), said)
       check(
         'the campaign is still untouched',
-        db.campaigns.find((c) => c.id === ORPHANED)!.status === 'pending_approval',
+        db.campaigns.find((c) => c.id === ORPHANED_OFF)!.status === 'rejected',
       )
     }
     unmount(ui)

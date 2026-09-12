@@ -6,20 +6,28 @@ import {
   Clock,
   ExternalLink,
   FileWarning,
+  ImagePlus,
   Lock,
   Pencil,
+  Trash2,
   X,
 } from 'lucide-react'
 import type { Provider } from '@/types'
 import { isPendingProvider } from '@/types'
 import { useI18n } from '@/i18n'
 import { WILAYAT, wilayahById, wilayatByGovernorate, wilayahName } from '@/data/geo'
-import { licenceUrl } from '@/services/data/catalogue'
+import { licenceUrl, setProviderLogo } from '@/services/data/catalogue'
 import { fetchPendingChange, submitOwnerProfile } from '@/services/data/ownerProfile'
 import type { ProviderProfileChangeRow } from '@/services/supabase/schema'
 import { isSupabaseConfigured } from '@/services/supabase/client'
 import { isValidPhone } from '@/services/auth/phone'
 import { uploadLicence } from '@/services/storage/licence'
+import {
+  checkProviderLogo,
+  removeProviderLogoObject,
+  uploadProviderLogo,
+} from '@/services/storage/providerLogo'
+import { ProviderMark } from '@/components/brand/ProviderMark'
 import { useStore } from '@/store/AppStore'
 import { useSnapshotLoader } from '@/hooks/useRemoteData'
 import { LicencePicker, type LicenceSelection } from '@/components/auth/LicencePicker'
@@ -320,6 +328,9 @@ export function CompanyProfilePanel({ provider }: { provider?: Provider }) {
               {failure}
             </Notice>
           )}
+
+          {/* -------------------------------------------------------- logo */}
+          <LogoCard provider={provider} onChanged={reload} />
 
           {/* ------------------------------------------------ public details */}
           <Card className="p-6">
@@ -797,5 +808,167 @@ function Row({
         {value || t('owner.profileNotSet')}
       </dd>
     </div>
+  )
+}
+
+/**
+ * The company's logo: upload, replace, remove.
+ *
+ * Its own card and its own save, deliberately separate from the profile form
+ * below it. That form has two halves — details that apply immediately and
+ * details that go to an administrator because they are what NASEK verified the
+ * company against — and folding a logo into it would drag a picture through a
+ * review queue built for permit numbers. A logo is presentation. It applies at
+ * once, it opens no review, and it touches no campaign, so changing it cannot
+ * move a trip. See `20260911000100`.
+ *
+ * The preview is the file the owner just chose, not a re-read of the bucket: an
+ * object URL shows instantly and does not depend on a CDN that has not been
+ * told about the new file yet. It is revoked when it is replaced or the card
+ * unmounts, because an object URL pins the whole file in memory until it is.
+ */
+function LogoCard({
+  provider,
+  onChanged,
+}: {
+  provider?: Provider
+  onChanged: () => Promise<unknown> | void
+}) {
+  const { t } = useI18n()
+  const { toast } = useStore()
+  const input = useRef<HTMLInputElement>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  /** The chosen file, shown before the bucket has heard of it. */
+  const [preview, setPreview] = useState<string>('')
+
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview) }, [preview])
+
+  if (!provider) return null
+
+  const choose = async (file: File | undefined) => {
+    if (!file) return
+    setError('')
+
+    /*
+     * Refused here, and refused again by the bucket and by
+     * `set_provider_logo`. Saying so before the upload is a courtesy; the two
+     * server-side checks are what make it a rule.
+     */
+    const invalid = checkProviderLogo(file)
+    if (invalid) {
+      setError(t('owner.logoInvalid'))
+      return
+    }
+
+    setBusy(true)
+    const previous = provider.logoPath
+    const uploaded = await uploadProviderLogo(file)
+    if (!uploaded.ok) {
+      setBusy(false)
+      setError(t(uploaded.error === 'type' || uploaded.error === 'size'
+        ? 'owner.logoInvalid'
+        : 'owner.logoFailed'))
+      return
+    }
+
+    const saved = await setProviderLogo(provider.id, uploaded.path)
+    if ('error' in saved) {
+      // The row still points at the old logo, so the new object is unreferenced.
+      // Take it back out rather than leaving it in the bucket for ever.
+      await removeProviderLogoObject(uploaded.path)
+      setBusy(false)
+      setError(t('owner.logoFailed'))
+      return
+    }
+
+    // Only once the row points somewhere else is the old file safe to drop.
+    await removeProviderLogoObject(previous)
+
+    const url = URL.createObjectURL(file)
+    setPreview((old) => { if (old) URL.revokeObjectURL(old); return url })
+    setBusy(false)
+    toast(t('owner.logoSaved'), 'success')
+    await onChanged()
+  }
+
+  const remove = async () => {
+    setBusy(true)
+    setError('')
+    const previous = provider.logoPath
+    const saved = await setProviderLogo(provider.id, null)
+    if ('error' in saved) {
+      setBusy(false)
+      setError(t('owner.logoFailed'))
+      return
+    }
+    await removeProviderLogoObject(previous)
+    setPreview((old) => { if (old) URL.revokeObjectURL(old); return '' })
+    setBusy(false)
+    toast(t('owner.logoRemoved'), 'success')
+    await onChanged()
+  }
+
+  const has = !!(preview || provider.logoPath)
+
+  return (
+    <Card className="p-6">
+      <h2 className="text-md font-bold text-ink-900">{t('owner.logoTitle')}</h2>
+      <p className="mt-1 text-xs leading-relaxed text-ink-500">{t('owner.logoNote')}</p>
+
+      <div className="mt-5 flex flex-wrap items-center gap-5">
+        {/*
+          The preview wins while it exists, because it is the file in front of
+          the owner. Otherwise `ProviderMark` draws the saved logo, or the
+          monogram when there is none — the same fallback every other screen
+          uses, rather than a second opinion about what "no logo" looks like.
+        */}
+        {preview ? (
+          <img
+            src={preview}
+            alt={provider.name.en || provider.name.ar}
+            className="size-16 shrink-0 rounded-[3px] border border-ivory-300 bg-ivory-50 object-contain p-1"
+          />
+        ) : (
+          <ProviderMark provider={provider} size="lg" />
+        )}
+
+        <div className="flex flex-wrap gap-2">
+          <input
+            ref={input}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            className="sr-only"
+            onChange={(e) => {
+              void choose(e.target.files?.[0])
+              // Cleared so choosing the same file twice still fires a change.
+              e.target.value = ''
+            }}
+          />
+          <Button
+            variant="secondary"
+            size="sm"
+            loading={busy}
+            onClick={() => input.current?.click()}
+          >
+            <ImagePlus className="size-4" />
+            {t(has ? 'owner.logoChange' : 'owner.logoUpload')}
+          </Button>
+          {has && (
+            <Button variant="danger" size="sm" disabled={busy} onClick={() => void remove()}>
+              <Trash2 className="size-4" />
+              {t('owner.logoRemove')}
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <p className="mt-4 text-2xs leading-relaxed text-ink-400">{t('owner.logoHint')}</p>
+      {error && (
+        <Notice tone="danger" className="mt-3" live>
+          {error}
+        </Notice>
+      )}
+    </Card>
   )
 }

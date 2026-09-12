@@ -166,6 +166,20 @@ export const ownerAr: Record<OwnerMessageKey, string> = {
   'owner.inviteExpired':
     'انتهت صلاحية رابط الدعوة أو استُخدم من قبل. اطلب من ناسِك إرسال رابط جديد.',
 
+  // ------------------------------------------------------- the company logo
+  'owner.logoTitle': 'شعار الحملة',
+  'owner.logoNote':
+    'يظهر شعار شركتك على كل رحلة تنشرها، في موقع ناسِك وفي لوحة الإدارة. ارفعه مرة واحدة — ولا تحتاج إلى إضافته لكل رحلة.',
+  'owner.logoUpload': 'رفع الشعار',
+  'owner.logoChange': 'تغيير الشعار',
+  'owner.logoRemove': 'حذف الشعار',
+  'owner.logoHint':
+    'PNG أو JPG أو WebP بحجم لا يتجاوز 2 ميجابايت. الصورة المربعة أنسب، ولا يُمدّ الشعار أو يُقتطع أبدًا.',
+  'owner.logoInvalid': 'يرجى رفع صورة PNG أو JPG أو WebP بحجم لا يتجاوز 2 ميجابايت.',
+  'owner.logoFailed': 'تعذّر حفظ الشعار. لم يتغيّر شيء — يرجى المحاولة مرة أخرى.',
+  'owner.logoSaved': 'تم تحديث شعار الحملة',
+  'owner.logoRemoved': 'تم حذف شعار الحملة',
+  'owner.notApprovedToPublish': 'يجب اعتماد حساب صاحب الحملة من الإدارة قبل نشر الرحلات.',
   'owner.tabProfile': 'ملف الشركة',
   'owner.tabNotifications': 'الإشعارات',
 
@@ -205,19 +219,16 @@ export const ownerAr: Record<OwnerMessageKey, string> = {
   'owner.markRead': 'تعليم كمقروء',
 
   // ============================================================ حالة الحملة
-  'campaignStatus.pending_approval': 'قيد المراجعة',
+  'campaignStatus.pending_approval': 'غير منشورة',
   'campaignStatus.active': 'منشورة',
-  'campaignStatus.rejected': 'غير معتمدة',
+  'campaignStatus.rejected': 'موقوفة عن العرض',
   'campaignStatus.suspended': 'موقوفة',
-  'campaignStatus.pendingNote': 'الحملة قيد المراجعة لدى فريق ناسِك، ولا تظهر للحجاج بعد.',
   'campaignStatus.activeNote': 'منشورة على ناسِك ومتاحة للحجز.',
-  'campaignStatus.rejectedNote': 'لم تُعتمد الحملة. صحّح ما طُلب واحفظ لإعادتها إلى المراجعة.',
   'campaignStatus.suspendedNote': 'أوقفت الإدارة هذه الحملة، ولا تظهر على الموقع العام.',
-  'campaignStatus.reason': 'سبب عدم الاعتماد',
-  'campaignStatus.resubmitNote':
-    'تغيير السعر أو المواعيد أو الخدمات أو الصور أو الشروط يعيد الحملة إلى مراجعة ناسِك. أما عدد المقاعد فلا.',
+  'campaignStatus.reason': 'سبب إيقاف العرض',
+  'campaignStatus.editsGoLiveNote':
+    'هذه الرحلة منشورة. أي تغيير هنا — السعر أو المواعيد أو الخدمات — يظهر على موقع ناسِك فور الحفظ.',
   'campaignStatus.submittedOn': 'أُرسلت للمراجعة',
-  'campaignStatus.reviewedOn': 'تاريخ القرار',
 
   'prov.formDeadline': 'آخر موعد للتسجيل',
   'prov.formDeadlineHint': 'آخر يوم يمكن فيه الحجز، ولا يكون بعد تاريخ المغادرة.',
@@ -233,7 +244,6 @@ export const ownerAr: Record<OwnerMessageKey, string> = {
   'prov.formProvider': 'صاحب الحملة',
   'prov.formProviderPick': 'اختر الشركة…',
   'prov.publishCampaign': 'نشر الرحلة',
-  'prov.publishedPending': 'تمت إضافة الرحلة بنجاح وستظهر بعد اعتماد الإدارة.',
   'prov.publishedActive': 'تمت إضافة الرحلة بنجاح وهي ظاهرة الآن.',
   'prov.formImages': 'الصور',
   'prov.formImagesHint': 'حتى {n} صور، وتُستخدم الأولى في بطاقة الحملة.',
@@ -251,7 +261,6 @@ export const ownerAr: Record<OwnerMessageKey, string> = {
   'prov.formTerms': 'الشروط والأحكام',
   'prov.formTermsHint': 'الإلغاء والدفع وما يوافق عليه الحاج. تُعرض في صفحة الحملة.',
   'prov.sectionMedia': 'الصور والشروط',
-  'prov.submitForReview': 'إرسال للمراجعة',
   'prov.viewPublicPending': 'غير منشورة بعد',
 
   // ------------------------------------------ recovered working-tree keys
