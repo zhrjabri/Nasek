@@ -20,7 +20,7 @@ import { wilayahName } from '@/data/geo'
 import { bookingsApi, bookingTotal } from '@/services/api/bookings'
 import { isSupabaseConfigured } from '@/services/supabase/client'
 import { isValidPhone, formatPhone } from '@/services/auth/phone'
-import { createBooking } from '@/services/data/catalogue'
+import { bookingProviderContact, createBooking } from '@/services/data/catalogue'
 import { buildInvoice, invoiceWhatsappUrl, tripReference } from '@/lib/invoice'
 import { useStore } from '@/store/AppStore'
 import { useCatalogue } from '@/hooks/useCatalogue'
@@ -697,9 +697,33 @@ function InvoiceScreen({
   provider: Provider | undefined
 }) {
   const { t, lang, money, n, date } = useI18n()
+
+  /*
+   * The owner's number, fetched against the booking that entitles us to it.
+   *
+   * A customer cannot read `providers.phone` — `providers_public` withholds it,
+   * and should — so the number arrives from `booking_provider_contact`, which
+   * hands it over only to the customer on that booking. See `20260912000100`.
+   *
+   * After the booking is saved, never before: the request is keyed on a booking
+   * id, so there is nothing to ask about until one exists. That ordering is the
+   * same one the WhatsApp button already had, now enforced by the server rather
+   * than only by the screen.
+   */
+  const [contactPhone, setContactPhone] = useState<string | null>(null)
+  useEffect(() => {
+    let live = true
+    void bookingProviderContact(booking.id).then((phone) => {
+      if (live) setContactPhone(phone)
+    })
+    return () => {
+      live = false
+    }
+  }, [booking.id])
+
   const invoice = useMemo(
-    () => buildInvoice(booking, campaign, provider, lang),
-    [booking, campaign, provider, lang],
+    () => buildInvoice(booking, campaign, provider, lang, contactPhone),
+    [booking, campaign, provider, lang, contactPhone],
   )
   const href = invoiceWhatsappUrl(invoice, lang)
 

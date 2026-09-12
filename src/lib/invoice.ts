@@ -82,12 +82,25 @@ export function whatsappDigits(phone: string | null | undefined): string | null 
   return e164 ? e164.slice(1) : null
 }
 
-/** Assemble the invoice from the records that own each field. */
+/**
+ * Assemble the invoice from the records that own each field.
+ *
+ * `contactPhone` is the campaign owner's number as `booking_provider_contact`
+ * returned it, and it wins over `provider.phone` because for the party that
+ * actually sends this — the customer — `provider.phone` is always empty:
+ * `providers_public` withholds the column, and that is the only provider source
+ * a customer can read. `provider.phone` remains the answer for the offline
+ * prototype and for anyone holding the full row.
+ *
+ * Undefined means "not looked up yet", which renders exactly like "no number":
+ * fail closed, and never a `wa.me` link to a destination nobody chose.
+ */
 export function buildInvoice(
   booking: Booking,
   campaign: Campaign | undefined,
   provider: Provider | undefined,
   lang: Lang,
+  contactPhone?: string | null,
 ): Invoice {
   return {
     invoiceNumber: booking.reference,
@@ -102,7 +115,8 @@ export function buildInvoice(
     pricePerPerson: booking.pricePerPerson ?? null,
     totalAmount: booking.totalPrice,
     providerName: provider ? provider.name[lang] || provider.name.ar : '',
-    providerPhone: provider?.phone?.trim() ? provider.phone : null,
+    providerPhone:
+      contactPhone?.trim() || (provider?.phone?.trim() ? provider.phone : null) || null,
     bookingDate: booking.bookingDate,
     status: booking.status,
   }

@@ -734,6 +734,30 @@ export async function setProviderLogo(
   return { provider: toProvider(data as ProviderRow) }
 }
 
+/**
+ * The campaign owner's phone for a booking this customer holds.
+ *
+ * The WhatsApp invoice needs a number, and a customer cannot read one:
+ * `providers_public` withholds `phone`, which is why the button never rendered
+ * before this. Widening that view would publish every company's number to every
+ * anonymous visitor, so the booking is the boundary instead — see
+ * `20260912000100`.
+ *
+ * Three outcomes, and the caller distinguishes them:
+ *   a string  the number to send the invoice to
+ *   null      the company has no number on file, or the booking is not the
+ *             caller's; either way there is nobody to send to and the interface
+ *             says so rather than inventing a destination
+ */
+export async function bookingProviderContact(bookingId: string): Promise<string | null> {
+  if (!supabase) return null
+  const { data, error } = await supabase.rpc('booking_provider_contact', {
+    p_booking_id: bookingId,
+  })
+  if (error || typeof data !== 'string') return null
+  return data.trim() || null
+}
+
 /** Cancel, returning the seats to the trip in the same transaction. */
 export async function cancelBooking(id: string): Promise<boolean> {
   if (!supabase) return false

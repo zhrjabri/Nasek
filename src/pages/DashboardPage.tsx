@@ -16,6 +16,7 @@ import { useI18n, type MessageKey } from '@/i18n'
 import { bookingsApi } from '@/services/api/bookings'
 import { isSupabaseConfigured } from '@/services/supabase/client'
 import {
+  bookingProviderContact,
   cancelBooking,
   completePastBookings,
   createReview,
@@ -657,7 +658,28 @@ function PendingPayment({ booking }: { booking: Booking }) {
   const { getCampaign, getProvider } = useCatalogue()
   const campaign = getCampaign(booking.campaignId)
   const provider = campaign ? getProvider(campaign.providerId) : undefined
-  const invoice = buildInvoice(booking, campaign, provider, lang)
+
+  /*
+   * Reopening asks the same question about the same saved booking.
+   *
+   * The number is not carried in the store — a customer's provider rows come
+   * from `providers_public`, which withholds it — so it is fetched per booking
+   * against `booking_provider_contact`. Nothing here creates anything: the
+   * invoice number, the totals and the passenger split all come off the row
+   * that is already saved, and this adds only the destination to send it to.
+   */
+  const [contactPhone, setContactPhone] = useState<string | null>(null)
+  useEffect(() => {
+    let live = true
+    void bookingProviderContact(booking.id).then((phone) => {
+      if (live) setContactPhone(phone)
+    })
+    return () => {
+      live = false
+    }
+  }, [booking.id])
+
+  const invoice = buildInvoice(booking, campaign, provider, lang, contactPhone)
   const href = invoiceWhatsappUrl(invoice, lang)
 
   return (

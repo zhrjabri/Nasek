@@ -521,6 +521,18 @@ export type Database = {
         Args: { p_provider_id: string; p_path?: string | null }
         Returns: ProviderRow
       }
+      /**
+       * The campaign owner's phone, for a booking the caller holds.
+       *
+       * One column, and only to the customer on that booking. The manual-payment
+       * workflow needs the number in the browser to build a `wa.me` link, and
+       * `providers_public` withholds `phone` — correctly. The booking is the
+       * authorisation boundary instead. Null means the company has none on file.
+       */
+      booking_provider_contact: {
+        Args: { p_booking_id: string }
+        Returns: string | null
+      }
       /** Advances the caller's own past-dated bookings; returns how many moved. */
       complete_past_bookings: { Args: Record<string, never>; Returns: number }
     }
