@@ -44,7 +44,7 @@ import {
   replyToReview,
   saveCampaign,
 } from '@/services/data/catalogue'
-import { NASEK_FEE_RATE } from '@/services/api/bookings'
+import { mediationFee } from '@/services/api/bookings'
 import { isSupabaseConfigured } from '@/services/supabase/client'
 import { useStore } from '@/store/AppStore'
 import { useCatalogue } from '@/hooks/useCatalogue'
@@ -95,8 +95,16 @@ const TABS: { id: Tab; key: MessageKey; icon: typeof LayoutGrid }[] = [
   { id: 'notifications', key: 'owner.tabNotifications', icon: Bell },
 ]
 
-/** Monthly subscription tiers — the business model made concrete. */
-const PLAN_PRICE = { basic: 15, plus: 35, premium: 75 } as const
+/*
+ * `PLAN_PRICE` used to live here — `{ basic: 15, plus: 35, premium: 75 }`,
+ * described as "the business model made concrete". It was concrete only in
+ * this file. `providers.plan` is a real column, but no table, migration or
+ * agreement attaches a price to any of its three values, and every company is
+ * pinned to `basic` by trigger anyway. So the portal showed each owner a
+ * monthly bill NASEK had never agreed to charge them, and an "estimated this
+ * month" total built on top of it. Both are gone; the 2% mediation fee below
+ * is the one charge that exists, and `book_campaign` really levies it.
+ */
 
 /**
  * The current tab, kept in the query string, without a router.
@@ -236,7 +244,9 @@ export function DashboardPage() {
     return {
       bookings: paid.length,
       revenue,
-      commission: revenue * NASEK_FEE_RATE,
+      // Not `revenue * 0.02`: the fee is already inside every total. See
+      // `mediationFee`.
+      commission: mediationFee(revenue),
       active: campaigns.filter((c) => c.seatsAvailable > 0).length,
       seatsAvailable,
       fillRate: seatsTotal ? ((seatsTotal - seatsAvailable) / seatsTotal) * 100 : 0,
@@ -251,6 +261,9 @@ export function DashboardPage() {
   )
 
   const monthly = useMemo(() => buildMonthly(bookings, lang), [bookings, lang])
+  /* Twelve empty months and an axis at zero reads as a broken page rather than
+     as an owner who has not been booked yet. Say the second thing. */
+  const noBookings = bookings.length === 0
 
   const byTrip = useMemo(
     () =>
@@ -410,53 +423,52 @@ export function DashboardPage() {
             </Card>
           )}
 
-          {/* the business model, shown where the owner actually feels it */}
+          {/* what NASEK actually charges, and nothing it does not */}
           <Card className="p-6">
             <h2 className="text-md font-bold text-ink-900">{t('prov.plan')}</h2>
             <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-500">
               {t('prov.planNote')}
             </p>
-            <dl className="mt-5 grid gap-4 sm:grid-cols-3">
+            <dl className="mt-5 grid gap-4 sm:grid-cols-2">
               <PlanFigure
-                label={t('prov.planMonthly')}
-                value={money(PLAN_PRICE[provider?.plan ?? 'basic'])}
-                note={provider?.plan ?? 'basic'}
-              />
-              <PlanFigure label={t('prov.planCommission')} value={money(stats.commission)} />
-              <PlanFigure
-                label={t('prov.planThisMonth')}
-                value={money(PLAN_PRICE[provider?.plan ?? 'basic'] + stats.commission / 12)}
+                label={t('prov.planCommission')}
+                value={stats.bookings ? money(stats.commission) : t('prov.noData')}
                 highlight
               />
+              <PlanFigure label={t('prov.kpiBookings')} value={n(stats.bookings)} />
             </dl>
           </Card>
 
           <Card className="p-6">
             <h2 className="mb-5 text-md font-bold text-ink-900">{t('prov.chartBookings')}</h2>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={monthly} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="prov-area" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#23765e" stopOpacity={0.35} />
-                      <stop offset="100%" stopColor="#23765e" stopOpacity={0.02} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#eae5d8" vertical={false} />
-                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#8d9189' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: '#8d9189' }} axisLine={false} tickLine={false} />
-                  <Tooltip />
-                  <Area
-                    type="monotone"
-                    dataKey="bookings"
-                    name={t('prov.kpiBookings')}
-                    stroke="#23765e"
-                    strokeWidth={2}
-                    fill="url(#prov-area)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
+            {noBookings ? (
+              <NoData label={t('prov.noData')} />
+            ) : (
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={monthly} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="prov-area" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#23765e" stopOpacity={0.35} />
+                        <stop offset="100%" stopColor="#23765e" stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#eae5d8" vertical={false} />
+                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#8d9189' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: '#8d9189' }} axisLine={false} tickLine={false} />
+                    <Tooltip />
+                    <Area
+                      type="monotone"
+                      dataKey="bookings"
+                      name={t('prov.kpiBookings')}
+                      stroke="#23765e"
+                      strokeWidth={2}
+                      fill="url(#prov-area)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </Card>
         </section>
       )}
@@ -849,63 +861,75 @@ export function DashboardPage() {
         <section className="grid gap-6 lg:grid-cols-2">
           <Card className="p-6 lg:col-span-2">
             <h2 className="mb-5 text-md font-bold text-ink-900">{t('prov.chartRevenue')}</h2>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={monthly} margin={{ top: 4, right: 8, left: -12, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#eae5d8" vertical={false} />
-                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#8d9189' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: '#8d9189' }} axisLine={false} tickLine={false} />
-                  <Tooltip />
-                  <Bar dataKey="revenue" name={t('prov.kpiRevenue')} fill="#1c5e4c" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            {noBookings ? (
+              <NoData label={t('prov.noData')} />
+            ) : (
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={monthly} margin={{ top: 4, right: 8, left: -12, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#eae5d8" vertical={false} />
+                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#8d9189' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: '#8d9189' }} axisLine={false} tickLine={false} />
+                    <Tooltip />
+                    <Bar dataKey="revenue" name={t('prov.kpiRevenue')} fill="#1c5e4c" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </Card>
 
           <Card className="p-6">
             <h2 className="mb-5 text-md font-bold text-ink-900">{t('prov.chartTrips')}</h2>
-            <div className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={byTrip} layout="vertical" margin={{ left: 0, right: 12 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#eae5d8" horizontal={false} />
-                  <XAxis type="number" tick={{ fontSize: 11, fill: '#8d9189' }} axisLine={false} tickLine={false} />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    width={130}
-                    tick={{ fontSize: 10, fill: '#6b7269' }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <Tooltip />
-                  <Bar dataKey="bookings" name={t('prov.kpiBookings')} fill="#359375" radius={[0, 6, 6, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            {byTrip.length === 0 ? (
+              <NoData label={t('prov.noData')} />
+            ) : (
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={byTrip} layout="vertical" margin={{ left: 0, right: 12 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#eae5d8" horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 11, fill: '#8d9189' }} axisLine={false} tickLine={false} />
+                    <YAxis
+                      type="category"
+                      dataKey="name"
+                      width={130}
+                      tick={{ fontSize: 10, fill: '#6b7269' }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <Tooltip />
+                    <Bar dataKey="bookings" name={t('prov.kpiBookings')} fill="#359375" radius={[0, 6, 6, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </Card>
 
           <Card className="p-6">
             <h2 className="mb-5 text-md font-bold text-ink-900">{t('prov.chartLocations')}</h2>
-            <div className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={byLocation}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius="52%"
-                    outerRadius="80%"
-                    paddingAngle={2}
-                  >
-                    {byLocation.map((_, i) => (
-                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
+            {byLocation.length === 0 ? (
+              <NoData label={t('prov.noData')} />
+            ) : (
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={byLocation}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius="52%"
+                      outerRadius="80%"
+                      paddingAngle={2}
+                    >
+                      {byLocation.map((_, i) => (
+                        <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </Card>
         </section>
       )}
@@ -1031,12 +1055,10 @@ function Kpi({
 function PlanFigure({
   label,
   value,
-  note,
   highlight,
 }: {
   label: string
   value: string
-  note?: string
   highlight?: boolean
 }) {
   return (
@@ -1047,13 +1069,18 @@ function PlanFigure({
       )}
     >
       <dt className="text-2xs font-bold uppercase tracking-wider text-ink-400">{label}</dt>
+      {/* The `note` line went with the subscription tier it named. */}
       <dd className="nums mt-2 text-2xl font-bold text-ink-900">{value}</dd>
-      {note && (
-        <dd className="mt-1 text-2xs font-semibold uppercase tracking-wider text-gold-600">
-          {note}
-        </dd>
-      )}
     </div>
+  )
+}
+
+/** What a chart shows before this owner has been booked. */
+function NoData({ label }: { label: string }) {
+  return (
+    <p className="flex h-64 items-center justify-center rounded-[3px] border border-dashed border-ivory-400 bg-ivory-50 text-center text-sm text-ink-400">
+      {label}
+    </p>
   )
 }
 

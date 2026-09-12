@@ -71,12 +71,14 @@ export const ownerEn = {
   'prov.chartRevenue': 'Revenue by month',
   'prov.chartTrips': 'Most booked trips',
   'prov.chartLocations': 'Where your customers come from',
-  'prov.plan': 'Your NASEK plan',
+  // The subscription half of this card is gone. `prov.planMonthly` and
+  // `prov.planThisMonth` priced a tier NASEK has never agreed a price for, so
+  // the strings go with the figures rather than waiting to be reused.
+  'prov.plan': 'What NASEK charges',
   'prov.planNote':
-    'NASEK charges campaign owners a monthly subscription plus a 2% mediation fee on completed bookings.',
-  'prov.planMonthly': 'Monthly subscription',
+    'NASEK takes a 2% mediation fee on bookings made through the platform. It is already included in the total each traveller pays.',
   'prov.planCommission': 'Mediation fee (2%)',
-  'prov.planThisMonth': 'Estimated this month',
+  'prov.noData': 'No data yet',
   'prov.lowSeats': '{n} trips are almost full',
   'prov.respondReview': 'Reply',
   'prov.viewPublic': 'View public page',

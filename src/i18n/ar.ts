@@ -49,7 +49,6 @@ export const ar: Record<PublicMessageKey, string> = {
   'common.bookNow': 'احجز الآن',
   'common.required': 'مطلوب',
   'common.all': 'الكل',
-  'common.demoData': 'بيانات تجريبية',
   'common.verified': 'موثّقة من ناسِك',
   'common.pendingVerification': 'قيد التوثيق',
   'common.hajj': 'حج',

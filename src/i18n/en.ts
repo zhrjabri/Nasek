@@ -56,7 +56,6 @@ export const en = {
   'common.bookNow': 'Book now',
   'common.required': 'Required',
   'common.all': 'All',
-  'common.demoData': 'Demo data',
   'common.verified': 'Verified by NASEK',
   'common.pendingVerification': 'Verification pending',
   'common.hajj': 'Hajj',

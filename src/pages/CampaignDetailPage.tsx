@@ -207,7 +207,11 @@ export function CampaignDetailPage() {
                 {provider?.verification === 'pending' && (
                   <Badge tone="amber">{t('common.pendingVerification')}</Badge>
                 )}
-                <Badge tone="neutral">{t('common.demoData')}</Badge>
+                {/* A third badge reading "Demo data" used to sit here, on every
+                    trip, unconditionally — a leftover from the seeded prototype
+                    that now labelled real campaigns real companies had
+                    published and NASEK had approved. Nothing on this page is
+                    demo data any more, so nothing says it is. */}
               </div>
 
               <h1 className="display mt-4 text-4xl text-ink-900 sm:text-5xl">

@@ -14,6 +14,21 @@ export interface CreateBookingInput {
   contactEmail: string
 }
 
+/**
+ * The mediation fee already inside a booking total.
+ *
+ * `book_campaign` stores `total_price = price × travellers × (1 + fee_rate)`,
+ * so the fee is *part of* the total, not something to add on top of it. Both
+ * dashboards used to report `total × 0.02`, which is the fee on a subtotal
+ * that includes the fee — every mediation figure on the platform was two
+ * percent of itself too large. The fee on a known total is `total × r/(1+r)`.
+ *
+ * Rounded to three places, matching `numeric(10,3)` on the column.
+ */
+export function mediationFee(total: number) {
+  return Math.round(((total * NASEK_FEE_RATE) / (1 + NASEK_FEE_RATE)) * 1000) / 1000
+}
+
 export function priceBreakdown(campaign: Campaign, travellers: number) {
   const subtotal = campaign.price * travellers
   const fee = Math.round(subtotal * NASEK_FEE_RATE * 1000) / 1000
