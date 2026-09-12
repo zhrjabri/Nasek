@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Check, Mail, Pencil, ShieldCheck, UserRound, X } from 'lucide-react'
 import type { User } from '@/types'
 import { useI18n } from '@/i18n'
@@ -82,6 +83,23 @@ const draftFrom = (user: User): Draft => ({
 export function AccountPanel({ user }: { user: User }) {
   const { t, lang } = useI18n()
   const { dispatch, toast } = useStore()
+  /*
+   * Where to go once this is saved, if somebody was sent here mid-task.
+   *
+   * A booking cannot be created without a phone number, so a customer who has
+   * none is sent to this panel with `?next=` carrying the booking they were
+   * halfway through — trip and passenger counts included. Returning them to it
+   * is the difference between "add your number" and "start again".
+   *
+   * Only a same-site path is honoured. `next` arrives in the address bar, and
+   * an absolute URL there would make this panel a redirector to anywhere on the
+   * internet that anyone cared to link to.
+   */
+  const [params] = useSearchParams()
+  const navigate = useNavigate()
+  const rawNext = params.get('next')
+  const returnTo =
+    rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : null
 
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState<Draft>(() => draftFrom(user))
@@ -180,6 +198,15 @@ export function AccountPanel({ user }: { user: User }) {
     setEditing(false)
     setConfirmDiscard(false)
     toast(t('dash.profileSaved'), 'success')
+
+    /*
+     * Back to what they were doing.
+     *
+     * Only once the number is actually usable: saving a blank or a half-typed
+     * one and bouncing to a booking page that immediately sends them back here
+     * is a loop, not a redirect.
+     */
+    if (returnTo && isValidPhone(draft.phone)) navigate(returnTo)
   }
 
   return (

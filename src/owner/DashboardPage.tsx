@@ -30,6 +30,7 @@ import {
   Trash2,
   TriangleAlert,
   Users,
+  Wallet,
 } from 'lucide-react'
 import type { BookingStatus, Campaign } from '@/types'
 import { useI18n, type MessageKey } from '@/i18n'
@@ -37,14 +38,17 @@ import { wilayahName } from '@/data/geo'
 import { CampaignForm } from '@/components/campaign/CampaignForm'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { publicCampaignUrl } from '@/lib/publicSite'
+import { tripReference } from '@/lib/invoice'
 
 import {
   completePastBookings,
+  confirmBookingPayment,
   removeCampaign,
   replyToReview,
   saveCampaign,
 } from '@/services/data/catalogue'
 import { mediationFee } from '@/services/api/bookings'
+import { formatPhone } from '@/services/auth/phone'
 import { isSupabaseConfigured } from '@/services/supabase/client'
 import { useStore } from '@/store/AppStore'
 import { useCatalogue } from '@/hooks/useCatalogue'
@@ -214,6 +218,8 @@ export function DashboardPage() {
    */
   const [replyTo, setReplyTo] = useState<{ id: string; text: string } | null>(null)
   const [savingReply, setSavingReply] = useState(false)
+  /** Which booking is mid-confirmation, so one row spins rather than the table. */
+  const [confirming, setConfirming] = useState<string | null>(null)
 
   const providerId = user?.providerId ?? 'p1'
   const provider = getProvider(providerId)
@@ -236,16 +242,31 @@ export function DashboardPage() {
     return allBookings.filter((b) => ids.has(b.campaignId))
   }, [campaigns, allBookings])
 
+  /*
+   * Money that has actually been received, and nothing else.
+   *
+   * `status !== 'cancelled'` used to define "paid", which under the old flow
+   * was almost defensible because `book_campaign` wrote every booking as
+   * 'confirmed' the moment it was created. It is indefensible now: a pending
+   * booking is a request nobody has paid for, and counting one as revenue would
+   * put an owner's unpaid enquiries into the figure they run their business on.
+   *
+   * 'confirmed' means the owner has been paid and said so. 'completed' means
+   * that trip has since returned. Those two, and only those two, are revenue.
+   */
   const stats = useMemo(() => {
-    const paid = bookings.filter((b) => b.status !== 'cancelled')
-    const revenue = paid.reduce((sum, b) => sum + b.totalPrice, 0)
+    const earned = bookings.filter((b) => b.status === 'confirmed' || b.status === 'completed')
+    const revenue = earned.reduce((sum, b) => sum + b.totalPrice, 0)
     const seatsTotal = campaigns.reduce((s, c) => s + c.seatsTotal, 0)
     const seatsAvailable = campaigns.reduce((s, c) => s + c.seatsAvailable, 0)
     return {
-      bookings: paid.length,
+      /** Every live request, paid or not — this is a workload, not a revenue figure. */
+      bookings: bookings.filter((b) => b.status !== 'cancelled').length,
+      awaiting: bookings.filter((b) => b.status === 'pending').length,
+      confirmedCount: earned.length,
       revenue,
-      // Not `revenue * 0.02`: the fee is already inside every total. See
-      // `mediationFee`.
+      // 2% of confirmed business, charged to the owner. Not inside the total the
+      // traveller pays — see `mediationFee`.
       commission: mediationFee(revenue),
       active: campaigns.filter((c) => c.seatsAvailable > 0).length,
       seatsAvailable,
@@ -259,6 +280,41 @@ export function DashboardPage() {
     () => campaigns.filter((c) => c.seatsAvailable > 0 && c.seatsAvailable <= 6),
     [campaigns],
   )
+
+  /**
+   * "I have been paid."
+   *
+   * The only statement in NASEK that turns a request into a confirmed booking,
+   * and the owner is the only party who can make it — the money arrived in
+   * their account, over a channel the platform never sees.
+   *
+   * The store follows the database rather than racing it. Drawing the green
+   * badge first and firing the request afterwards is how a screen comes to show
+   * a booking as paid that Postgres refused to confirm, with no way back but a
+   * reload nobody knows to do; the owner dashboard has been corrected for
+   * exactly that once already, on provider verification.
+   */
+  const markPaid = async (booking: { id: string; reference: string }) => {
+    setConfirming(booking.id)
+    const result = await confirmBookingPayment(booking.id)
+    setConfirming(null)
+    if ('error' in result) {
+      toast(
+        result.schemaBehind
+          ? t('prov.temporarilyUnavailable')
+          : result.fromServer
+            ? result.error
+            : t('state.errorBody'),
+        'warning',
+      )
+      return
+    }
+    dispatch({ type: 'setBookingStatus', bookingId: booking.id, status: 'confirmed' })
+    toast(t('prov.markedPaid', { ref: booking.reference }), 'success')
+    // The seat ledger is unchanged by a confirmation, but the revenue figures
+    // above this table are not — re-read so they move with it.
+    await reload()
+  }
 
   const monthly = useMemo(() => buildMonthly(bookings, lang), [bookings, lang])
   /* Twelve empty months and an axis at zero reads as a broken page rather than
@@ -366,6 +422,37 @@ export function DashboardPage() {
         ))}
       </nav>
 
+      {/*
+        No phone number on the company record.
+
+        Every booking request ends with a customer trying to open WhatsApp to
+        this company, and that button is disabled when there is no number to
+        open it to. The owner is the only person who can fix it, so they are
+        told here rather than left wondering why nobody is messaging them.
+      */}
+      {!provider?.phone?.trim() && (
+        <Card className="mb-6 border-amber-200 bg-amber-50 p-4">
+          <div className="flex items-start gap-3">
+            <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-700" />
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-amber-900">{t('prov.noPhoneTitle')}</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-amber-800/80">
+                {t('prov.noPhoneBody')}
+              </p>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="mt-3"
+                onClick={() => setTab('profile')}
+              >
+                <Building2 className="size-3.5" />
+                {t('owner.tabProfile')}
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* -------------------------------------------------------- overview */}
       {tab === 'overview' && (
         <section className="space-y-6">
@@ -432,10 +519,15 @@ export function DashboardPage() {
             <dl className="mt-5 grid gap-4 sm:grid-cols-2">
               <PlanFigure
                 label={t('prov.planCommission')}
-                value={stats.bookings ? money(stats.commission) : t('prov.noData')}
+                value={
+                  stats.confirmedCount ? money(stats.commission) : t('prov.noConfirmedFinancial')
+                }
                 highlight
               />
-              <PlanFigure label={t('prov.kpiBookings')} value={n(stats.bookings)} />
+              <PlanFigure
+                label={t('prov.confirmedBookings')}
+                value={n(stats.confirmedCount)}
+              />
             </dl>
           </Card>
 
@@ -705,15 +797,33 @@ export function DashboardPage() {
                     })}
                   </p>
 
+                  {/*
+                    How a booking gets paid, said once, above the table it
+                    happens in.
+
+                    The owner is the only person in this workflow who knows
+                    whether money arrived, and this table is where they record
+                    it. Nothing else in NASEK can tell.
+                  */}
+                  <div className="mb-3 flex items-start gap-2.5 rounded-[3px] border border-ivory-300 bg-ivory-50/60 p-3.5">
+                    <Wallet className="mt-px size-4 shrink-0 text-nasek-700" />
+                    <p className="text-xs leading-relaxed text-ink-600">
+                      {t('prov.paymentWorkflow')}
+                    </p>
+                  </div>
+
                   <div className="overflow-x-auto rounded-[3px] border border-ivory-300 bg-ivory-50">
-                    <table className="w-full min-w-2xl text-start text-sm">
+                    <table className="w-full min-w-4xl text-start text-sm">
                       <thead>
                         <tr className="border-b border-ivory-300 bg-ivory-100 text-2xs font-bold uppercase tracking-wider text-ink-500">
+                          <th scope="col" className="p-3.5 text-start">{t('booking.invoiceNo')}</th>
                           <th scope="col" className="p-3.5 text-start">{t('prov.customerName')}</th>
                           <th scope="col" className="p-3.5 text-start">{t('prov.customerTrip')}</th>
+                          <th scope="col" className="p-3.5 text-start">{t('booking.tripDate')}</th>
                           <th scope="col" className="p-3.5 text-start">{t('prov.customerPeople')}</th>
-                          <th scope="col" className="p-3.5 text-start">{t('prov.customerDate')}</th>
+                          <th scope="col" className="p-3.5 text-start">{t('booking.pricePerPerson')}</th>
                           <th scope="col" className="p-3.5 text-start">{t('common.total')}</th>
+                          <th scope="col" className="p-3.5 text-start">{t('booking.created')}</th>
                           <th scope="col" className="p-3.5 text-start">{t('common.status')}</th>
                         </tr>
                       </thead>
@@ -722,22 +832,58 @@ export function DashboardPage() {
                           const c = campaigns.find((x) => x.id === b.campaignId)
                           return (
                             <tr key={b.id} className="border-b border-ivory-300 last:border-0 even:bg-ivory-50/50">
+                              <td className="nums p-3.5 font-semibold text-ink-700" dir="ltr">
+                                {b.reference}
+                              </td>
                               <td className="p-3.5">
-                                <span className="font-semibold text-ink-800">{b.contactName}</span>
-                                {/* the reference is what a caller reads out, so
-                                    it belongs beside the name, not hidden */}
-                                <span className="nums block text-2xs text-ink-400">
-                                  {b.reference}
+                                <span className="block font-semibold text-ink-800">
+                                  {b.contactName || '—'}
+                                </span>
+                                {/* The number the owner replies to. It is the
+                                    whole of their side of this workflow, so it
+                                    is on the row rather than behind a click. */}
+                                <span className="nums block text-2xs text-ink-400" dir="ltr">
+                                  {b.contactPhone ? formatPhone(b.contactPhone) : '—'}
                                 </span>
                               </td>
-                              <td className="max-w-48 truncate p-3.5 text-ink-600">
-                                {c ? bl(c.title) : '—'}
+                              <td className="max-w-48 p-3.5 text-ink-600">
+                                <span className="block truncate">{c ? bl(c.title) : '—'}</span>
+                                <span className="nums block text-2xs text-ink-400" dir="ltr">
+                                  {c ? tripReference(c.id) : '—'}
+                                </span>
                               </td>
-                              <td className="nums p-3.5 text-ink-600">{n(b.travellersCount)}</td>
-                              <td className="p-3.5 text-ink-500">{date(b.bookingDate)}</td>
+                              <td className="p-3.5 text-ink-500">
+                                {c ? date(c.departureDate) : '—'}
+                              </td>
+                              <td className="nums p-3.5 text-ink-600">
+                                <span className="block font-semibold">{n(b.travellersCount)}</span>
+                                {/* Null for a booking taken before the split was
+                                    recorded. A dash, never a pair of zeroes. */}
+                                <span className="block text-2xs text-ink-400">
+                                  {b.maleCount == null || b.femaleCount == null
+                                    ? '—'
+                                    : `${t('booking.male')} ${n(b.maleCount)} · ${t('booking.female')} ${n(b.femaleCount)}`}
+                                </span>
+                              </td>
+                              <td className="nums p-3.5 text-ink-600">
+                                {b.pricePerPerson == null ? '—' : money(b.pricePerPerson)}
+                              </td>
                               <td className="nums p-3.5 font-semibold text-ink-800">{money(b.totalPrice)}</td>
+                              <td className="p-3.5 text-ink-500">{date(b.bookingDate)}</td>
                               <td className="p-3.5">
                                 <Badge tone={STATUS_TONE[b.status]}>{t(STATUS_KEY[b.status])}</Badge>
+                                {b.status === 'pending' && (
+                                  <Button
+                                    size="xs"
+                                    variant="approve"
+                                    className="mt-2"
+                                    loading={confirming === b.id}
+                                    onClick={() => void markPaid(b)}
+                                  >
+                                    <BadgeCheck className="size-3.5" />
+                                    {t('prov.markPaid')}
+                                  </Button>
+                                )}
                               </td>
                             </tr>
                           )
@@ -1101,10 +1247,18 @@ function buildMonthly(bookings: { bookingDate: string; totalPrice: number; statu
     if (b.status === 'cancelled') continue
     const key = b.bookingDate.slice(0, 7)
     const bucket = buckets.get(key)
-    if (bucket) {
-      bucket.bookings += 1
-      bucket.revenue += b.totalPrice
-    }
+    if (!bucket) continue
+    bucket.bookings += 1
+    /*
+     * The two series answer different questions and are counted differently.
+     *
+     * `bookings` is how much work came in that month, so a request that has not
+     * been paid for still counts. `revenue` is money received, so it does not:
+     * only a booking the owner has confirmed — or one whose trip has since run
+     * — has been paid for, and adding pending requests to a revenue bar chart
+     * is how an owner comes to plan against income that never arrived.
+     */
+    if (b.status === 'confirmed' || b.status === 'completed') bucket.revenue += b.totalPrice
   }
 
   const fmt = new Intl.DateTimeFormat(lang === 'ar' ? 'ar-OM' : 'en-GB', { month: 'short' })

@@ -307,54 +307,59 @@ export const ar: Record<PublicMessageKey, string> = {
 
   // --------------------------------------------------------------- booking
   'booking.title': 'أكمل حجزك',
-  'booking.step4': 'البيانات',
-  'booking.step5': 'المراجعة',
-  'booking.step6': 'الدفع',
-  'booking.stepTrip': 'الرحلة والمسافرون',
+  'booking.stepPassengers': 'المسافرون',
+  'booking.stepReview': 'المراجعة',
   'booking.chooseTrip': 'الرحلة المختارة',
   'booking.changeTrip': 'اختر رحلة أخرى',
-  'booking.travellersTitle': 'كم عدد المسافرين؟',
+  'booking.passengersTitle': 'من سيسافر؟',
   'booking.travellersNote': 'بما فيهم أنت. يتوفر {n} مقعدًا في هذه الرحلة.',
-  'booking.travellerN': 'المسافر {n}',
-  'booking.leadTraveller': 'المسافر الرئيسي (أنت)',
-  'booking.nationality': 'الجنسية',
   'booking.omani': 'عُماني',
   'booking.nonOmani': 'مقيم غير عُماني',
-  'booking.gender': 'الجنس',
-  'booking.male': 'ذكر',
-  'booking.female': 'أنثى',
-  'booking.civilId': 'الرقم المدني',
-  'booking.passport': 'رقم جواز السفر',
-  'booking.residence': 'رقم بطاقة الإقامة',
-  'booking.sponsor': 'اسم الكفيل',
-  'booking.docsNote':
-    'على المسافرين غير العُمانيين تقديم بطاقة الإقامة وبيانات الكفيل وصورة شخصية بخلفية بيضاء — وستطلبها الحملة بعد الحجز.',
-  'booking.contactTitle': 'بيانات التواصل',
-  'booking.contactNote':
-    'ستستخدمها الحملة للتواصل معك بشأن الرحلة. نحفظها في حسابك، فهذه آخر مرة نطلبها منك.',
-  'booking.reviewTitle': 'راجع حجزك',
-  'booking.reviewNote': 'تأكد من كل شيء قبل الانتقال إلى الدفع.',
-  'booking.paymentTitle': 'الدفع',
-  'booking.paymentNote':
-    'هذا النموذج الأولي لا ينفّذ عمليات دفع حقيقية. في النسخة الفعلية تتم المدفوعات عبر بوابة عُمانية مرخصة مثل ثواني.',
-  'booking.paymentDemo': 'محاكاة عملية الدفع',
-  'booking.processing': 'جارٍ تنفيذ حجزك…',
-  'booking.pricePerPerson': 'السعر للمسافر',
-  'booking.travellersCount': 'عدد المسافرين',
-  'booking.subtotal': 'المجموع الفرعي',
-  'booking.fee': 'رسوم وساطة ناسِك (٢٪)',
-  'booking.grandTotal': 'الإجمالي المستحق',
-  'booking.confirmTitle': 'تم تأكيد حجزك',
-  'booking.confirmBody':
-    'أرسلنا التفاصيل إلى بريدك الإلكتروني، وستتواصل معك الحملة لاستكمال الإجراءات.',
+  'booking.male': 'ذكور',
+  'booking.female': 'إناث',
+  'booking.totalPassengers': 'إجمالي المسافرين',
+  'booking.atLeastOne': 'الحجز يحتاج مسافرًا واحدًا على الأقل.',
+  'booking.reviewTitle': 'راجع طلب الحجز',
+  'booking.reviewNote': 'تأكد من كل رقم. هذا ما سيصل إلى صاحب الحملة.',
+  'booking.campaign': 'الحملة',
+  'booking.tripNo': 'الرحلة رقم',
+  'booking.tripDate': 'تاريخ الرحلة',
+  'booking.created': 'تاريخ إنشاء الطلب',
+  'booking.manualPaymentNote':
+    'ناسِك لا يستقبل المدفوعات. إنشاء هذا الطلب يُصدر فاتورة ترسلها إلى صاحب الحملة عبر واتساب، فيرد عليك ببيانات الدفع ويؤكد الحجز بعد استلامه المبلغ.',
+  'booking.temporarilyUnavailable':
+    'الحجز غير متاح مؤقتًا ريثما يكمل ناسِك تحديثًا. لم يُخصم أي مبلغ ولم يُحفظ أي طلب — يرجى المحاولة بعد قليل.',
+  'booking.createRequest': 'إنشاء طلب الحجز',
+  'booking.processing': 'جارٍ إنشاء طلب الحجز…',
+  'booking.pricePerPerson': 'السعر للفرد',
+  'booking.notEnoughSeats': 'لم يتبقَ سوى {n} مقعدًا في هذه الرحلة.',
+
+  // ------------------------------------------------- the customer's number
+  'booking.phoneRequired': 'يرجى إضافة رقم هاتفك لإتمام طلب الحجز.',
+  'booking.phoneRequiredWhy':
+    'يرد صاحب الحملة عليك مباشرة ببيانات الدفع، لذا يجب أن تحمل فاتورتك رقمًا يستطيع الوصول إليك عليه.',
+  'booking.phoneAdd': 'إضافة رقم هاتفي',
+  'booking.phoneReturn': 'رحلتك وعدد المسافرين محفوظان — وستعود إلى هنا مباشرة.',
+
+  // -------------------------------------------------------------- invoice
+  'booking.requestTitle': 'تم حفظ طلب الحجز',
+  'booking.requestBody':
+    'أصدر ناسِك الفاتورة أدناه. أرسلها إلى صاحب الحملة للحصول على بيانات الدفع.',
+  'booking.invoiceNo': 'رقم فاتورة ناسِك',
   'booking.reference': 'رقم الحجز',
+  'booking.awaitingPayment': 'بانتظار الدفع',
+  'booking.sendWhatsapp': 'إرسال الفاتورة لصاحب الحملة عبر واتساب',
+  'booking.sendWhatsappNote':
+    'سيتم التواصل مع صاحب الحملة مباشرة للحصول على بيانات الدفع وإتمام الحجز.',
+  'booking.noProviderPhone': 'لا يتوفر رقم تواصل للحملة حاليًا.',
+  'booking.noProviderPhoneNote':
+    'طلب حجزك محفوظ ويستطيع صاحب الحملة رؤيته. وقد أُبلغ ناسِك بأن هذه الشركة لا تملك رقم تواصل مسجلًا.',
   'booking.viewBookings': 'الذهاب إلى حجوزاتي',
   'booking.backHome': 'العودة للرئيسية',
-  'booking.notEnoughSeats': 'لم يتبقَ سوى {n} مقعدًا في هذه الرحلة.',
   'booking.signInFirst': 'سجّل الدخول لإكمال الحجز',
   'booking.signInNote':
     'يكفي بريد إلكتروني ورمز تحقق. اختيارك محفوظ — وستعود إلى هنا مباشرة.',
-  'booking.print': 'طباعة التأكيد',
+  'booking.print': 'طباعة الفاتورة',
 
   // ------------------------------------------------------------------ auth
   'auth.passwordRequired': 'أدخل كلمة المرور',
@@ -453,7 +458,9 @@ export const ar: Record<PublicMessageKey, string> = {
   'dash.upcoming': 'القادمة',
   'dash.completed': 'المنتهية',
   'dash.cancelled': 'الملغاة',
-  'dash.pending': 'بانتظار التأكيد',
+  'dash.pending': 'بانتظار الدفع',
+  'dash.awaitingPaymentNote': 'بانتظار إتمام الدفع مع صاحب الحملة',
+  'dash.resendInvoice': 'إعادة إرسال الفاتورة عبر واتساب',
   'dash.noBookings': 'لا توجد لديك حجوزات بعد',
   'dash.noBookingsHint': 'عند حجز رحلة ستظهر هنا مع رقم الحجز الخاص بها.',
   'dash.noSaved': 'لم تحفظ أي حملة',

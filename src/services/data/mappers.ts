@@ -207,6 +207,11 @@ export function toBooking(row: BookingRow, travellers: TravellerRow[] = []): Boo
     campaignId: row.campaign_id,
     travellers: travellers.map(toTraveller),
     travellersCount: row.travellers_count,
+    // `?? undefined` and never `?? 0`: a booking with no recorded split is a
+    // booking with no recorded split, and the interfaces draw a dash for it.
+    maleCount: row.male_count ?? undefined,
+    femaleCount: row.female_count ?? undefined,
+    pricePerPerson: row.price_per_person == null ? undefined : Number(row.price_per_person),
     contactName: row.contact_name,
     contactPhone: row.contact_phone,
     contactEmail: row.contact_email,

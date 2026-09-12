@@ -259,7 +259,10 @@ function AdminRoutes() {
               />
             }
           />
-          <Route path="/bookings" element={<BookingsTab campaigns={adminCampaigns} />} />
+          <Route
+            path="/bookings"
+            element={<BookingsTab campaigns={adminCampaigns} providers={providers} />}
+          />
           <Route path="/reviews" element={<ReviewsTab campaigns={adminCampaigns} />} />
           <Route path="/security" element={<SecurityTab />} />
           {/* An unknown address inside the dashboard is a mistyped bookmark, not

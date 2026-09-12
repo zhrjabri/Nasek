@@ -615,7 +615,7 @@ export function CampaignDetailPage() {
                 <div className="flex items-start gap-2 rounded-[3px] bg-gold-50 p-3">
                   <Info className="mt-px size-3.5 shrink-0 text-gold-700" />
                   <p className="text-2xs leading-relaxed text-gold-800">
-                    {t('booking.paymentNote')}
+                    {t('booking.manualPaymentNote')}
                   </p>
                 </div>
               </div>

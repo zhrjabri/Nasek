@@ -19,6 +19,7 @@ import {
   BadgeCheck,
   Building2,
   CheckCircle2,
+  Clock,
   Coins,
   LayoutGrid,
   ShieldCheck,
@@ -77,17 +78,30 @@ export function OverviewTab({
    * headline number on the administration dashboard was therefore mostly
    * fiction, and it shipped.
    *
-   * The mediation fee is the one that is real: `book_campaign` charges it, it
-   * is inside every `total_price`, and it is recoverable from the bookings
-   * themselves. So that is what is reported, under its own name.
+   * The mediation fee is the one that is real: NASEK charges campaign owners
+   * 2% of the business the platform brings them. So that is what is reported,
+   * under its own name.
+   *
+   * AND ONLY ON BUSINESS THAT HAPPENED
+   *
+   * `status !== 'cancelled'` used to stand in for "paid", which was almost
+   * defensible while `book_campaign` wrote every booking as 'confirmed' the
+   * moment it was created. Payment now happens off the platform, between the
+   * customer and the campaign owner, and a 'pending' booking is a request
+   * nobody has paid for. Charging a mediation fee on one — or showing it to an
+   * administrator as platform value — would be billing for money that may never
+   * arrive. Confirmed and completed only.
    */
   const stats = useMemo(() => {
-    const paid = bookings.filter((b) => b.status !== 'cancelled')
-    const gmv = paid.reduce((s, b) => s + b.totalPrice, 0)
+    const settled = bookings.filter((b) => b.status === 'confirmed' || b.status === 'completed')
+    const gmv = settled.reduce((s, b) => s + b.totalPrice, 0)
     return {
       gmv,
       fees: mediationFee(gmv),
-      bookings: paid.length,
+      settled: settled.length,
+      /** Requests in flight. A workload figure, deliberately not a money one. */
+      awaiting: bookings.filter((b) => b.status === 'pending').length,
+      bookings: bookings.filter((b) => b.status !== 'cancelled').length,
       pending: providers.filter((p) => isPendingProvider(p.verification)).length,
     }
     /*
@@ -127,8 +141,26 @@ export function OverviewTab({
   return (
     <section className="space-y-6">
       <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Kpi label={t('admin.revCommission')} value={money(stats.fees)} icon={<Coins className="size-4" />} highlight />
-        <Kpi label={t('admin.kpiGmv')} value={money(stats.gmv)} icon={<Coins className="size-4" />} />
+        {/* Both money figures say "no confirmed financial data yet" rather than
+            a confident OMR 0 while nothing has been paid for. Zero and
+            "nothing has settled" look the same and are not. */}
+        <Kpi
+          label={t('admin.revCommission')}
+          value={stats.settled ? money(stats.fees) : t('admin.noConfirmedFinancial')}
+          icon={<Coins className="size-4" />}
+          highlight
+        />
+        <Kpi
+          label={t('admin.kpiConfirmedValue')}
+          value={stats.settled ? money(stats.gmv) : t('admin.noConfirmedFinancial')}
+          icon={<Coins className="size-4" />}
+        />
+        <Kpi
+          label={t('admin.kpiAwaitingPayment')}
+          value={n(stats.awaiting)}
+          icon={<Clock className="size-4" />}
+          hint={stats.awaiting > 0 ? t('admin.awaitingPaymentHint') : undefined}
+        />
         <Kpi label={t('admin.kpiBookings')} value={n(stats.bookings)} icon={<Ticket className="size-4" />} />
         <Kpi label={t('admin.kpiProviders')} value={n(providers.length)} icon={<Building2 className="size-4" />} />
         <Kpi label={t('admin.kpiCampaigns')} value={n(campaigns.length)} icon={<LayoutGrid className="size-4" />} />
@@ -139,6 +171,8 @@ export function OverviewTab({
           tone={stats.pending > 0 ? 'alert' : undefined}
         />
       </ul>
+
+      <p className="text-2xs leading-relaxed text-ink-400">{t('admin.paymentNotProcessed')}</p>
 
       {/* --------------------------------------------------- work queue */}
       <Card className="p-6">

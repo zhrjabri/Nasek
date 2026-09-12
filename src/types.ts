@@ -397,9 +397,29 @@ export interface Booking {
   campaignId: string
   travellers: Traveller[]
   travellersCount: number
+  /**
+   * The passenger split, as the customer chose it.
+   *
+   * Optional, and the option is the honest part: bookings taken before the
+   * manual-payment workflow have no split recorded, and the column is NULL for
+   * them rather than zero. A screen showing `0 male, 0 female` for a booking of
+   * three people would be stating something false about a real record, so every
+   * reader prints a dash instead. See `20260910000100`.
+   */
+  maleCount?: number
+  femaleCount?: number
+  /**
+   * Per-head price at the moment of booking — not the campaign's price now.
+   *
+   * An owner may re-price a trip; an invoice already issued must not change.
+   * Undefined for bookings that predate the snapshot, where the only honest
+   * answer is that NASEK did not record it.
+   */
+  pricePerPerson?: number
   contactName: string
   contactPhone: string
   contactEmail: string
+  /** What the customer owes the campaign owner: pricePerPerson × travellersCount. */
   totalPrice: number
   status: BookingStatus
   bookingDate: string

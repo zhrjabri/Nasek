@@ -15,7 +15,7 @@ import { createCredential, findCredential, verifyPassword } from '@/services/api
 import { contactDetailsToKeep } from '@/services/auth/profileGaps'
 import { verifyAdminPassphrase } from '@/admin/access'
 import { applyFilters, applySort, campaignsApi, defaultFilters } from '@/services/api/campaigns'
-import { bookingsApi, priceBreakdown } from '@/services/api/bookings'
+import { bookingsApi, bookingTotal } from '@/services/api/bookings'
 import { getAI } from '@/services/ai'
 import { buildDirectory } from '@/data/users'
 import { emptyState, reducer, type PersistedState } from '@/store/AppStore'
@@ -184,11 +184,8 @@ const main = async () => {
   const booking: Booking = await bookingsApi.create({
     user: customer,
     campaign: trip,
-    travellersCount: 2,
-    travellers: [
-      { name: 'Aisha Al-Harthy', nationality: 'OM', gender: 'female', civilId: '1234567', passportNo: 'A1234567' },
-      { name: 'Fatma Al-Harthy', nationality: 'OM', gender: 'female', civilId: '7654321', passportNo: 'B7654321' },
-    ],
+    maleCount: 0,
+    femaleCount: 2,
     contactName: 'Aisha Al-Harthy',
     contactPhone: '+968 9123 4567',
     contactEmail: 'aisha@example.com',
@@ -196,6 +193,12 @@ const main = async () => {
   state = reducer(state, { type: 'addBooking', booking })
 
   check('a booking reference is issued', !!booking.reference, booking.reference)
+  // A request, not a sale. Nothing has been paid at this point and the record
+  // must not say otherwise.
+  check('a new booking is awaiting payment rather than confirmed',
+    booking.status === 'pending', booking.status)
+  check('the passenger split is recorded',
+    booking.maleCount === 0 && booking.femaleCount === 2 && booking.travellersCount === 2)
   check('the booking carries the details the form collected',
     booking.contactName === 'Aisha Al-Harthy' && booking.contactPhone === '+968 9123 4567')
 
@@ -225,10 +228,19 @@ const main = async () => {
       email: 'aisha@example.com',
     }) === null,
   )
-  const { subtotal, fee, total } = priceBreakdown(trip, 2)
-  check('the total is the trip twice over, plus the platform fee',
-    booking.totalPrice === total && total === subtotal + fee,
-    `${subtotal} + ${fee} fee = ${booking.totalPrice}`)
+  /*
+   * The total is the trip twice over and nothing else.
+   *
+   * It used to carry NASEK'''s 2% on top. The customer now pays the campaign
+   * owner directly, so a fee inside this figure would be one they hand to the
+   * owner on NASEK'''s behalf with no way to pass it back.
+   */
+  const total = bookingTotal(trip.price, 2)
+  check('the total is the trip twice over, with no fee added',
+    booking.totalPrice === total && total === trip.price * 2,
+    `${trip.price} x 2 = ${booking.totalPrice}`)
+  check('the per-head price is snapshotted on the booking',
+    booking.pricePerPerson === trip.price)
   check('it lands in the customer history', state.bookings.length === 1)
 
   // ================================================ 5. the admin moderates

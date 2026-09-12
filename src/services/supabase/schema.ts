@@ -190,6 +190,11 @@ export type BookingRow = {
   user_id: string
   campaign_id: string
   travellers_count: number
+  /** Null for bookings taken before 20260910000100 added the split. */
+  male_count: number | null
+  female_count: number | null
+  /** Null for bookings taken before the per-head price was snapshotted. */
+  price_per_person: number | null
   contact_name: string
   contact_phone: string
   contact_email: string
@@ -340,7 +345,9 @@ export type Database = {
       profiles: Table<ProfileRow, Insertable<ProfileRow, 'created_at' | 'avatar_color' | 'role' | 'suspended' | 'removed' | 'name' | 'nationality'>>
       providers: Table<ProviderRow, Insertable<ProviderRow, 'id' | 'created_at' | 'joined_at' | 'verification' | 'rating' | 'review_count' | 'plan' | 'initials' | 'brand_color' | 'experience_years' | 'verified_by' | 'verified_at' | 'tagline_ar' | 'tagline_en' | 'description_ar' | 'description_en' | 'governorate' | 'address' | 'commercial_registration' | 'permit_number' | 'permit_expiry' | 'licence_mime'>>
       campaigns: Table<CampaignRow, Insertable<CampaignRow, 'id' | 'created_at' | 'rating' | 'review_count' | 'featured' | 'bookings_count' | 'suspended' | 'deleted' | 'services' | 'description_ar' | 'description_en' | 'hotel_makkah_ar' | 'hotel_makkah_en' | 'hotel_madinah_ar' | 'hotel_madinah_en' | 'haram_distance_m' | 'status' | 'rejection_reason' | 'submitted_at' | 'reviewed_by' | 'reviewed_at' | 'registration_deadline' | 'excluded_services' | 'included_services' | 'contact_persons' | 'images' | 'contact_name' | 'contact_phone' | 'contact_email' | 'terms_ar' | 'terms_en'>>
-      bookings: Table<BookingRow, Insertable<BookingRow, 'id' | 'created_at' | 'booking_date' | 'status' | 'notes'>>
+      // Written only by `book_campaign`; the insert shape is kept accurate so
+      // that a hand-written insert would still have to name the same columns.
+      bookings: Table<BookingRow, Insertable<BookingRow, 'id' | 'created_at' | 'booking_date' | 'status' | 'notes' | 'male_count' | 'female_count' | 'price_per_person'>>
       travellers: Table<TravellerRow, Insertable<TravellerRow, 'id' | 'nationality'>>
       reviews: Table<ReviewRow, Insertable<ReviewRow, 'id' | 'created_at' | 'hidden' | 'comment_ar' | 'comment_en' | 'reply_ar' | 'reply_en' | 'replied_at'>>
       notifications: Table<NotificationRow, Insertable<NotificationRow, 'id' | 'created_at' | 'read' | 'kind' | 'body_ar' | 'body_en'>>
@@ -468,15 +475,35 @@ export type Database = {
         }
         Returns: ProviderRow
       }
+      /**
+       * Creates a booking *request*, status 'pending'.
+       *
+       * No price and no total in the arguments, and that is the contract rather
+       * than an omission: the function reads the price off the campaign row it
+       * has locked. `p_travellers` went with the traveller-details step the
+       * manual-payment workflow removed — see `20260910000100`.
+       */
       book_campaign: {
         Args: {
           p_campaign_id: string
-          p_travellers: never
+          p_male_count: number
+          p_female_count: number
           p_contact_name: string
           p_contact_phone: string
           p_contact_email: string
           p_notes?: string | null
         }
+        Returns: BookingRow
+      }
+      /**
+       * The campaign owner records that they have been paid.
+       *
+       * Owner or administrator only, and 'pending' -> 'confirmed' only; the
+       * server refuses anything else. Cancelling goes through `cancel_booking`,
+       * which also returns the seats.
+       */
+      set_booking_status: {
+        Args: { p_booking_id: string; p_status: BookingStatusRow }
         Returns: BookingRow
       }
       cancel_booking: { Args: { p_booking_id: string }; Returns: BookingRow }

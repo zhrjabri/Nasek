@@ -6,7 +6,6 @@ import type {
   NotificationAudience,
   Provider,
   Review,
-  Traveller,
   User,
   VerificationStatus,
 } from '@/types'
@@ -577,8 +576,15 @@ export async function setReviewHidden(id: string, hidden: boolean): Promise<bool
 
 export interface BookingRequest {
   campaignId: string
-  travellers: Traveller[]
+  /**
+   * The passenger split. There is no price and no total here, deliberately:
+   * `book_campaign` reads the price off the campaign row it has locked, and a
+   * total posted by a browser is a total chosen by whoever is driving it.
+   */
+  maleCount: number
+  femaleCount: number
   contactName: string
+  /** Required. The server refuses a booking with nothing to reach the customer on. */
   contactPhone: string
   contactEmail: string
   notes?: string
@@ -608,14 +614,30 @@ export interface BookingRequest {
  */
 const DELIBERATE_BOOKING_REFUSALS = new Set(['23514', 'P0002', '42501'])
 
+/**
+ * PostgREST's "no function with that name and those arguments".
+ *
+ * It means one specific thing, and it is worth telling apart from a fault:
+ * this bundle is ahead of the database. A deployment is two moves — the
+ * migration and the build — and between them the browser is asking for an RPC
+ * whose new signature Postgres has not been given yet.
+ *
+ * It is not something a customer can act on and not something they did, so it
+ * gets its own message rather than "something went wrong", and the caller can
+ * tell the two apart without matching on prose. It resolves the moment the
+ * migration lands, with no second deployment.
+ */
+const SCHEMA_BEHIND = 'PGRST202'
+
 export async function createBooking(
   input: BookingRequest,
-): Promise<{ booking: Booking } | { error: string; fromServer: boolean }> {
+): Promise<{ booking: Booking } | { error: string; fromServer: boolean; schemaBehind?: boolean }> {
   if (!supabase) return { error: 'offline', fromServer: false }
 
   const { data, error } = await supabase.rpc('book_campaign', {
     p_campaign_id: input.campaignId,
-    p_travellers: input.travellers as unknown as never,
+    p_male_count: input.maleCount,
+    p_female_count: input.femaleCount,
     p_contact_name: input.contactName,
     p_contact_phone: input.contactPhone,
     p_contact_email: input.contactEmail,
@@ -646,6 +668,40 @@ export async function createBooking(
       error: deliberate ? error!.message : '',
       /** False when the message is ours to explain rather than the server's. */
       fromServer: deliberate,
+      schemaBehind: error?.code === SCHEMA_BEHIND,
+    }
+  }
+  return { booking: toBooking(data as BookingRow, []) }
+}
+
+/**
+ * The campaign owner marks a request paid.
+ *
+ * The one transition in NASEK that means money changed hands, and the only way
+ * a booking reaches 'confirmed'. It is an RPC rather than an update because
+ * there is no longer an UPDATE policy on `bookings` for anyone to use — see
+ * `20260910000100` for why a customer-writable status column could not survive
+ * payment moving off the platform.
+ *
+ * The server checks that the caller owns the campaign; this cannot be talked
+ * out of by the browser that calls it.
+ */
+export async function confirmBookingPayment(
+  id: string,
+): Promise<{ booking: Booking } | { error: string; fromServer: boolean; schemaBehind?: boolean }> {
+  if (!supabase) return { error: 'offline', fromServer: false }
+
+  const { data, error } = await supabase.rpc('set_booking_status', {
+    p_booking_id: id,
+    p_status: 'confirmed',
+  })
+
+  if (error || !data) {
+    const deliberate = DELIBERATE_BOOKING_REFUSALS.has(error?.code ?? '')
+    return {
+      error: deliberate ? error!.message : '',
+      fromServer: deliberate,
+      schemaBehind: error?.code === SCHEMA_BEHIND,
     }
   }
   return { booking: toBooking(data as BookingRow, []) }

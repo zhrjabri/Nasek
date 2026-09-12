@@ -316,55 +316,70 @@ export const en = {
   'map.source': 'Boundaries from public geographic data',
 
   // --------------------------------------------------------------- booking
+  /*
+   * Booking, after NASEK stopped implying it takes payment.
+   *
+   * Gone with the payment step and the traveller-details step: `booking.step4`
+   * / `step5` / `step6` / `stepTrip`, the whole `nationality` / `civilId` /
+   * `passport` / `residence` / `sponsor` / `docsNote` set, `contactTitle` /
+   * `contactNote`, `paymentTitle` / `paymentNote` / `paymentDemo`, `subtotal` /
+   * `fee` / `grandTotal`, and `confirmTitle` / `confirmBody` — which announced
+   * a confirmed booking at the moment nothing had been paid.
+   */
   'booking.title': 'Complete your booking',
-  'booking.step4': 'Details',
-  'booking.step5': 'Review',
-  'booking.step6': 'Payment',
-  'booking.stepTrip': 'Trip & travellers',
+  'booking.stepPassengers': 'Passengers',
+  'booking.stepReview': 'Review',
   'booking.chooseTrip': 'Your selected trip',
   'booking.changeTrip': 'Choose a different trip',
-  'booking.travellersTitle': 'How many travellers?',
+  'booking.passengersTitle': 'Who is travelling?',
   'booking.travellersNote': 'Including yourself. {n} seats are available on this trip.',
-  'booking.travellerN': 'Traveller {n}',
-  'booking.leadTraveller': 'Lead traveller (you)',
-  'booking.nationality': 'Nationality',
   'booking.omani': 'Omani',
   'booking.nonOmani': 'Non-Omani resident',
-  'booking.gender': 'Gender',
   'booking.male': 'Male',
   'booking.female': 'Female',
-  'booking.civilId': 'Civil ID number',
-  'booking.passport': 'Passport number',
-  'booking.residence': 'Residence card number',
-  'booking.sponsor': 'Sponsor name',
-  'booking.docsNote':
-    'Non-Omani travellers must also provide a residence card, sponsor details and a photo with a white background — the campaign will request these after booking.',
-  'booking.contactTitle': 'Contact details',
-  'booking.contactNote':
-    'The campaign will use these to reach you about the trip. We keep them on your account, so this is the last time you will be asked.',
-  'booking.reviewTitle': 'Review your booking',
-  'booking.reviewNote': 'Check everything before you continue to payment.',
-  'booking.paymentTitle': 'Payment',
-  'booking.paymentNote':
-    'This prototype does not process real payments. In production, NASEK settles payments through a licensed Omani gateway such as Thawani.',
-  'booking.paymentDemo': 'Simulate payment',
-  'booking.processing': 'Processing your booking…',
-  'booking.pricePerPerson': 'Price per traveller',
-  'booking.travellersCount': 'Travellers',
-  'booking.subtotal': 'Subtotal',
-  'booking.fee': 'NASEK service fee (2%)',
-  'booking.grandTotal': 'Total due',
-  'booking.confirmTitle': 'Your booking is confirmed',
-  'booking.confirmBody':
-    'We’ve sent the details to your email. The campaign will contact you to complete the paperwork.',
+  'booking.totalPassengers': 'Total passengers',
+  'booking.atLeastOne': 'A booking needs at least one passenger.',
+  'booking.reviewTitle': 'Review your booking request',
+  'booking.reviewNote': 'Check every figure. This is what the campaign owner will be sent.',
+  'booking.campaign': 'Campaign',
+  'booking.tripNo': 'Trip No.',
+  'booking.tripDate': 'Trip date',
+  'booking.created': 'Request created',
+  'booking.manualPaymentNote':
+    'NASEK does not take payment. Creating this request issues an invoice you send to the campaign owner on WhatsApp; they reply with their payment details and confirm your booking once they have been paid.',
+  'booking.temporarilyUnavailable':
+    'Booking is briefly unavailable while NASEK finishes an update. Nothing was charged and nothing was saved — please try again shortly.',
+  'booking.createRequest': 'Create booking request',
+  'booking.processing': 'Creating your booking request…',
+  'booking.pricePerPerson': 'Price per person',
+  'booking.notEnoughSeats': 'Only {n} seats remain on this trip.',
+
+  // ------------------------------------------------- the customer's number
+  'booking.phoneRequired': 'Please add your phone number to complete the booking request.',
+  'booking.phoneRequiredWhy':
+    'The campaign owner replies to you directly with their payment details, so your invoice has to carry a number they can reach you on.',
+  'booking.phoneAdd': 'Add my phone number',
+  'booking.phoneReturn': 'Your trip and passenger choices are kept — you will come straight back here.',
+
+  // -------------------------------------------------------------- invoice
+  'booking.requestTitle': 'Your booking request is saved',
+  'booking.requestBody':
+    'NASEK has issued the invoice below. Send it to the campaign owner to receive their payment details.',
+  'booking.invoiceNo': 'NASEK invoice number',
   'booking.reference': 'Booking reference',
+  'booking.awaitingPayment': 'Awaiting payment',
+  'booking.sendWhatsapp': 'Send invoice to campaign owner via WhatsApp',
+  'booking.sendWhatsappNote':
+    'You will contact the campaign owner directly to receive payment details and complete your booking.',
+  'booking.noProviderPhone': 'A contact number is not currently available for this campaign.',
+  'booking.noProviderPhoneNote':
+    'Your booking request is saved and the campaign owner can see it. NASEK has been told that this company has no contact number on file.',
   'booking.viewBookings': 'Go to my bookings',
   'booking.backHome': 'Back to home',
-  'booking.notEnoughSeats': 'Only {n} seats remain on this trip.',
   'booking.signInFirst': 'Sign in to continue your booking',
   'booking.signInNote':
     'It takes an email address and a code. Your selection is kept — you’ll come straight back here.',
-  'booking.print': 'Print confirmation',
+  'booking.print': 'Print invoice',
 
   // ------------------------------------------------------------------ auth
   'auth.passwordRequired': 'Enter your password',
@@ -467,7 +482,9 @@ export const en = {
   'dash.upcoming': 'Upcoming',
   'dash.completed': 'Completed',
   'dash.cancelled': 'Cancelled',
-  'dash.pending': 'Awaiting confirmation',
+  'dash.pending': 'Awaiting payment',
+  'dash.awaitingPaymentNote': 'Awaiting payment completion with the campaign owner',
+  'dash.resendInvoice': 'Send the invoice again on WhatsApp',
   'dash.noBookings': 'You have no bookings yet',
   'dash.noBookingsHint': 'When you book a trip it will appear here with its reference number.',
   'dash.noSaved': 'You haven’t saved any campaigns',

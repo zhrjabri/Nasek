@@ -5,6 +5,7 @@ import {
   Bookmark,
   CalendarClock,
   CheckCircle2,
+  MessageCircle,
   Star,
   Ticket,
   UserRound,
@@ -26,12 +27,15 @@ import { useCatalogue } from '@/hooks/useCatalogue'
 import { useSnapshotLoader } from '@/hooks/useRemoteData'
 import { CampaignCard } from '@/components/campaign/CampaignCard'
 import { AccountPanel } from '@/pages/account/AccountPanel'
+import { buildInvoice, invoiceWhatsappUrl } from '@/lib/invoice'
 import {
+  AnchorButton,
   Badge,
   Button,
   Card,
   EmptyState,
   Field,
+  Notice,
   RuleLink,
   Segmented,
   Textarea,
@@ -337,6 +341,20 @@ export function DashboardPage() {
                               <p className="mt-1 text-xs text-ink-500">
                                 {campaign ? date(campaign.departureDate) : ''} ·{' '}
                                 {n(booking.travellersCount)} {t('common.travellers')}
+                                {/* The split, when the booking recorded one.
+                                    Bookings taken before the manual-payment
+                                    workflow did not, and print nothing here
+                                    rather than a pair of invented zeroes. */}
+                                {booking.maleCount != null && booking.femaleCount != null && (
+                                  <>
+                                    {' '}
+                                    ({t('booking.male')} {n(booking.maleCount)} ·{' '}
+                                    {t('booking.female')} {n(booking.femaleCount)})
+                                  </>
+                                )}
+                                {booking.pricePerPerson != null && (
+                                  <> · {money(booking.pricePerPerson)} {t('common.perPerson')}</>
+                                )}
                                 {key === 'dash.upcoming' && daysToGo > 0 && (
                                   <> · {t('dash.daysToGo', { n: n(daysToGo) })}</>
                                 )}
@@ -375,6 +393,20 @@ export function DashboardPage() {
                               )}
                             </div>
                           </Card>
+
+                          {/*
+                            Awaiting payment, and the way to chase it.
+
+                            The button reopens WhatsApp with the invoice this
+                            booking already has. It creates nothing: no second
+                            booking, no second invoice number, no second hold on
+                            the seats — `buildInvoice` reads the row that is
+                            already saved, and the customer can send it as often
+                            as the conversation needs.
+                          */}
+                          {booking.status === 'pending' && (
+                            <PendingPayment booking={booking} />
+                          )}
 
                           {/* The question, on the booking it is about — the
                               reference and the trip are right above it, which
@@ -609,6 +641,48 @@ export function DashboardPage() {
         </div>
       )}
     </main>
+  )
+}
+
+/**
+ * A booking that has not been paid for yet, and the invoice that chases it.
+ *
+ * Separate component so it can read the catalogue for the campaign and the
+ * company without threading either through the list above — and so the
+ * WhatsApp link is rebuilt from the saved booking every time it renders rather
+ * than being captured when the page loaded.
+ */
+function PendingPayment({ booking }: { booking: Booking }) {
+  const { t, lang } = useI18n()
+  const { getCampaign, getProvider } = useCatalogue()
+  const campaign = getCampaign(booking.campaignId)
+  const provider = campaign ? getProvider(campaign.providerId) : undefined
+  const invoice = buildInvoice(booking, campaign, provider, lang)
+  const href = invoiceWhatsappUrl(invoice, lang)
+
+  return (
+    <Card className="mt-2 border-gold-200 bg-gold-50/60 p-4">
+      <p className="text-sm font-semibold text-gold-900">{t('dash.awaitingPaymentNote')}</p>
+      <p className="mt-1 nums text-2xs text-gold-800/80" dir="ltr">
+        {t('booking.invoiceNo')}: {booking.reference}
+      </p>
+      {href ? (
+        <AnchorButton
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          size="sm"
+          className="mt-3"
+        >
+          <MessageCircle className="size-4" />
+          {t('dash.resendInvoice')}
+        </AnchorButton>
+      ) : (
+        <Notice tone="warn" className="mt-3">
+          {t('booking.noProviderPhone')}
+        </Notice>
+      )}
+    </Card>
   )
 }
 

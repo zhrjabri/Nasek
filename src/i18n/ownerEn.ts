@@ -74,6 +74,23 @@ export const ownerEn = {
   // The subscription half of this card is gone. `prov.planMonthly` and
   // `prov.planThisMonth` priced a tier NASEK has never agreed a price for, so
   // the strings go with the figures rather than waiting to be reused.
+  // ------------------------------------------- manual payment, owner side
+  /*
+   * NASEK does not take payment, so the owner is the only party who knows
+   * whether any arrived. These are the strings for the part of the workflow
+   * that happens in their portal.
+   */
+  'prov.paymentWorkflow':
+    'A customer creates a booking request and sends you its NASEK invoice on WhatsApp. You reply with your payment details and are paid directly — NASEK is not involved in the payment. Once you have received it, mark the booking as paid here.',
+  'prov.temporarilyUnavailable':
+    'This action is briefly unavailable while NASEK finishes an update. The booking is unchanged — please try again shortly.',
+  'prov.markPaid': 'Mark as paid',
+  'prov.markedPaid': 'Booking {ref} is confirmed as paid',
+  'prov.confirmedBookings': 'Confirmed bookings',
+  'prov.noConfirmedFinancial': 'No confirmed financial data yet',
+  'prov.noPhoneTitle': 'Your company has no contact number on file',
+  'prov.noPhoneBody':
+    'Customers send their booking invoice to you on WhatsApp, and that button is disabled until your company record carries a number. Add one on your company profile.',
   'prov.plan': 'What NASEK charges',
   'prov.planNote':
     'NASEK takes a 2% mediation fee on bookings made through the platform. It is already included in the total each traveller pays.',

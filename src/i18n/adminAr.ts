@@ -131,6 +131,14 @@ export const adminAr: Record<AdminMessageKey, string> = {
   'admin.campaigns': 'الحملات',
   'admin.bookings': 'الحجوزات',
   'admin.reviews': 'التقييمات',
+  // -------------------------------------------- manual payment, admin side
+  'admin.kpiConfirmedValue': 'قيمة الحجوزات المؤكدة',
+  'admin.kpiAwaitingPayment': 'بانتظار الدفع',
+  'admin.awaitingPaymentHint': 'طُلبت ولم يؤكد صاحب الحملة استلام قيمتها بعد.',
+  'admin.noConfirmedFinancial': 'لا توجد بيانات مالية مؤكدة بعد',
+  'admin.paymentNotProcessed':
+    'ناسِك لا ينفّذ عمليات الدفع. يدفع العملاء لأصحاب الحملات مباشرة، ولا يُؤكد الحجز هنا إلا عندما يسجّل صاحب الحملة استلامه المبلغ.',
+  'admin.ownerNoPhone': 'لا يوجد رقم تواصل مسجل',
   'admin.kpiGmv': 'قيمة الحجوزات',
   'admin.kpiProviders': 'أصحاب الحملات',
   'admin.kpiCampaigns': 'الرحلات المعروضة',

@@ -10,6 +10,7 @@ import {
 } from 'react'
 import type {
   Booking,
+  BookingStatus,
   Campaign,
   CampaignStatus,
   Notification,
@@ -116,6 +117,8 @@ export type Action =
   | { type: 'setSaved'; id: string; saved: boolean }
   | { type: 'addBooking'; booking: Booking }
   | { type: 'cancelBooking'; id: string }
+  /* The owner recording that a booking request has been paid for. */
+  | { type: 'setBookingStatus'; bookingId: string; status: BookingStatus }
   | { type: 'readNotification'; id: string }
   | { type: 'readAllNotifications' }
   | { type: 'pushNotification'; notification: Notification }
@@ -287,6 +290,20 @@ export function reducer(state: PersistedState, action: Action): PersistedState {
         ...state,
         bookings: state.bookings.map((b) =>
           b.id === action.id ? { ...b, status: 'cancelled' as const } : b,
+        ),
+      }
+
+    /*
+     * Dispatched only after the database has agreed. confirmBookingPayment
+     * returns the row it wrote; this mirrors it into the store so the table and
+     * the revenue figures above it move together, without waiting for the next
+     * snapshot.
+     */
+    case 'setBookingStatus':
+      return {
+        ...state,
+        bookings: state.bookings.map((b) =>
+          b.id === action.bookingId ? { ...b, status: action.status } : b,
         ),
       }
 

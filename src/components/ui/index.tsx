@@ -3,6 +3,7 @@ import {
   useEffect,
   useId,
   useRef,
+  type AnchorHTMLAttributes,
   type ButtonHTMLAttributes,
   type InputHTMLAttributes,
   type ReactNode,
@@ -212,6 +213,49 @@ export function LinkButton({
     >
       {children}
     </Link>
+  )
+}
+
+/**
+ * Same look again, for a destination outside the application.
+ *
+ * `LinkButton` renders a router `Link`, which is right for `/dashboard` and
+ * wrong for `https://wa.me/…` — a router asked to navigate to an absolute URL
+ * treats it as a path and produces `/https:/wa.me/…`. The WhatsApp action on a
+ * NASEK invoice is the one control on the customer site that genuinely leaves
+ * it, so it gets an anchor and the `noopener` that should come with one.
+ */
+export function AnchorButton({
+  href,
+  variant = 'primary',
+  size = 'md',
+  block,
+  className,
+  children,
+  ...rest
+}: {
+  href: string
+  variant?: ButtonVariant
+  size?: ButtonSize
+  block?: boolean
+  className?: string
+  children: ReactNode
+} & Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'href' | 'className'>) {
+  return (
+    <a
+      href={href}
+      className={cx(
+        'inline-flex items-center justify-center font-semibold whitespace-nowrap',
+        'transition-all duration-200 ease-out',
+        VARIANTS[variant],
+        SIZES[size],
+        block && 'w-full',
+        className,
+      )}
+      {...rest}
+    >
+      {children}
+    </a>
   )
 }
 

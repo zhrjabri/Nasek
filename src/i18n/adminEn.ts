@@ -141,6 +141,21 @@ export const adminEn = {
   'admin.campaigns': 'Campaigns',
   'admin.bookings': 'Bookings',
   'admin.reviews': 'Reviews',
+  // -------------------------------------------- manual payment, admin side
+  /*
+   * NASEK issues the invoice and takes none of the money. The ledger therefore
+   * reports two figures rather than one: what has been confirmed as paid, and
+   * what has been asked for and is still outstanding between a customer and a
+   * campaign owner. `admin.kpiGmv` is kept — the overview tab still uses it for
+   * platform-wide booking value.
+   */
+  'admin.kpiConfirmedValue': 'Confirmed booking value',
+  'admin.kpiAwaitingPayment': 'Awaiting payment',
+  'admin.awaitingPaymentHint': 'Requested, not yet confirmed as paid by the campaign owner.',
+  'admin.noConfirmedFinancial': 'No confirmed financial data yet',
+  'admin.paymentNotProcessed':
+    'NASEK does not process payments. Customers pay campaign owners directly, and a booking is confirmed here only when its owner records that they have been paid.',
+  'admin.ownerNoPhone': 'No contact number on file',
   'admin.kpiGmv': 'Booking value',
   'admin.kpiProviders': 'Campaign owners',
   'admin.kpiCampaigns': 'Live campaigns',
