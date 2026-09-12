@@ -323,14 +323,31 @@ async function main() {
     [
       'book_campaign',
       {
+        /*
+         * The manual-payment signature, as of 20260910000100.
+         *
+         * `p_travellers` went with the traveller-details step, and the old
+         * six-argument overload was dropped rather than left in place — so
+         * probing with the old argument names now reports "not found" for a
+         * function that is present and correctly locked. That is the exact
+         * false alarm the note above describes, walked into a second time; the
+         * probe has to follow the signature.
+         */
         p_campaign_id: '00000000-0000-0000-0000-000000000000',
-        p_travellers: [],
+        p_male_count: 1,
+        p_female_count: 0,
         p_contact_name: 'probe',
-        p_contact_phone: 'probe',
+        p_contact_phone: '90000000',
         p_contact_email: 'probe@example.com',
       },
     ],
     ['cancel_booking', { p_booking_id: '00000000-0000-0000-0000-000000000000' }],
+    // Added by 20260910000100. The only route to a 'confirmed' booking, and
+    // owner-or-admin only — so a stranger with the public key must not reach it.
+    [
+      'set_booking_status',
+      { p_booking_id: '00000000-0000-0000-0000-000000000000', p_status: 'confirmed' },
+    ],
   ]) {
     const res = await fetch(`${url}/rest/v1/rpc/${fn}`, {
       method: 'POST',
