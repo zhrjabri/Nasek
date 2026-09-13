@@ -1,0 +1,149 @@
+/*
+ * The customer site's stylesheet.
+ *
+ * `src/index.css` is the design system, and all three NASEK applications import
+ * it: the public site, the Campaign Owner Portal and the administration
+ * dashboard. This file is the public site's entry — it takes that system whole
+ * and then, at the end, repaints it.
+ *
+ * WHY THIS FILE EXISTS AT ALL
+ *
+ * The palette below was first written straight into the shared `@theme` block,
+ * which recoloured all three applications at once. Scoping it with a selector
+ * fixed the behaviour but not the shape: the declarations were still compiled
+ * into `owner.css` and `admin.css`, sitting there as rules that could never
+ * match. Kept here instead, they are not in those bundles to begin with, which
+ * is a stronger claim than "present but inert" and a much easier one to check.
+ *
+ * The selector is kept as well, and the belt and the braces are both deliberate:
+ *
+ *   1. This file is imported by `src/main.tsx` and by nothing else, so the
+ *      customer palette exists only in the customer build.
+ *   2. Every rule is scoped to `html[data-app='customer']`, which `index.html`
+ *      carries and the other two entries do not — so even if this file were
+ *      imported somewhere it should not be, it would repaint nothing.
+ *
+ * `npm run verify:portal` checks both against the three built stylesheets, and
+ * the production smoke test reads the computed colour out of a real browser on
+ * all three hosts. "The palette is scoped" is precisely the sort of claim that
+ * is true in the source and false in the bundle.
+ */
+@import './index.css';
+
+/* ==========================================================================
+   PREMIUM OMANI GREEN — THE CUSTOMER SITE, AND ONLY THE CUSTOMER SITE
+   ==========================================================================
+
+   Three applications import this one stylesheet, so the `@theme` block at the
+   top of the file is shared by all three: the public site, the Campaign Owner
+   Portal and the administration dashboard. Editing those values recolours all
+   three at once, which is what happened when this palette first landed.
+
+   The customer site is the one that was meant to change, so the change is
+   scoped to it here. Every declaration below is a colour and nothing else —
+   no size, no spacing, no radius, no shadow geometry, no font. The utilities
+   Tailwind generates read these through `var()`, so redefining the variable
+   repaints the existing design and moves nothing in it.
+
+   HOW THE SCOPE WORKS, AND WHY IT HOLDS
+
+   `index.html` — the customer entry, and no other — carries `data-app="customer"`
+   on its `<html>` element. `owner.html` and `admin.html` do not, so they never
+   match this selector and go on reading the shared values above, unchanged.
+
+   Two independent reasons it wins over `@theme`:
+
+     * Specificity. Tailwind emits theme variables to `:root,:host` (0,1,0);
+       `html[data-app='customer']` is (0,1,1).
+     * Layers. `@theme` output is layered; this block is not, and unlayered
+       declarations beat layered ones outright.
+
+   Either alone would be enough. `npm run verify:portal` checks the built CSS of
+   all three applications rather than this comment, and the production smoke
+   test reads the computed colour out of a real browser on all three hosts —
+   because "the token is scoped" is exactly the sort of claim that is true in
+   the source and false in the bundle.
+
+   THE PALETTE
+
+     Primary          #0F5132   nasek-700
+     Dark             #08301E   nasek-900
+     Light            #E8F2EC   nasek-100
+     Gold accent      #C9A961   gold-400 — already this value, untouched
+     Ivory ground     #FBFAF7   ivory-50
+     Main text        #14201A   ink-900
+     Button           #0F5132   nasek-700, the same token the buttons use
+     Button hover     #0A3D26   nasek-800, the same token the hovers use
+     Border / subtle  #D6E3DA   ivory-300 (the rule) and nasek-200 (on green)
+
+   The five steps not named in the palette — 50, 300, 400, 500, 600 — are
+   interpolated between the ones that are. They carry hover tints and disabled
+   states, and leaving them on the old ramp would have put a grey-teal shade
+   next to a bottle green.
+   ========================================================================== */
+
+html[data-app='customer'] {
+  --color-nasek-50: #f4f9f6;
+  --color-nasek-100: #e8f2ec;
+  --color-nasek-200: #d6e3da;
+  --color-nasek-300: #b3cdbf;
+  --color-nasek-400: #7fae95;
+  --color-nasek-500: #4c8a6b;
+  --color-nasek-600: #1e6942;
+  --color-nasek-700: #0f5132;
+  --color-nasek-800: #0a3d26;
+  --color-nasek-900: #08301e;
+  --color-nasek-950: #052117;
+
+  /* Gold is unchanged: gold-400 was already #C9A961, which is the accent the
+     palette asks for. The ramp around it is left exactly as it is. */
+
+  --color-ivory-50: #fbfaf7;
+  --color-ivory-100: #f4f6f3;
+  --color-ivory-200: #eaeeea;
+  --color-ivory-300: #d6e3da;
+  --color-ivory-400: #bac8bf;
+
+  /* Regraded green to sit on the warm ground, and checked rather than
+     eyeballed: ink-400 is the lightest step small text is ever set in, and
+     #68766E on #FBFAF7 measures 4.58:1 — over the 4.5 floor. A straight
+     re-tint of the shared grey lands at 4.18 and fails it.
+
+     `--color-ink-300` is deliberately absent, here and above. It was never
+     defined, so `text-ink-300` and `decoration-ink-300` have always been dead
+     classes — two of them, one in the OTP screen and one in an administration
+     table. Defining it now would colour two elements that are not coloured
+     today, which is a visual change and not a palette swap. */
+  --color-ink-400: #68766e;
+  --color-ink-500: #5a6862;
+  --color-ink-600: #414d46;
+  --color-ink-700: #2c3730;
+  --color-ink-800: #1e2721;
+  --color-ink-900: #14201a;
+
+  /* The same geometry — offsets, blurs and spreads are untouched. Only the ink
+     the shadow is cast in follows the palette, so a shadow under a card on the
+     warm ground does not read as grey. */
+  --shadow-soft: 0 1px 2px rgb(8 48 30 / 0.05);
+  --shadow-lift: 0 2px 3px rgb(8 48 30 / 0.06), 0 10px 24px -14px rgb(8 48 30 / 0.22);
+  --shadow-deep: 0 10px 44px -16px rgb(5 33 23 / 0.4);
+}
+
+/* The home page's warmer canvas is now the palette's own ivory, so the page and
+   the cards on it share one ground. Scoped like everything else here, even
+   though `data-canvas='warm'` is set by the customer home page and by nothing
+   else — the shared file should hold no customer colour at all, so that reusing
+   the attribute elsewhere later cannot drag this value with it. */
+html[data-app='customer'] body[data-canvas='warm'] {
+  background-color: #fbfaf7;
+  --nasek-nav-ground: #fbfaf7;
+}
+
+/* The girih lattice is drawn in the primary, so it follows it. The stroke is a
+   literal inside a data URI and cannot be a variable, which is why this is a
+   whole rule rather than one more line above. Identical in every other respect
+   to the shared `girih` utility: same path, same width, same 0.16 opacity, same
+   72px tile. */
+html[data-app='customer'] .girih {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 72 72'%3E%3Cg fill='none' stroke='%230F5132' stroke-width='1' stroke-opacity='0.16'%3E%3Cpath d='M36 4 L50 18 L68 18 L68 36 L54 50 L54 68 L36 68 L22 54 L4 54 L4 36 L18 22 L18 4 Z'/%3E%3Crect x='18' y='18' width='36' height='36' transform='rotate(45 36 36)'/%3E%3Crect x='18' y='18' width='36' height='36'/%3E%3Ccircle cx='36' cy='36' r='9'/%3E%3C/g%3E%3C/svg%3E");
+}

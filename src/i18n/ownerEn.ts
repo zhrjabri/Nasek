@@ -147,7 +147,7 @@ export const ownerEn = {
   'owner.signInSubtitle': 'Sign in with your email and password',
   'owner.signInCta': 'Sign in',
   'owner.passwordOnly':
-    'Sign in with the email address or phone number on your account, and your password. If NASEK invited you and you have no password yet, use the link in the invitation.',
+    'Campaign owners sign in with their email address and password. If NASEK invited you and you have no password yet, use the link in the invitation.',
   'owner.wrongDoor':
     'This account is not a campaign owner. If you believe it should be, contact NASEK.',
   'owner.noAccount': 'Not a campaign owner yet?',
@@ -393,9 +393,7 @@ export const ownerEn = {
     'You are signed in as {email}. Registering a company here makes this account its owner.',
   'owner.registerFailed': 'The company could not be registered',
   'owner.registerPhoneNote':
-    'The number pilgrims will contact you on, and the one you can sign in with once phone sign-in is switched on.',
-  'owner.registerPhonePending':
-    'Your company is registered. Phone sign-in is not switched on yet — use your email address and password until it is.',
+    'The number pilgrims contact you on to arrange payment. It is not used to sign in.',
   'owner.signOutInstead': 'Sign out',
 
 } as const

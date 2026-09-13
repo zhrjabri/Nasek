@@ -395,10 +395,6 @@ export const en = {
   'auth.signInChecking': 'Checking…',
   'auth.signInFailed': 'Those details do not match an account.',
   'auth.emailTaken': 'An account already uses that email address.',
-  'auth.emailOrPhone': 'Email address or phone number',
-  'auth.emailOrPhoneInvalid': 'Enter the email address or phone number on your account.',
-  'auth.phoneSignInUnavailable':
-    'Signing in by phone number is not available yet. Use your email address and password.',
   'auth.showPassword': 'Show password',
   'auth.hidePassword': 'Hide password',
   'auth.password': 'Password',

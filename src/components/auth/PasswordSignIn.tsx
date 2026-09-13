@@ -3,11 +3,9 @@ import { ChevronDown, Eye, EyeOff, KeyRound } from 'lucide-react'
 import { useI18n, type MessageKey } from '@/i18n'
 import {
   signInWithPassword,
-  signInWithPhonePassword,
   verifyMfaCode,
   type PasswordError,
 } from '@/services/auth/password'
-import { isValidPhone } from '@/services/auth/phone'
 import { Button, Field, Input, cx } from '@/components/ui'
 import { TOTP_CODE_LENGTH, CodeInput } from './CodeInput'
 
@@ -41,10 +39,6 @@ const ERROR_KEY: Record<PasswordError, MessageKey> = {
   weak_password: 'auth.passwordRejected',
   rate_limited: 'auth.errRateLimited',
   email_taken: 'auth.emailTaken',
-  // Only reachable from the phone form, and it is NASEK's configuration rather
-  // than anything the person typed — so it says what is unavailable and what to
-  // use instead, and never suggests the number was wrong.
-  phone_disabled: 'auth.phoneSignInUnavailable',
   failed: 'auth.errSendFailed',
 }
 
@@ -68,25 +62,11 @@ export function PasswordSignIn({
    * question: it is how a campaign owner's account is found.
    */
   fixedEmail,
-  /**
-   * Accept a phone number in the same field as the address.
-   *
-   * Set by the Campaign Owner Portal and nowhere else. An owner registers with
-   * both, and the number is the one they know by heart — but it is Supabase's
-   * phone identity that is being authenticated against, not the number on the
-   * company record. NASEK never reads a credential off `providers`.
-   *
-   * One field rather than a toggle: "@" is a reliable tell, the two are never
-   * confusable, and a segmented control above a login form is one more thing to
-   * get wrong before typing a password.
-   */
-  allowPhone = false,
 }: {
   onSignedIn: (email: string) => void | Promise<void>
   defaultOpen?: boolean
   bare?: boolean
   fixedEmail?: string
-  allowPhone?: boolean
 }) {
   const { t } = useI18n()
   const [open, setOpen] = useState(defaultOpen)
@@ -110,18 +90,15 @@ export function PasswordSignIn({
     // means it is well-formed; the check below still applies to a typed one.
     const address = (fixedEmail ?? email).trim().toLowerCase()
     /*
-     * Which of the two this is, decided once and used twice.
+     * An address, and only an address.
      *
-     * A value with no "@" is treated as a phone number only where the caller
-     * allows it. Everywhere else an address that fails the email test is a
-     * typo, and saying so is more useful than silently trying a door that is
-     * not open.
+     * This field briefly accepted a phone number too, for the Campaign Owner
+     * Portal. It does not any more: a provider's identity is their email
+     * address, and their phone number is contact information that authenticates
+     * nothing. See the note in `services/auth/password.ts`.
      */
-    const looksLikeEmail = /^\S+@\S+\.\S+$/.test(address)
-    const byPhone = allowPhone && !looksLikeEmail && isValidPhone(address)
-
-    if (!looksLikeEmail && !byPhone) {
-      setError(allowPhone ? 'auth.emailOrPhoneInvalid' : 'auth.emailInvalid')
+    if (!/^\S+@\S+\.\S+$/.test(address)) {
+      setError('auth.emailInvalid')
       return
     }
     if (!password) {
@@ -130,9 +107,7 @@ export function PasswordSignIn({
     }
 
     setBusy(true)
-    const outcome = byPhone
-      ? await signInWithPhonePassword(address, password)
-      : await signInWithPassword(address, password)
+    const outcome = await signInWithPassword(address, password)
 
     if (outcome.mfaRequired && outcome.factorId) {
       setBusy(false)
@@ -204,20 +179,14 @@ export function PasswordSignIn({
     <form noValidate onSubmit={submit} className="space-y-4">
       {/* Absent when the caller already knows the account. See `fixedEmail`. */}
       {!fixedEmail && (
-        <Field label={allowPhone ? t('auth.emailOrPhone') : t('common.email')} required>
+        <Field label={t('common.email')} required>
           {(p) => (
             <Input
               {...p}
-              /*
-               * `text` rather than `email` when a number is allowed. The
-               * browser's own validation on `type="email"` rejects "91234567"
-               * before the form is ever submitted, which would make the phone
-               * half unreachable.
-               */
-              type={allowPhone ? 'text' : 'email'}
+              type="email"
               dir="ltr"
-              autoComplete={allowPhone ? 'username' : 'email'}
-              placeholder={allowPhone ? 'name@example.com' : 'name@example.com'}
+              autoComplete="email"
+              placeholder="name@example.com"
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value)

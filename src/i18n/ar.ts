@@ -370,10 +370,6 @@ export const ar: Record<PublicMessageKey, string> = {
   'auth.signInChecking': 'جارٍ التحقق…',
   'auth.signInFailed': 'لا تطابق هذه البيانات أي حساب.',
   'auth.emailTaken': 'يوجد حساب مسجَّل بهذا البريد الإلكتروني.',
-  'auth.emailOrPhone': 'البريد الإلكتروني أو رقم الهاتف',
-  'auth.emailOrPhoneInvalid': 'أدخل البريد الإلكتروني أو رقم الهاتف المسجَّل في حسابك.',
-  'auth.phoneSignInUnavailable':
-    'تسجيل الدخول برقم الهاتف غير متاح بعد. استخدم بريدك الإلكتروني وكلمة المرور.',
   'auth.showPassword': 'إظهار كلمة المرور',
   'auth.hidePassword': 'إخفاء كلمة المرور',
   'auth.password': 'كلمة المرور',

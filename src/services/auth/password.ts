@@ -1,6 +1,5 @@
 import { supabase } from '@/services/supabase/client'
 import { authRedirectTarget } from './redirect'
-import { toE164 } from './phone'
 
 /**
  * Passwords, for the two roles that have a reason to hold one.
@@ -33,16 +32,6 @@ export type PasswordError =
   | 'rate_limited'
   /** The account exists but the address is already taken by another one. */
   | 'email_taken'
-  /**
-   * The project has no SMS provider configured, so Supabase will not accept a
-   * phone number at all. Its own message is "Unsupported phone provider" or
-   * "Phone signups are disabled".
-   *
-   * Worth its own value rather than folding into 'failed': it is a NASEK
-   * configuration state, not something the person at the keyboard did or can
-   * fix, and the interface says so instead of blaming them.
-   */
-  | 'phone_disabled'
   | 'failed'
 
 /** Minimum length. Supabase enforces its own floor; this is NASEK's, and higher. */
@@ -71,9 +60,6 @@ function classify(message: string): PasswordError {
   if (/password.*(weak|short|least|characters)|pwned|leaked/.test(text)) return 'weak_password'
   if (/rate|too many|seconds/.test(text)) return 'rate_limited'
   if (/already registered|already exists|user already/.test(text)) return 'email_taken'
-  if (/unsupported phone provider|phone.*(disabled|not enabled)|sms.*not/.test(text)) {
-    return 'phone_disabled'
-  }
   return 'failed'
 }
 
@@ -161,82 +147,25 @@ export async function signInWithPassword(
   return pending ? { ok: false, mfaRequired: true, factorId: pending } : { ok: true }
 }
 
-/**
- * The same door, opened with a phone number instead of an address.
+/*
+ * THERE IS NO PHONE SIGN-IN, AND THERE SHOULD NOT BE ONE.
  *
- * `supabase.auth.signInWithPassword({ phone, password })` — Supabase's own
- * phone identity, checked by Supabase against the same hashed password as the
- * email form. NASEK does not see the password, does not store it, and does not
- * compare it: there is no query anywhere in this repository that reads a
- * credential off `providers` or `profiles`, and there must never be one. The
- * number on a company record is contact information; it is not what this
- * authenticates against.
+ * `signInWithPhonePassword`, `attachPhone` and `confirmPhoneChange` stood here.
+ * They authenticated a campaign owner against Supabase's phone identity, which
+ * meant the project needed an SMS provider — Twilio — before an owner could
+ * sign in the way the portal advertised. That is a paid dependency, an outage
+ * NASEK does not control, and a second credential to reset, all bought for a
+ * convenience: typing a number instead of an address.
  *
- * The number is normalised to E.164 first, because that is the only shape
- * Supabase matches on and "9123 4567", "+968 9123 4567" and "0096891234567"
- * are all the same number to the person typing it.
+ * A campaign owner signs in with an email address and a password. One identity,
+ * one recovery path, no SMS.
  *
- * Until the project has an SMS provider configured this returns
- * `phone_disabled` rather than a generic failure — see `classify`.
+ * The company's phone number has not gone anywhere. It is still collected at
+ * registration, still required on the profile, still editable by an
+ * administrator, and still what the WhatsApp invoice is addressed to through
+ * `booking_provider_contact`. It is contact information. It is not a
+ * credential, and nothing in this file should ever read it as one.
  */
-export async function signInWithPhonePassword(
-  phone: string,
-  password: string,
-): Promise<PasswordSignInResult> {
-  if (!supabase) return { ok: false, error: 'offline' }
-
-  const e164 = toE164(phone)
-  if (!e164) return { ok: false, error: 'invalid_credentials' }
-
-  const { error } = await supabase.auth.signInWithPassword({ phone: e164, password })
-  if (error) return { ok: false, error: classify(error.message) }
-
-  const pending = await pendingMfaFactor()
-  return pending ? { ok: false, mfaRequired: true, factorId: pending } : { ok: true }
-}
-
-/**
- * Attach a phone number to the account that is already signed in.
- *
- * This is what makes `signInWithPhonePassword` work later: Supabase will only
- * match a number it holds on the auth identity, and registration creates that
- * identity from an email address. It sends a confirmation code to the number,
- * which `confirmPhoneChange` redeems.
- *
- * Returns `phone_disabled` when the project has no SMS provider yet. That is
- * not a failed registration and callers must not treat it as one — the account
- * exists, the company is registered, and email-and-password sign-in works. Only
- * the phone door is not open yet.
- */
-export async function attachPhone(
-  phone: string,
-): Promise<{ ok: boolean; error?: PasswordError }> {
-  if (!supabase) return { ok: false, error: 'offline' }
-
-  const e164 = toE164(phone)
-  if (!e164) return { ok: false, error: 'failed' }
-
-  const { error } = await supabase.auth.updateUser({ phone: e164 })
-  return error ? { ok: false, error: classify(error.message) } : { ok: true }
-}
-
-/** Redeem the code `attachPhone` sent, which is what confirms the number. */
-export async function confirmPhoneChange(
-  phone: string,
-  token: string,
-): Promise<{ ok: boolean; error?: PasswordError }> {
-  if (!supabase) return { ok: false, error: 'offline' }
-
-  const e164 = toE164(phone)
-  if (!e164) return { ok: false, error: 'failed' }
-
-  const { error } = await supabase.auth.verifyOtp({
-    phone: e164,
-    token: token.trim(),
-    type: 'phone_change',
-  })
-  return error ? { ok: false, error: classify(error.message) } : { ok: true }
-}
 
 /**
  * The factor this session still owes, if any.

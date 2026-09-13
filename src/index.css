@@ -7,36 +7,18 @@
    ==========================================================================*/
 
 @theme {
-  /* --- Brand green ---
-     Re-anchored on the approved palette. The old ramp was sampled off the
-     NASEK mark and had drifted grey-teal at its core (#244A3F); this one is a
-     cleaner, deeper bottle green that holds its hue at small sizes and against
-     photography.
-
-     Four of the eleven steps are fixed values from the approved system and are
-     not free to move — the rest are interpolated to reach them smoothly:
-
-       100  #E8F2EC   the "light" tint: selected rows, quiet panels
-       200  #D6E3DA   the "border" value
-       700  #0F5132   the primary. Body links, headings, filled buttons
-       800  #0A3D26   the button hover
-       900  #08301E   the "dark": headers, footers, the deepest ground
-
-     700 rather than 500 carries the brand because that is where the interface
-     already reaches for it — 62 usages against 3. Renumbering to suit a
-     convention would have meant touching every one of them for no visual
-     difference. */
-  --color-nasek-50: #f4f9f6;
-  --color-nasek-100: #e8f2ec;
-  --color-nasek-200: #d6e3da;
-  --color-nasek-300: #b3cdbf;
-  --color-nasek-400: #7fae95;
-  --color-nasek-500: #4c8a6b;
-  --color-nasek-600: #1e6942;
-  --color-nasek-700: #0f5132;
-  --color-nasek-800: #0a3d26;
-  --color-nasek-900: #08301e;
-  --color-nasek-950: #052117;
+  /* --- Brand green, sampled from the supplied NASEK mark (#244A3F core) --- */
+  --color-nasek-50: #f1f8f4;
+  --color-nasek-100: #e2f0ea;
+  --color-nasek-200: #c4e0d5;
+  --color-nasek-300: #92c6b3;
+  --color-nasek-400: #5aa189;
+  --color-nasek-500: #37806a;
+  --color-nasek-600: #2c6552;
+  --color-nasek-700: #244a3f;
+  --color-nasek-800: #1b4738;
+  --color-nasek-900: #14382e;
+  --color-nasek-950: #0c241d;
 
   /* --- Antique gold: illumination, not glitter --- */
   --color-gold-50: #faf6ea;
@@ -51,33 +33,24 @@
   --color-gold-900: #3f3117;
 
   /* --- Neutrals ---
-     Two fixed values from the approved palette, and a ramp built to reach
-     them:
-
-       ivory-50   #FBFAF7   the ground. A warm off-white rather than the flat
-                            #FFFFFF this used to be — page, cards, sheets
-       ivory-300  #D6E3DA   the rule. 142 usages, nearly all of them a border,
-                            and it is the palette's border value exactly
-       ink-900    #14201A   text. Very slightly green rather than neutral
-                            black, which is what keeps it from looking like a
-                            different design sitting on the brand ground
-
-     The ink ramp is regraded green to match, and checked rather than eyeballed:
-     ink-400 is the lightest step small text is ever set in, and #68766E on the
-     #FBFAF7 ground measures 4.58:1 — over the 4.5 floor. A straight
-     re-tint of the old grey landed at 4.18 and would have failed it. --- */
-  --color-ivory-50: #fbfaf7;
-  --color-ivory-100: #f4f6f3;
-  --color-ivory-200: #eaeeea;
-  --color-ivory-300: #d6e3da;
-  --color-ivory-400: #bac8bf;
-  --color-ink-300: #a8b2ac;
-  --color-ink-400: #68766e;
-  --color-ink-500: #5a6862;
-  --color-ink-600: #414d46;
-  --color-ink-700: #2c3730;
-  --color-ink-800: #1e2721;
-  --color-ink-900: #14201a;
+     Cooled off the original parchment towards white: the campaign photography
+     and the green-and-gold brand both carry further against a quiet ground
+     than against a warm one. Green and gold above are untouched, so the
+     identity is unchanged — only what it sits on. --- */
+  --color-ivory-50: #ffffff;
+  --color-ivory-100: #f5f7f6;
+  --color-ivory-200: #edf0ee;
+  --color-ivory-300: #dde2df;
+  --color-ivory-400: #bfc6c2;
+  /* Nudged darker than a straight translation of the old parchment grey:
+     ink-400 carries hints and captions, and at the old value those sat
+     just under the contrast floor for small text on both palettes. */
+  --color-ink-400: #707577;
+  --color-ink-500: #616769;
+  --color-ink-600: #43494a;
+  --color-ink-700: #2d3232;
+  --color-ink-800: #1f2323;
+  --color-ink-900: #121615;
 
   /* --- Type ---
      Arabic is primary and set in Kufi, as specified. Latin display is a
@@ -99,9 +72,9 @@
   --font-journey-body: 'IBM Plex Sans Arabic', 'Plus Jakarta Sans', ui-sans-serif, sans-serif;
 
   /* --- Elevation: restrained. Classical layouts rule lines, they don't float. */
-  --shadow-soft: 0 1px 2px rgb(8 48 30 / 0.05);
-  --shadow-lift: 0 2px 3px rgb(8 48 30 / 0.06), 0 10px 24px -14px rgb(8 48 30 / 0.22);
-  --shadow-deep: 0 10px 44px -16px rgb(5 33 23 / 0.4);
+  --shadow-soft: 0 1px 2px rgb(20 56 46 / 0.05);
+  --shadow-lift: 0 2px 3px rgb(20 56 46 / 0.06), 0 10px 24px -14px rgb(20 56 46 / 0.22);
+  --shadow-deep: 0 10px 44px -16px rgb(12 36 29 / 0.4);
 
   /* Squared-off corners read as older and more formal than pill shapes. */
   --radius-card: 0.25rem;
@@ -208,8 +181,8 @@
 
   /* Set by the home page for as long as it is mounted, and only by it. */
   body[data-canvas='warm'] {
-    background-color: #fbfaf7;
-    --nasek-nav-ground: #fbfaf7;
+    background-color: #faf7f0;
+    --nasek-nav-ground: #faf7f0;
   }
 
   /* The two grounds the bar can have, as classes rather than an inline style.
@@ -375,7 +348,7 @@ html[dir='rtl'] .eyebrow {
    Two inks: green for parchment grounds, gold for the deep green ones, since
    a green lattice on green simply disappears. */
 @utility girih {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 72 72'%3E%3Cg fill='none' stroke='%230F5132' stroke-width='1' stroke-opacity='0.16'%3E%3Cpath d='M36 4 L50 18 L68 18 L68 36 L54 50 L54 68 L36 68 L22 54 L4 54 L4 36 L18 22 L18 4 Z'/%3E%3Crect x='18' y='18' width='36' height='36' transform='rotate(45 36 36)'/%3E%3Crect x='18' y='18' width='36' height='36'/%3E%3Ccircle cx='36' cy='36' r='9'/%3E%3C/g%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 72 72'%3E%3Cg fill='none' stroke='%23244A3F' stroke-width='1' stroke-opacity='0.16'%3E%3Cpath d='M36 4 L50 18 L68 18 L68 36 L54 50 L54 68 L36 68 L22 54 L4 54 L4 36 L18 22 L18 4 Z'/%3E%3Crect x='18' y='18' width='36' height='36' transform='rotate(45 36 36)'/%3E%3Crect x='18' y='18' width='36' height='36'/%3E%3Ccircle cx='36' cy='36' r='9'/%3E%3C/g%3E%3C/svg%3E");
   background-size: 72px 72px;
 }
 

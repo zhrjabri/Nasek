@@ -22,6 +22,7 @@ import { AppStoreProvider } from '@/store/AppStore'
 import { AnalyticsTab } from '@/admin/tabs/AnalyticsTab'
 import { EditOwnerDialog } from '@/admin/tabs/EditOwnerDialog'
 import { OwnerSignUpPage, CompanyRegistrationPage } from '@/owner/RegisterPage'
+import { OwnerLoginPage } from '@/owner/LoginPage'
 import { visitRequest, visitorId } from '@/services/analytics/visits'
 import type { Provider } from '@/types'
 import { normalisePath, visitKind } from '@/services/analytics/visits'
@@ -454,16 +455,106 @@ check(
 
 const PASSWORDS = read('src/services/auth/password.ts')
 check(
-  'phone sign-in is Supabase’s own, not a lookup against a company record',
-  /supabase\.auth\.signInWithPassword\(\{ phone: e164, password \}\)/.test(PASSWORDS),
-)
-check(
-  'and there is no query anywhere that reads a credential off providers',
+  'there is no query anywhere that reads a credential off providers',
   !/from\('providers'\)[\s\S]{0,200}password/i.test(PASSWORDS),
 )
+
+head('a campaign owner signs in with an email address and a password, and nothing else')
+
+/*
+ * Phone authentication, gone and staying gone.
+ *
+ * It existed for one release. An owner could sign in with the number on their
+ * company record and their password, which made an SMS provider — Twilio — a
+ * paid third-party dependency standing between an owner and their dashboard.
+ *
+ * These are absence checks over every file that could bring it back, because
+ * the failure mode is somebody adding a "sign in with your number" convenience
+ * and nothing else noticing. The number itself is checked further down: it is
+ * still collected, still required, and still what a WhatsApp invoice is
+ * addressed to.
+ */
+const AUTH_SURFACE = [
+  'src/services/auth/password.ts',
+  'src/services/auth/signUpOwner.ts',
+  'src/services/auth/session.ts',
+  'src/components/auth/PasswordSignIn.tsx',
+  'src/owner/LoginPage.tsx',
+  'src/owner/RegisterPage.tsx',
+  'src/owner/OwnerApp.tsx',
+]
+for (const rel of AUTH_SURFACE) {
+  // Comments may explain the removal; code may not perform it.
+  const code = read(rel)
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^\s*\/\/.*$/gm, '')
+  check(`${rel} has no phone sign-in call`, !/signInWithPassword\(\s*\{[^}]*phone/.test(code))
+  check(`${rel} names no phone sign-in helper`, !/signInWithPhonePassword|attachPhone|confirmPhoneChange/.test(code))
+  check(`${rel} performs no phone verification`, !/verifyOtp\([^)]*phone|'phone_change'|type:\s*'sms'/.test(code))
+}
 check(
-  'a project with no SMS provider is reported as configuration, not as a bad number',
-  /phone_disabled/.test(PASSWORDS) && en['auth.phoneSignInUnavailable'].length > 0,
+  'the sign-in component takes no phone option',
+  !/allowPhone/.test(read('src/components/auth/PasswordSignIn.tsx')),
+)
+check(
+  'and its one identifier field is an email field',
+  /type="email"/.test(read('src/components/auth/PasswordSignIn.tsx')),
+)
+for (const key of ['auth.emailOrPhone', 'auth.emailOrPhoneInvalid', 'auth.phoneSignInUnavailable']) {
+  check(
+    `no dictionary offers "${key}" any more`,
+    !(key in (en as Record<string, unknown>)) && !(key in (ar as Record<string, unknown>)),
+  )
+}
+check(
+  'and the owner dictionary promises no pending phone sign-in',
+  !('owner.registerPhonePending' in (ownerEn as Record<string, unknown>)) &&
+    !('owner.registerPhonePending' in (ownerAr as Record<string, unknown>)),
+)
+check(
+  'the sign-in footnote describes an email address and a password',
+  /email address and password/i.test(ownerEn['owner.passwordOnly']) &&
+    !/phone/i.test(ownerEn['owner.passwordOnly']),
+  ownerEn['owner.passwordOnly'],
+)
+check(
+  'no NASEK sign-in depends on an SMS provider',
+  !/external\.phone\s*!==\s*true[\s\S]{0,80}SKIP/.test(read('scripts/verify-backend.mjs')) &&
+    /no sign-in depends on an SMS provider/.test(read('scripts/verify-backend.mjs')),
+  'verify:backend asserts external.phone is off rather than skipping past it',
+)
+
+head('and the number it is not a credential for is still collected and still private')
+
+check(
+  'registration requires a contact phone',
+  /if \(!isValidPhone\(form\.phone\)\)/.test(read('src/owner/RegisterPage.tsx')),
+)
+check(
+  'and labels it as contact information rather than a sign-in',
+  /not used to sign in/i.test(ownerEn['owner.registerPhoneNote']),
+  ownerEn['owner.registerPhoneNote'],
+)
+check(
+  "the owner's profile still requires a valid number",
+  /isValidPhone\(draft\.phone\)/.test(read('src/owner/panels/CompanyProfilePanel.tsx')),
+)
+check(
+  'an administrator can still correct it',
+  /p_phone: text\(edit\.phone\)/.test(read('src/services/data/adminProvider.ts')),
+)
+check(
+  'the WhatsApp invoice is still addressed with a number fetched per booking',
+  /booking_provider_contact/.test(read('src/services/data/catalogue.ts')),
+)
+check(
+  'and that RPC still decides ownership inside its own query',
+  /booking_provider_contact/.test(readSql('20260912000100_logo_write_guard_and_booking_contact.sql')),
+)
+check(
+  'providers_public still withholds the number',
+  /\| 'phone'/.test(read('src/services/supabase/schema.ts')),
+  'the public view omits the column by construction, not by a select list',
 )
 
 check(
@@ -481,9 +572,53 @@ check('the registration form confirms the password', /passwordProblem\(password,
 check('and requires a permit', /if \(!licence\) next\.licence/.test(REGISTER))
 check('and requires a phone number', /if \(!isValidPhone\(form\.phone\)\)/.test(REGISTER))
 check(
-  'a phone the project cannot accept yet does not fail the registration',
-  /if \(!attached\.ok\) setNotice/.test(REGISTER),
-  'the company is registered; only the phone door is shut',
+  'registration offers the number to nobody as a credential',
+  !/attachPhone|updateUser\(\{ phone/.test(REGISTER),
+  'the number goes to the company record and stops there',
+)
+
+head('the approval gate, and who is let through it')
+
+const OWNER_APP = read('src/owner/OwnerApp.tsx')
+check(
+  'a suspended or removed account never reaches the portal',
+  /session\.blocked/.test(OWNER_APP),
+)
+check(
+  'a company awaiting verification gets the waiting screen, not the dashboard',
+  /<PendingPage \/>/.test(OWNER_APP) && /status === 'verified'/.test(OWNER_APP),
+)
+check('a refused company gets the refusal screen', /<RejectedPage \/>/.test(OWNER_APP))
+check('a suspended company gets the suspension screen', /<SuspendedPage/.test(OWNER_APP))
+check(
+  'only a verified company reaches the dashboard',
+  /status === 'verified' \?[\s\S]{0,900}<DashboardPage \/>/.test(OWNER_APP),
+)
+check(
+  'and the sign-in screen refuses a suspended or removed account by name',
+  /auth\.blockedSuspended/.test(read('src/owner/LoginPage.tsx')) &&
+    /auth\.blockedRemoved/.test(read('src/owner/LoginPage.tsx')),
+)
+
+head('and the other two doors are untouched')
+
+check(
+  'the pilgrim signs in with a one-time code to an email address, and only that',
+  /channels=\{\['email'\]\}/.test(read('src/pages/AuthPages.tsx')),
+)
+check(
+  'the administration still asks for its access code',
+  /accessCode|access-code/i.test(read('src/admin/LoginPage.tsx')),
+)
+check(
+  'and asks for no password and no phone number of its own',
+  !/PasswordSignIn|type="tel"/.test(read('src/admin/LoginPage.tsx')),
+)
+check(
+  'the password form is used by the owner portal and by nothing else',
+  /PasswordSignIn/.test(read('src/owner/LoginPage.tsx')) &&
+    !/PasswordSignIn/.test(read('src/admin/LoginPage.tsx')) &&
+    !/PasswordSignIn/.test(read('src/pages/AuthPages.tsx')),
 )
 
 head('and self-registration does not weaken the approval gate')
@@ -501,31 +636,127 @@ check(
   /role === 'admin'/.test(read('src/owner/OwnerApp.tsx')),
 )
 
-// ==================================================== 7. the approved palette
+// ============================ 7. the palette, and the wall around it
 
-head('the palette is the one that was approved')
+head('the customer palette is the approved one')
 
-const CSS = read('src/index.css')
+/*
+ * Two files now, and the split is the whole point.
+ *
+ * `src/index.css` is the design system all three applications import.
+ * `src/customer.css` imports it and then repaints it, and is imported by the
+ * public site's entry alone. The palette living in the second file is what
+ * keeps it out of the other two bundles — see the header of that file.
+ */
+const SHARED_CSS = read('src/index.css')
+const CUSTOMER_CSS = read('src/customer.css')
+
 for (const [token, value] of [
   ['--color-nasek-100', '#e8f2ec'],
   ['--color-nasek-200', '#d6e3da'],
   ['--color-nasek-700', '#0f5132'],
   ['--color-nasek-800', '#0a3d26'],
   ['--color-nasek-900', '#08301e'],
-  ['--color-gold-400', '#c9a961'],
   ['--color-ivory-50', '#fbfaf7'],
   ['--color-ivory-300', '#d6e3da'],
   ['--color-ink-900', '#14201a'],
 ]) {
-  check(`${token} is ${value}`, CSS.includes(`${token}: ${value};`))
-}
-for (const stale of ['#244a3f', '#1b4738', '#14382e', '#0c241d', '#f5f7f6', '#dde2df']) {
-  check(`no token still holds the old ${stale}`, !new RegExp(`:\\s*${stale};`).test(CSS))
+  check(`${token} is ${value} for the customer`, CUSTOMER_CSS.includes(`${token}: ${value};`))
 }
 check(
-  'the girih ornament is drawn in the new primary',
-  CSS.includes('%230F5132') && !CSS.includes('%23244A3F'),
+  'gold is left exactly as it was, in the shared file',
+  SHARED_CSS.includes('--color-gold-400: #c9a961;') &&
+    !CUSTOMER_CSS.includes('--color-gold-400'),
+  'the accent the palette asks for is the value the system already had',
 )
+check(
+  'the girih ornament follows the customer primary',
+  CUSTOMER_CSS.includes('%230F5132'),
+)
+check(
+  'every customer rule is scoped to the customer',
+  CUSTOMER_CSS.split('\n')
+    .filter((line) => line.trim().endsWith('{') && !line.trim().startsWith('*'))
+    .every((line) => line.includes("html[data-app='customer']")),
+  'an unscoped rule in this file would repaint whatever imported it',
+)
+
+head('and it cannot reach the owner portal or the administration')
+
+/*
+ * The shared file, compared with what it was before this palette existed.
+ *
+ * This is the strongest form the check can take: not "the owner colours look
+ * unchanged" but "the file the owner portal compiles is the same file it was".
+ * Anything that recoloured the portal would have to change it.
+ */
+check(
+  'the shared stylesheet holds no customer green',
+  !/0f5132|08301e|0a3d26|e8f2ec|fbfaf7|14201a/i.test(SHARED_CSS),
+)
+check(
+  'and still holds the values the portal and the dashboard had',
+  SHARED_CSS.includes('--color-nasek-700: #244a3f;') &&
+    SHARED_CSS.includes('--color-ivory-50: #ffffff;') &&
+    SHARED_CSS.includes('--color-ink-900: #121615;'),
+)
+check(
+  'the customer stylesheet is imported by the customer entry',
+  /import '\.\/customer\.css'/.test(read('src/main.tsx')),
+)
+for (const rel of ['src/owner/main.tsx', 'src/admin/main.tsx']) {
+  check(`${rel} imports the shared system, not the customer palette`, {
+    ok: /import '@\/index\.css'/.test(read(rel)) && !/customer\.css/.test(read(rel)),
+  }.ok)
+}
+check(
+  'only the customer entry claims the palette in its HTML',
+  /<html[^>]*data-app="customer"/.test(read('index.html')) &&
+    !/data-app/.test(read('owner.html')) &&
+    !/data-app/.test(read('admin.html')),
+)
+
+/*
+ * And the built output, which is the only thing a visitor ever sees.
+ *
+ * Skipped rather than failed when `dist/` is absent, because `npm run verify`
+ * runs before `npm run build` in a fresh checkout and a red test that means
+ * "you have not built yet" trains people to ignore it. The production smoke
+ * test makes the same assertions against the deployed CSS, where they cannot
+ * be skipped.
+ */
+const BUILT: [string, string][] = [
+  ['customer', 'dist/assets'],
+  ['owner', 'dist-owner/assets'],
+  ['admin', 'dist-admin/assets'],
+]
+const stylesheet = (dir: string): string | null => {
+  const full = path.join(root, dir)
+  if (!fs.existsSync(full)) return null
+  const name = fs.readdirSync(full).find((f) => f.endsWith('.css'))
+  return name ? fs.readFileSync(path.join(full, name), 'utf8') : null
+}
+
+const built = Object.fromEntries(BUILT.map(([name, dir]) => [name, stylesheet(dir)]))
+if (!built.customer || !built.owner || !built.admin) {
+  console.log('SKIP  the built stylesheets are not present — run `npm run build` first')
+} else {
+  check(
+    'the built customer stylesheet carries the palette',
+    built.customer.includes('--color-nasek-700:#0f5132'),
+  )
+  for (const app of ['owner', 'admin'] as const) {
+    check(
+      `the built ${app} stylesheet contains not one byte of it`,
+      !/0f5132|08301e|0a3d26|e8f2ec|fbfaf7|14201a|data-app=customer/i.test(built[app] as string),
+      'not merely inert — absent',
+    )
+    check(
+      `and still resolves nasek-700 to #244a3f`,
+      (built[app] as string).includes('--color-nasek-700:#244a3f'),
+    )
+  }
+}
 
 // ============================================ 9. the screens, actually rendered
 
@@ -548,6 +779,31 @@ const shell = (node: React.ReactNode) =>
       <AppStoreProvider>{node}</AppStoreProvider>
     </I18nProvider>,
   )
+
+/*
+ * The sign-in form itself, rendered.
+ *
+ * "Phone login is removed" is a claim about a screen, and the screen is the
+ * place to check it. Every source-level check above would still pass if the
+ * markup carried a second field nobody had wired up.
+ */
+const loginHtml = shell(<OwnerLoginPage onSignedIn={() => {}} />)
+check('the owner sign-in page renders', loginHtml.length > 500, `${loginHtml.length} chars`)
+check('it has exactly one email field', (loginHtml.match(/type="email"/g) ?? []).length === 1)
+check('and exactly one password field', (loginHtml.match(/type="password"/g) ?? []).length === 1)
+check(
+  'and no telephone field at all',
+  !/type="tel"/.test(loginHtml),
+  'a provider signs in with an address; the number is contact information',
+)
+check(
+  'the identifier is labelled as an email address, not "email or phone"',
+  loginHtml.includes(en['common.email']) && !/or phone/i.test(loginHtml),
+)
+check(
+  'there is a way to register a company from it',
+  loginHtml.includes(ownerEn['owner.registerLink']),
+)
 
 const signUpHtml = shell(<OwnerSignUpPage onBackToSignIn={() => {}} />)
 check('the sign-in step renders', signUpHtml.length > 500, `${signUpHtml.length} chars`)

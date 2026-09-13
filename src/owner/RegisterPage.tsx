@@ -5,7 +5,7 @@ import { WILAYAT, wilayatByGovernorate } from '@/data/geo'
 import { useStore } from '@/store/AppStore'
 import { isSupabaseConfigured } from '@/services/supabase/client'
 import { isValidPhone } from '@/services/auth/phone'
-import { MIN_PASSWORD_LENGTH, attachPhone, passwordProblem } from '@/services/auth/password'
+import { MIN_PASSWORD_LENGTH, passwordProblem } from '@/services/auth/password'
 import { signUpOwner } from '@/services/auth/signUpOwner'
 import { registerProviderAccount } from '@/services/auth/registerProvider'
 import { signOutRemote } from '@/services/auth/session'
@@ -258,7 +258,6 @@ export function CompanyRegistrationPage({ onDone }: { onDone: () => Promise<void
   const [licence, setLicence] = useState<LicenceSelection | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [failure, setFailure] = useState('')
-  const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
 
   const set = (key: keyof typeof form, value: string) => setForm((f) => ({ ...f, [key]: value }))
@@ -325,24 +324,13 @@ export function CompanyRegistrationPage({ onDone }: { onDone: () => Promise<void
       })
 
       /*
-       * Then, separately and without the registration depending on it, offer
-       * the number to Supabase as a sign-in identity.
+       * The number is written to the company record and nowhere else.
        *
-       * This is what makes `signInWithPassword({ phone, password })` work
-       * later, and it is the *native* path — Supabase holds the number and
-       * checks its own hashed password against it. NASEK never compares a
-       * password to anything.
-       *
-       * The project has no SMS provider enabled today, so this returns
-       * `phone_disabled`, and that is not a failed registration: the company is
-       * registered, the email door works, and only the phone door is shut. The
-       * owner is told which, rather than shown a failure over a company that
-       * was in fact created.
+       * It used to be offered to Supabase as a second sign-in identity as well,
+       * which is what made an SMS provider a dependency of registration. It is
+       * not one any more: the owner signs in with the address and password they
+       * created a moment ago, and this number is how a pilgrim reaches them.
        */
-      if (isSupabaseConfigured) {
-        const attached = await attachPhone(form.phone)
-        if (!attached.ok) setNotice(t('owner.registerPhonePending'))
-      }
 
       setBusy(false)
       await onDone()
@@ -529,7 +517,6 @@ export function CompanyRegistrationPage({ onDone }: { onDone: () => Promise<void
           onError={(message) => setErrors((e) => ({ ...e, licence: message }))}
         />
 
-        {notice && <Notice tone="warn">{notice}</Notice>}
         {failure && <Notice tone="danger">{failure}</Notice>}
 
         <Button type="submit" size="lg" block loading={busy}>

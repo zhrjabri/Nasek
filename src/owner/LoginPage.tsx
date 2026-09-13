@@ -44,9 +44,16 @@ import { OwnerSignUpPage } from './RegisterPage'
  * lost their password resets it, which proves control of the same address a
  * code would and ends in a password rather than in a session with none.
  *
- * The number is a door too, once the project has an SMS provider — Supabase's
- * own phone identity, checked by Supabase. NASEK does not hold the password and
- * never compares one; the number on a company record is contact information.
+ * AND THERE IS NO PHONE SIGN-IN
+ *
+ * This form briefly took a phone number in place of the address. It does not
+ * any more: that route authenticated against Supabase's phone identity, which
+ * needs an SMS provider — Twilio — configured, paid for and reachable before an
+ * owner could get in at all. An email address and a password need none of that.
+ *
+ * The company's number is still collected, still required, and still what a
+ * pilgrim's WhatsApp invoice is addressed to. It is contact information. It is
+ * not a credential.
  */
 /** What to say when the link that brought them here could not be completed. */
 const LINK_MESSAGE: Record<'expired' | 'wrong_browser' | 'failed', MessageKey> = {
@@ -176,17 +183,7 @@ export function OwnerLoginPage({
         for it to be folded away *from* — the password is the whole method — and
         a collapsed form would suggest an alternative exists.
       */}
-      {/*
-        `allowPhone`, and only here.
-
-        An owner registers with both an address and a number, and the number is
-        the one they know without looking it up. It authenticates against
-        Supabase's phone identity, not against anything on the company record —
-        see `signInWithPhonePassword`. The public site does not get this prop:
-        pilgrims sign in with a one-time code and have no password to pair with
-        a number.
-      */}
-      <PasswordSignIn bare defaultOpen allowPhone onSignedIn={finish} />
+      <PasswordSignIn bare defaultOpen onSignedIn={finish} />
 
       <button
         type="button"

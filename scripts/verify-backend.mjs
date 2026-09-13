@@ -630,11 +630,27 @@ async function main() {
     settings.mailer_autoconfirm === false,
     settings.mailer_autoconfirm ? 'mailer_autoconfirm is ON — anyone can claim any address' : '',
   )
-  if (settings.external?.phone !== true) {
-    console.log('SKIP  phone sign-in is not configured (expected — see docs/SUPABASE.md §6)')
-  } else {
-    check('phone sign-in is enabled', true)
-  }
+  /*
+   * Phone sign-in is not checked for, and its absence is not a warning.
+   *
+   * This used to report a SKIP when `external.phone` was off, which read as a
+   * setup step somebody had not got round to. It is not one. Every door into
+   * NASEK is now email-shaped — a pilgrim's one-time code, a campaign owner's
+   * password, an administrator's access code — so an SMS provider is a
+   * dependency the platform does not have and does not want. A campaign owner's
+   * phone number is contact information; nothing authenticates against it.
+   *
+   * Asserted rather than ignored, so that switching the provider on by accident
+   * (or on a whim) is noticed: it would open a sign-in route nothing in this
+   * repository has been written or tested against.
+   */
+  check(
+    'no sign-in depends on an SMS provider',
+    settings.external?.phone !== true,
+    settings.external?.phone === true
+      ? 'external.phone is ON — NASEK authenticates nobody by phone; this opens an untested route'
+      : 'external.phone is off, as intended',
+  )
 
   console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} CHECK(S) FAILED`)
   if (failures > 0) process.exitCode = 1

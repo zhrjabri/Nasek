@@ -51,7 +51,21 @@ interface Payload {
   description?: string
   wilayahId?: string
   governorate?: string
-  address?: string
+  /*
+   * `address` was here.
+   *
+   * It left the product in 20260913000100: no form collects it, no client sends
+   * it, and nothing displays it — governorate and wilayah are a company's
+   * location of record. This function went on forwarding `body.address` to the
+   * RPC afterwards, which by then could only ever be `undefined`, so it read as
+   * a field somebody had forgotten to wire up rather than one deliberately
+   * retired.
+   *
+   * The database column is NOT dropped and the two companies that have an
+   * address on file keep it: `admin_create_provider` still accepts
+   * `p_address`, and every other writer coalesces against the existing value.
+   * Nothing here deletes anything.
+   */
   experienceYears?: number
   phone?: string
   commercialRegistration?: string
@@ -254,7 +268,6 @@ Deno.serve(async (request) => {
     p_description: clean(body.description),
     p_wilayah_id: clean(body.wilayahId) || null,
     p_governorate: clean(body.governorate) || null,
-    p_address: clean(body.address) || null,
     p_experience_years: Number(body.experienceYears) || 0,
     p_phone: clean(body.phone) || null,
     p_email: email,

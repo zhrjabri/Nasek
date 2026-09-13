@@ -5,8 +5,10 @@ verification codes on screen. Everything below is what turns that into a real
 product: accounts that exist outside one browser, and an administration
 dashboard a determined visitor cannot open.
 
-Budget about twenty minutes. You need a Supabase account (the free tier is
-enough to start) and, for SMS, a Twilio account (which is not free).
+Budget about twenty minutes. You need a Supabase account, and the free tier is
+enough to start — there is nothing here that costs money. NASEK needs no SMS
+provider: every way into the product is email-shaped, and a campaign owner's
+phone number is contact information rather than a credential.
 
 ---
 
@@ -300,26 +302,30 @@ administration host, which will not let them in and cannot tell them why.
 > button were removed. Nothing in the dashboard needs turning off; if Google is
 > still enabled on the project it is simply never offered.
 
-## 6. Phone codes (optional)
+## 6. Phone sign-in — deliberately not configured
 
-NASEK's sign-in screen offers **Continue with Phone** and the whole code path
-behind it is written and working. What is not configured is delivery, because
-that needs a paid account and a decision about who pays per message.
+**Leave Authentication → Providers → Phone switched off.** Nothing in NASEK
+signs anybody in by phone, and turning it on would open a route no part of this
+repository has been written or tested against. `npm run verify:backend` checks
+that it is off.
 
-To turn it on: **Authentication → Providers → Phone** → enable, then choose a
-provider (Twilio, MessageBird, Vonage or Textlocal) and paste its credentials.
+There were two reasons to consider it and neither survived. Campaign owners were
+briefly able to sign in with their number and password, which made an SMS
+provider — Twilio or similar — a paid, third-party dependency standing between
+an owner and their own dashboard, for the convenience of typing a number instead
+of an address. And the customer sign-in screen once offered a phone code
+alongside the email one; the public site now has a single door, and
+`AuthPages.tsx` passes `channels={['email']}`.
 
-Two things specific to Oman:
+A campaign owner's phone number is still collected at registration, still
+required on their profile, and still what a pilgrim's WhatsApp invoice is
+addressed to through `booking_provider_contact`. It is contact information. It
+authenticates nothing.
 
-- Confirm the provider actually delivers to **+968** and what it costs per
-  message. Delivery to the Gulf is not uniform between providers.
-- Some Omani networks require a registered **sender ID** or an alphanumeric
-  sender for A2P traffic. Ask the provider before launch rather than after
-  codes stop arriving.
-
-Nothing needs to change in the code. `src/services/auth/otp.ts` already calls
-`signInWithOtp({ phone })` and verifies with `type: 'sms'`; it starts working
-the moment the provider is configured.
+The dormant phone branch inside `src/services/auth/otp.ts` is left where it is
+rather than deleted, because it belongs to the pilgrim code path and removing it
+would mean editing the one flow every customer uses in order to tidy a route
+none of them can reach.
 
 ## 7. Create the first administrator
 
