@@ -39,7 +39,14 @@ import { I18nProvider } from '@/i18n'
 import { AppStoreProvider, useStore } from '@/store/AppStore'
 import { BookingPage } from '@/pages/BookingPage'
 import { DashboardPage as CustomerDashboardPage } from '@/pages/DashboardPage'
-import { bookingsApi, bookingTotal, mediationFee, NASEK_FEE_RATE } from '@/services/api/bookings'
+import { bookingsApi, bookingTotal } from '@/services/api/bookings'
+import * as bookingsModule from '@/services/api/bookings'
+import { ar as arDict } from '@/i18n/ar'
+import { en as enDict } from '@/i18n/en'
+import { ownerAr as ownerArDict } from '@/i18n/ownerAr'
+import { ownerEn as ownerEnDict } from '@/i18n/ownerEn'
+import { adminAr as adminArDict } from '@/i18n/adminAr'
+import { adminEn as adminEnDict } from '@/i18n/adminEn'
 import {
   buildInvoice,
   invoiceMessage,
@@ -139,15 +146,35 @@ check('a fractional price still multiplies exactly', bookingTotal(12.345, 3) ===
   `${bookingTotal(12.345, 3)}`)
 
 /*
- * No fee on the traveller's bill.
+ * ============================ NASEK CHARGES NOTHING ==========================
  *
- * The total used to be `price × travellers × 1.02`. The customer pays the
- * campaign owner directly now, so a fee folded into that figure is one they
- * hand to the owner on NASEK's behalf with nothing to pass it back.
+ * Not on the traveller's bill, not on the owner's, not on the booking and not
+ * on the invoice. The total is passengers × price and there is no second term.
+ *
+ * This started as `price × travellers × 1.02` shown to the customer as a
+ * "NASEK service fee (2%)", became a 2% charge to the owner on confirmed
+ * business, and is now nothing at all. These checks are the thing that keeps it
+ * that way: the arithmetic, the module's own surface, and the words in all six
+ * dictionaries.
  */
-check('the total carries no platform fee', bookingTotal(350, 2) === 700, `${bookingTotal(350, 2)}`)
-check('the mediation fee is charged on top, to the owner, on confirmed value',
-  mediationFee(1000) === 20 && NASEK_FEE_RATE === 0.02, `${mediationFee(1000)}`)
+check('the total is exactly passengers x price', bookingTotal(350, 2) === 700,
+  `${bookingTotal(350, 2)}`)
+check('no percentage is added anywhere in it',
+  bookingTotal(100, 1) === 100 && bookingTotal(100, 3) === 300 &&
+    bookingTotal(1000, 1) === 1000,
+  'a 2% markup would give 102 / 306 / 1020')
+check('and none is deducted either', bookingTotal(1000, 1) === 1000)
+check('a fractional price is still exact, with no rounding into a fee',
+  bookingTotal(12.345, 3) === 37.035, `${bookingTotal(12.345, 3)}`)
+
+/*
+ * The module surface, not just its output. A fee helper that still exists is a
+ * fee helper somebody re-imports.
+ */
+const bookingExports = Object.keys(bookingsModule)
+check('the bookings module exports no fee rate and no fee function',
+  !bookingExports.some((k) => /fee|commission|rate/i.test(k)),
+  bookingExports.join(', '))
 
 /*
  * Everything below awaits something, and this harness is built for a browser
@@ -193,7 +220,104 @@ async function rest() {
   check('a non-integer count does not reach the arithmetic',
     parses('1.5') === 0 && parses('abc') === 0 && parses('-3') === 0 && parses('2') === 2)
 
-  // ================================================ 2. the booking itself
+  // ------------------------------- and no fee wording survives anywhere
+
+head('no NASEK fee, commission or platform charge in any dictionary')
+
+/*
+ * All six dictionaries, swept for the words rather than for the keys.
+ *
+ * Removing a key is easy to do and easy to half-do — a value can outlive the
+ * key that used to hold it, or reappear inside a longer sentence somewhere
+ * else. So this reads every string NASEK can render and looks for the ideas.
+ *
+ * The exclusions are the interesting part, and each is a real thing that must
+ * keep working:
+ *
+ *   * "services" — what a trip includes. A campaign's `included_services` list
+ *     has nothing to do with a service *fee*.
+ *   * "administrative fees" in `campaign.termsBody` — the campaign owner's own
+ *     cancellation policy, charged by them, to their customer. NASEK neither
+ *     sets nor receives it, and deleting it would misstate an owner's terms.
+ */
+const DICTIONARIES: [string, Record<string, string>][] = [
+  ['customer (en)', enDict as unknown as Record<string, string>],
+  ['customer (ar)', arDict as unknown as Record<string, string>],
+  ['owner (en)', ownerEnDict as unknown as Record<string, string>],
+  ['owner (ar)', ownerArDict as unknown as Record<string, string>],
+  ['admin (en)', adminEnDict as unknown as Record<string, string>],
+  ['admin (ar)', adminArDict as unknown as Record<string, string>],
+]
+
+/** Wording that would mean NASEK takes a cut. */
+const FORBIDDEN: [RegExp, string][] = [
+  [/mediation fee/i, 'mediation fee'],
+  [/\bcommission\b/i, 'commission'],
+  [/service fee/i, 'service fee'],
+  [/platform fee/i, 'platform fee'],
+  [/booking fee/i, 'booking fee'],
+  [/NASEK fee/i, 'NASEK fee'],
+  [/payable to NASEK/i, 'payable to NASEK'],
+  [/owes NASEK/i, 'owes NASEK'],
+  [/\b2\s*%/, '2%'],
+  [/٢\s*٪/, '٢٪'],
+  [/رسوم وساطة/, 'رسوم وساطة'],
+  [/عمولة/, 'عمولة'],
+  [/رسوم ناسِك|رسوم ناسك/, 'رسوم ناسِك'],
+  [/رسوم خدمة/, 'رسوم خدمة'],
+  [/مستحق لناسِك|مستحق لناسك/, 'مستحق لناسِك'],
+]
+
+/** Strings that legitimately contain a near-miss, with the reason. */
+const ALLOWED = new Set(['campaign.termsBody'])
+
+for (const [label, dict] of DICTIONARIES) {
+  const hits: string[] = []
+  for (const [key, value] of Object.entries(dict)) {
+    if (ALLOWED.has(key) || typeof value !== 'string') continue
+    for (const [pattern, name] of FORBIDDEN) {
+      if (pattern.test(value)) hits.push(`${key}: ${name}`)
+    }
+  }
+  check(`${label} contains no fee or commission wording`, hits.length === 0, hits.join(' | '))
+}
+
+/*
+ * And the keys themselves are gone, not merely emptied.
+ */
+for (const key of ['prov.planCommission', 'admin.revCommission', 'booking.fee', 'booking.subtotal']) {
+  check(`the key ${key} no longer exists`,
+    !(key in (ownerEnDict as Record<string, unknown>)) &&
+      !(key in (adminEnDict as Record<string, unknown>)) &&
+      !(key in (enDict as unknown as Record<string, unknown>)),
+    key)
+}
+
+/*
+ * The administration reports the value of the business and never calls it
+ * NASEK's, because NASEK does not receive it.
+ */
+check('the admin money label is "Confirmed booking value"',
+  adminEnDict['admin.kpiConfirmedValue'] === 'Confirmed booking value',
+  adminEnDict['admin.kpiConfirmedValue'])
+check('and in Arabic, "قيمة الحجوزات المؤكدة"',
+  adminArDict['admin.kpiConfirmedValue'] === 'قيمة الحجوزات المؤكدة',
+  adminArDict['admin.kpiConfirmedValue'])
+check('no dictionary calls a booking figure NASEK revenue',
+  !DICTIONARIES.some(([, d]) =>
+    Object.values(d).some((v) => typeof v === 'string' && /NASEK revenue|إيرادات ناسِك/i.test(v))))
+
+/*
+ * What the owner is told they owe, which is nothing.
+ */
+check('the owner is told NASEK charges nothing, in English',
+  /takes no percentage of your bookings and charges you nothing/.test(
+    ownerEnDict['prov.planNote'],
+  ),
+  ownerEnDict['prov.planNote'])
+check('and in Arabic', /لا شيء/.test(ownerArDict['prov.planNote']), ownerArDict['prov.planNote'])
+
+// ================================================ 2. the booking itself
 
   head('a created booking')
 
@@ -725,9 +849,10 @@ async function rest() {
     const value = settled.reduce((s, b) => s + b.totalPrice, 0)
     check('a pending booking contributes nothing to confirmed value',
       value === confirmed.totalPrice, `${value}`)
-    check('and nothing to the mediation fee',
-      mediationFee(value) === Math.round(confirmed.totalPrice * 0.02 * 1000) / 1000)
     check('a confirmed booking does contribute', value > 0)
+    check('and confirmed value is the booking total, with nothing taken off it',
+      value === confirmed.totalPrice,
+      'a commission would make the platform figure differ from the owner\'s')
   }
 
   // ------------------------------------------------------------------ verdict

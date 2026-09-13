@@ -511,7 +511,7 @@ export const en = {
   'giving.h2.title': 'Families apply',
   'giving.h2.body': 'Applications are reviewed with the relevant charitable bodies in Oman.',
   'giving.h3.title': 'Seats are funded',
-  'giving.h3.body': 'The fund books seats on verified campaigns at cost, with no NASEK fee.',
+  'giving.h3.body': 'The fund books seats on verified campaigns at the price the campaign charges.',
   'giving.h4.title': 'The journey is reported back',
   'giving.h4.body': 'Contributors see how many journeys their support made possible.',
   'giving.plannedTitle': 'A planned feature',
@@ -547,7 +547,7 @@ export const en = {
     'Campaign owners submit their details to the NASEK team before their listings carry a verified badge.',
   'trust.2.title': 'Transparent pricing',
   'trust.2.body':
-    'Every price is per traveller and lists what it includes. Fees are shown before you pay.',
+    'Every price is per traveller and lists what it includes. NASEK adds nothing to it — you pay the campaign the price you see.',
   'trust.3.title': 'Real reviews',
   'trust.3.body': 'Only travellers with a completed booking can review a campaign.',
   'trust.4.title': 'Report anything',

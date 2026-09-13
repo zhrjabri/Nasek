@@ -47,7 +47,6 @@ import {
   replyToReview,
   saveCampaign,
 } from '@/services/data/catalogue'
-import { mediationFee } from '@/services/api/bookings'
 import { formatPhone } from '@/services/auth/phone'
 import { isSupabaseConfigured } from '@/services/supabase/client'
 import { useStore } from '@/store/AppStore'
@@ -106,8 +105,9 @@ const TABS: { id: Tab; key: MessageKey; icon: typeof LayoutGrid }[] = [
  * agreement attaches a price to any of its three values, and every company is
  * pinned to `basic` by trigger anyway. So the portal showed each owner a
  * monthly bill NASEK had never agreed to charge them, and an "estimated this
- * month" total built on top of it. Both are gone; the 2% mediation fee below
- * is the one charge that exists, and `book_campaign` really levies it.
+ * month" total built on top of it. Both are gone, and so is the mediation fee
+ * that outlived them for a while: NASEK charges the campaign owner nothing at
+ * all. The card below says so and shows no figure, because there is none.
  */
 
 /**
@@ -265,9 +265,6 @@ export function DashboardPage() {
       awaiting: bookings.filter((b) => b.status === 'pending').length,
       confirmedCount: earned.length,
       revenue,
-      // 2% of confirmed business, charged to the owner. Not inside the total the
-      // traveller pays — see `mediationFee`.
-      commission: mediationFee(revenue),
       active: campaigns.filter((c) => c.seatsAvailable > 0).length,
       seatsAvailable,
       fillRate: seatsTotal ? ((seatsTotal - seatsAvailable) / seatsTotal) * 100 : 0,
@@ -510,7 +507,16 @@ export function DashboardPage() {
             </Card>
           )}
 
-          {/* what NASEK actually charges, and nothing it does not */}
+          {/*
+            What NASEK charges, which is nothing.
+
+            This card carried a "Mediation fee (2%)" figure — a running total of
+            what the owner owed NASEK on confirmed business. There is no such
+            fee: NASEK takes no percentage from the customer, the owner, the
+            booking or the invoice. The figure is gone and so is the arithmetic
+            behind it; what is left is the one sentence an owner opens this to
+            read, and the count of business they have actually confirmed.
+          */}
           <Card className="p-6">
             <h2 className="text-md font-bold text-ink-900">{t('prov.plan')}</h2>
             <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-500">
@@ -518,15 +524,17 @@ export function DashboardPage() {
             </p>
             <dl className="mt-5 grid gap-4 sm:grid-cols-2">
               <PlanFigure
-                label={t('prov.planCommission')}
-                value={
-                  stats.confirmedCount ? money(stats.commission) : t('prov.noConfirmedFinancial')
-                }
+                label={t('prov.confirmedBookings')}
+                value={n(stats.confirmedCount)}
                 highlight
               />
               <PlanFigure
-                label={t('prov.confirmedBookings')}
-                value={n(stats.confirmedCount)}
+                label={t('prov.kpiRevenue')}
+                value={
+                  stats.confirmedCount
+                    ? money(stats.revenue)
+                    : t('prov.noConfirmedFinancial')
+                }
               />
             </dl>
           </Card>

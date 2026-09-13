@@ -1,33 +1,29 @@
 import type { Booking, Campaign, User } from '@/types'
 import { ApiError, request } from './client'
 
-/** NASEK's mediation fee, per the original business plan. */
-export const NASEK_FEE_RATE = 0.02
-
-/**
- * What a campaign owner owes NASEK on business the platform brought them.
+/*
+ * NASEK CHARGES NOTHING. There is no rate constant here on purpose.
  *
- * This changed meaning when NASEK stopped pretending to take payment, and the
- * distinction matters enough to state.
+ * A rate constant and a fee function used to live at the top of this file, and
+ * both are gone rather than set to zero. A rate of zero is a rate somebody can
+ * change back by editing one number; no rate at all has to be reintroduced
+ * deliberately, with a diff that says so. Their names are not written here
+ * either, so a search of this repository for them comes back empty.
  *
- * `book_campaign` used to store `price × travellers × 1.02`, and the booking
- * page showed the customer a "NASEK service fee (2%)" line on their bill. That
- * cannot survive a workflow where the customer pays the campaign owner directly
- * over WhatsApp: the owner is handed the whole of the invoice total, so a fee
- * folded into it is a fee the customer pays the owner on NASEK's behalf, with
- * nothing anywhere to pass it back.
+ * The history, briefly, because three different things were true in turn and
+ * the comments elsewhere in this repository still refer to them:
  *
- * So the total is now what it says — `price × travellers`, the sum the traveller
- * owes the owner — and the mediation fee is levied on the owner, computed as 2%
- * of *confirmed* booking value. It sits on top of the figure rather than inside
- * it, which is why this is a plain multiplication and not the `r/(1+r)` that
- * extracted it from an inclusive total.
+ *   1. `book_campaign` stored the price with a percentage added, and the booking
+ *      page showed the customer a platform charge as a line on their bill.
+ *   2. 20260910000100 took it out of the traveller's total — the customer pays
+ *      the campaign owner directly, so anything inside that figure is something
+ *      the customer hands to the owner on NASEK's behalf — and left it as a
+ *      percentage of confirmed business, owed by the owner.
+ *   3. And now there is none. NASEK takes no percentage from the customer, from
+ *      the owner, from the booking or from the invoice.
  *
- * Rounded to three places, matching `numeric(10,3)` on the column it derives from.
+ * What remains is `bookingTotal`, which is passengers × price and nothing else.
  */
-export function mediationFee(confirmedValue: number) {
-  return Math.round(confirmedValue * NASEK_FEE_RATE * 1000) / 1000
-}
 
 /**
  * What the customer owes the campaign owner.

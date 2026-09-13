@@ -29,7 +29,6 @@ import {
 import { isPendingProvider, type Booking, type Campaign, type Provider } from '@/types'
 import { useI18n } from '@/i18n'
 
-import { mediationFee } from '@/services/api/bookings'
 import { setProviderVerification } from '@/services/data/catalogue'
 import { useSnapshotLoader } from '@/hooks/useRemoteData'
 import { useStore } from '@/store/AppStore'
@@ -78,9 +77,11 @@ export function OverviewTab({
    * headline number on the administration dashboard was therefore mostly
    * fiction, and it shipped.
    *
-   * The mediation fee is the one that is real: NASEK charges campaign owners
-   * 2% of the business the platform brings them. So that is what is reported,
-   * under its own name.
+   * A mediation fee briefly stood here in its place, charged to campaign owners
+   * on the business the platform brought them. It has been abolished. NASEK now
+   * charges nobody — not the customer, not the owner, not the booking — so this
+   * page reports the value of the business itself and labels it as the owner's,
+   * never as NASEK's.
    *
    * AND ONLY ON BUSINESS THAT HAPPENED
    *
@@ -88,16 +89,15 @@ export function OverviewTab({
    * defensible while `book_campaign` wrote every booking as 'confirmed' the
    * moment it was created. Payment now happens off the platform, between the
    * customer and the campaign owner, and a 'pending' booking is a request
-   * nobody has paid for. Charging a mediation fee on one — or showing it to an
-   * administrator as platform value — would be billing for money that may never
-   * arrive. Confirmed and completed only.
+   * nobody has paid for, and showing one to an administrator as platform value
+   * would be reporting money that may never arrive. Confirmed and completed
+   * only.
    */
   const stats = useMemo(() => {
     const settled = bookings.filter((b) => b.status === 'confirmed' || b.status === 'completed')
     const gmv = settled.reduce((s, b) => s + b.totalPrice, 0)
     return {
       gmv,
-      fees: mediationFee(gmv),
       settled: settled.length,
       /** Requests in flight. A workload figure, deliberately not a money one. */
       awaiting: bookings.filter((b) => b.status === 'pending').length,
@@ -141,19 +141,19 @@ export function OverviewTab({
   return (
     <section className="space-y-6">
       <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {/* Both money figures say "no confirmed financial data yet" rather than
+        {/* The money figure says "no confirmed financial data yet" rather than
             a confident OMR 0 while nothing has been paid for. Zero and
-            "nothing has settled" look the same and are not. */}
-        <Kpi
-          label={t('admin.revCommission')}
-          value={stats.settled ? money(stats.fees) : t('admin.noConfirmedFinancial')}
-          icon={<Coins className="size-4" />}
-          highlight
-        />
+            "nothing has settled" look the same and are not.
+
+            It is labelled "confirmed booking value", never "NASEK revenue",
+            because NASEK does not receive it: the customer pays the campaign
+            owner directly and NASEK takes no part of it. The mediation-fee KPI
+            that stood beside this one is gone with the fee itself. */}
         <Kpi
           label={t('admin.kpiConfirmedValue')}
           value={stats.settled ? money(stats.gmv) : t('admin.noConfirmedFinancial')}
           icon={<Coins className="size-4" />}
+          highlight
         />
         <Kpi
           label={t('admin.kpiAwaitingPayment')}

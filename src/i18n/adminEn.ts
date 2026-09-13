@@ -183,10 +183,15 @@ export const adminEn = {
   'admin.verified': 'Verified',
   'admin.verifiedToast': '{name} is now verified',
   'admin.unverifiedToast': 'Verification removed from {name}',
-  // The only revenue NASEK has a record of. `admin.revenueSplit`,
-  // `admin.revSubscriptions` and `admin.revPromotions` went with the
-  // doughnut whose slices this file was inventing prices for.
-  'admin.revCommission': 'Mediation fees',
+  /*
+   * There is no NASEK revenue key here at all, and that is the point.
+   *
+   * `admin.revenueSplit`, `admin.revSubscriptions` and `admin.revPromotions`
+   * went with the doughnut whose slices this file was inventing prices for.
+   * `admin.revCommission` — "Mediation fees" — went with the fee itself: NASEK
+   * charges no percentage to anyone, so the administration reports the value of
+   * the business and never calls it NASEK's.
+   */
   'admin.bookingsByType': 'Bookings by trip type',
   'admin.growth': 'Platform growth',
   'admin.noData': 'No data yet',

@@ -156,7 +156,6 @@ export const adminAr: Record<AdminMessageKey, string> = {
   'admin.verified': 'موثّقة',
   'admin.verifiedToast': 'تم توثيق {name}',
   'admin.unverifiedToast': 'أُلغي توثيق {name}',
-  'admin.revCommission': 'رسوم الوساطة',
   'admin.bookingsByType': 'الحجوزات حسب نوع الرحلة',
   'admin.growth': 'نمو المنصة',
   'admin.noData': 'لا توجد بيانات بعد',

@@ -567,14 +567,14 @@ export function BookingPage() {
               </p>
 
               {/*
-                No fee line.
+                No fee line, because there is no fee.
 
-                There used to be a "NASEK service fee (2%)" row here and a
-                subtotal above it. The customer now pays the campaign owner
-                directly, so a fee inside that figure is a fee they would hand
-                to the owner on NASEK's behalf with no way to pass it back. The
-                2% is unchanged as a commercial fact — it is what the owner owes
-                NASEK on confirmed business — and it is not part of this bill.
+                A "NASEK service fee" row and a subtotal used to sit here. The
+                customer pays the campaign owner directly, so anything added
+                into that figure would be money they hand to the owner on
+                NASEK's behalf with no way to pass it back — and NASEK now
+                charges nothing to anyone in any case. The total below is
+                passengers times the price and has no second term.
               */}
               <dl className="mt-5 space-y-2.5 border-t border-ivory-300 pt-4 text-sm">
                 <SummaryRow label={t('booking.pricePerPerson')} value={money(campaign.price)} />
