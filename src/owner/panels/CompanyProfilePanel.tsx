@@ -76,7 +76,6 @@ interface Draft {
   description: string
   governorate: string
   wilayahId: string
-  address: string
   phone: string
   email: string
   experienceYears: string
@@ -103,8 +102,7 @@ const EMPTY_DRAFT: Draft = {
   tagline: '',
   description: '',
   governorate: GOVERNORATES[0][0],
-  wilayahId: '',
-  address: '',
+  wilayahId: GOVERNORATES[0][1][0]?.id ?? '',
   phone: '',
   email: '',
   experienceYears: '0',
@@ -119,7 +117,6 @@ const draftFrom = (p: Provider): Draft => ({
   description: p.description.en || p.description.ar,
   governorate: governorateOf(p),
   wilayahId: p.wilayahId,
-  address: p.address ?? '',
   phone: p.phone ?? '',
   email: p.email ?? '',
   experienceYears: String(p.experienceYears ?? 0),
@@ -239,7 +236,18 @@ export function CompanyProfilePanel({ provider }: { provider?: Provider }) {
     e.preventDefault()
     const next: Partial<Record<keyof Draft | 'licence', string>> = {}
     if (!draft.name.trim()) next.name = t('common.required')
-    if (!draft.address.trim()) next.address = t('common.required')
+    /*
+     * Governorate and wilayah are checked even though both are `<select>`s
+     * with a value already in them.
+     *
+     * The database made them `not null` and non-blank in 20260913000100, so a
+     * blank one is now a rejected save rather than a null column — and a
+     * rejected save arrives as an error banner with a server's wording on it.
+     * Checking here means the owner is told which field, in their own
+     * language, before anything is sent.
+     */
+    if (!draft.governorate.trim()) next.governorate = t('common.required')
+    if (!draft.wilayahId.trim()) next.wilayahId = t('common.required')
     if (!isValidPhone(draft.phone)) next.phone = t('auth.phoneInvalid')
     if (!/^\S+@\S+\.\S+$/.test(draft.email)) next.email = t('auth.emailInvalid')
     setErrors(next)
@@ -273,7 +281,6 @@ export function CompanyProfilePanel({ provider }: { provider?: Provider }) {
       description: draft.description,
       wilayahId: draft.wilayahId,
       governorate: draft.governorate,
-      address: draft.address,
       phone: draft.phone,
       email: draft.email,
       experienceYears: Number(draft.experienceYears) || 0,
@@ -377,7 +384,7 @@ export function CompanyProfilePanel({ provider }: { provider?: Provider }) {
               </Field>
 
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label={t('owner.governorate')}>
+                <Field label={t('owner.governorate')} required error={errors.governorate}>
                   {(p) => (
                     <Select
                       {...p}
@@ -402,7 +409,7 @@ export function CompanyProfilePanel({ provider }: { provider?: Provider }) {
                     </Select>
                   )}
                 </Field>
-                <Field label={t('common.wilayah')}>
+                <Field label={t('common.wilayah')} required error={errors.wilayahId}>
                   {(p) => (
                     <Select
                       {...p}
@@ -421,21 +428,19 @@ export function CompanyProfilePanel({ provider }: { provider?: Provider }) {
                 </Field>
               </div>
 
-              <Field
-                label={t('owner.address')}
-                hint={t('owner.addressHint')}
-                required
-                error={errors.address}
-              >
-                {(p) => (
-                  <Textarea
-                    {...p}
-                    rows={2}
-                    value={draft.address}
-                    onChange={(e) => set('address', e.target.value)}
-                  />
-                )}
-              </Field>
+              {/*
+                No address field.
+
+                It was here, and required, and it asked a company for a postal
+                address NASEK had no use for: the catalogue locates a company by
+                governorate and wilayah, the pilgrim contacts them by phone, and
+                nothing in the platform has ever posted anything to anyone. The
+                two location fields above are the location of record and both
+                are required.
+
+                The column is not dropped and the values two companies already
+                typed are kept — see `20260913000100`. Nothing reads them.
+              */}
 
               <div className="grid gap-4 sm:grid-cols-3">
                 <Field label={t('common.phone')} required error={errors.phone}>
@@ -605,7 +610,6 @@ export function CompanyProfilePanel({ provider }: { provider?: Provider }) {
               />
               <Row label={t('common.email')} value={provider.email} dir="ltr" />
               <Row label={t('common.phone')} value={provider.phone} dir="ltr" />
-              <Row label={t('owner.address')} value={provider.address} wide />
               <Row
                 label={t('owner.description')}
                 value={provider.description.en || provider.description.ar}

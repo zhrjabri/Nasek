@@ -13,6 +13,7 @@ import { loadAdminSession, type AdminGateReason } from '@/admin/session'
 import { onAuthChange } from '@/services/auth/session'
 import { completeAuthRedirect, isAuthRedirect } from '@/services/auth/redirect'
 
+import { AnalyticsTab } from './tabs/AnalyticsTab'
 import { UsersTab } from './tabs/UsersTab'
 import { OwnersTab } from './tabs/OwnersTab'
 import { CampaignsTab } from './tabs/CampaignsTab'
@@ -246,6 +247,7 @@ function AdminRoutes() {
               </Suspense>
             }
           />
+          <Route path="/analytics" element={<AnalyticsTab />} />
           <Route
             path="/users"
             element={<UsersTab directory={directory} />}

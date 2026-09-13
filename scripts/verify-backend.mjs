@@ -443,6 +443,95 @@ async function main() {
   }
 
   /*
+   * ---------------------------------- the three functions 20260913000100 added
+   *
+   * Each is probed with its *exact* argument names, for the reason written out
+   * three times above and walked into twice anyway: PostgREST resolves an
+   * overload by the named arguments it is handed and answers 404 when none
+   * matches, so a probe with the wrong names reports "missing" for a function
+   * that is deployed and correctly locked.
+   *
+   * They are checked in two groups because they are not the same kind of thing.
+   */
+
+  /*
+   * Closed to the public key.
+   *
+   * `site_analytics` is the only way to read `site_visits` — the table has no
+   * SELECT policy for anybody — so anonymous access to it would publish every
+   * visitor count NASEK holds. `admin_update_provider` rewrites a company
+   * record and writes the diff to `admin_audit`; reachable anonymously it would
+   * be a way to edit any company on the platform.
+   */
+  for (const [fn, body] of [
+    ['site_analytics', {}],
+    [
+      'admin_update_provider',
+      {
+        // Only `p_provider_id` is required; the rest default to null, which
+        // `admin_update_provider` reads as "leave this column alone". Sending
+        // the id alone is therefore a complete, resolvable call.
+        p_provider_id: '00000000-0000-0000-0000-000000000000',
+      },
+    ],
+  ]) {
+    const res = await fetch(`${url}/rest/v1/rpc/${fn}`, {
+      method: 'POST',
+      headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (res.status === 404) {
+      check(`${fn}() exists`, false, 'not found — apply 20260913000100')
+    } else {
+      check(`${fn}() is unreachable with the public key`, res.status !== 200, `HTTP ${res.status}`)
+    }
+  }
+
+  /*
+   * ...and the one that must answer anonymously, because the visitors it counts
+   * are anonymous.
+   *
+   * `record_visit` is granted to `anon` deliberately. It returns nothing,
+   * writes a fixed shape, and takes the visitor id from a request header rather
+   * than an argument. The counts can be inflated by anyone willing to POST in a
+   * loop; that is a known and accepted cost of counting people who have not
+   * signed in, and the table is unreadable to everyone but `site_analytics`.
+   *
+   * Probed WITHOUT the `x-nasek-visitor` header on purpose: no header means no
+   * row, so this proves the function is reachable without writing anything.
+   */
+  const visit = await fetch(`${url}/rest/v1/rpc/record_visit`, {
+    method: 'POST',
+    headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ p_path: '/probe', p_kind: 'page', p_campaign_id: null }),
+  })
+  if (visit.status === 404) {
+    check('record_visit() exists', false, 'not found — apply 20260913000100')
+  } else {
+    check(
+      'record_visit() is callable anonymously, and records nothing without the header',
+      visit.status === 200 || visit.status === 204,
+      `HTTP ${visit.status}`,
+    )
+  }
+
+  /*
+   * And the table behind it is unreadable, to the public key and to everybody.
+   *
+   * There is no SELECT policy on `site_visits` at all — not for `anon`, not for
+   * `authenticated`, not for an administrator. This is the check that would
+   * fail if somebody added one "just to build a screen".
+   */
+  const visits = await fetch(`${url}/rest/v1/site_visits?select=id&limit=1`, {
+    headers: { apikey: key, Authorization: `Bearer ${key}` },
+  })
+  check(
+    'site_visits cannot be read row by row with the public key',
+    visits.status !== 200,
+    `HTTP ${visits.status}`,
+  )
+
+  /*
    * ...and the one that has to answer, because a policy calls it.
    *
    * `campaigns_read` asks `provider_approved()` before showing a trip to a

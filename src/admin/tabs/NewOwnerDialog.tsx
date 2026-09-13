@@ -47,7 +47,6 @@ export function NewOwnerDialog({ open, onClose }: { open: boolean; onClose: () =
     experienceYears: '',
     governorate: GOVERNORATES[0][0],
     wilayahId: GOVERNORATES[0][1][0].id,
-    address: '',
     commercialRegistration: '',
     permitNumber: '',
     permitExpiry: '',
@@ -65,7 +64,7 @@ export function NewOwnerDialog({ open, onClose }: { open: boolean; onClose: () =
     setForm((f) => ({ ...f, [key]: value }))
 
   const reset = () => {
-    setForm((f) => ({ ...f, companyName: '', tagline: '', description: '', address: '',
+    setForm((f) => ({ ...f, companyName: '', tagline: '', description: '',
       commercialRegistration: '', permitNumber: '', permitExpiry: '', contactName: '',
       email: '', phone: '', experienceYears: '' }))
     setLicence(null)
@@ -90,7 +89,9 @@ export function NewOwnerDialog({ open, onClose }: { open: boolean; onClose: () =
     if (!form.contactName.trim()) next.contactName = t('common.required')
     if (!/^\S+@\S+\.\S+$/.test(form.email)) next.email = t('auth.emailInvalid')
     if (!isValidPhone(form.phone)) next.phone = t('auth.phoneInvalid')
-    if (!form.address.trim()) next.address = t('common.required')
+    // Both are `not null` and non-blank in the database as of 20260913000100.
+    if (!form.governorate.trim()) next.governorate = t('common.required')
+    if (!form.wilayahId.trim()) next.wilayahId = t('common.required')
     if (!form.permitNumber.trim()) next.permitNumber = t('common.required')
     if (!licence) next.licence = t('auth.licenceRequired')
     setErrors(next)
@@ -132,7 +133,6 @@ export function NewOwnerDialog({ open, onClose }: { open: boolean; onClose: () =
       description: form.description,
       wilayahId: form.wilayahId,
       governorate: form.governorate,
-      address: form.address,
       experienceYears: form.experienceYears ? Number(form.experienceYears) : 0,
       phone: form.phone,
       commercialRegistration: form.commercialRegistration,
@@ -228,7 +228,7 @@ export function NewOwnerDialog({ open, onClose }: { open: boolean; onClose: () =
         </p>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label={t('owner.governorate')} required>
+          <Field label={t('owner.governorate')} required error={errors.governorate}>
             {(p) => (
               <Select
                 {...p}
@@ -249,7 +249,7 @@ export function NewOwnerDialog({ open, onClose }: { open: boolean; onClose: () =
               </Select>
             )}
           </Field>
-          <Field label={t('common.wilayah')} required>
+          <Field label={t('common.wilayah')} required error={errors.wilayahId}>
             {(p) => (
               <Select {...p} value={form.wilayahId} onChange={(e) => set('wilayahId', e.target.value)}>
                 {(GOVERNORATES.find(([name]) => name === form.governorate)?.[1] ?? WILAYAT).map(
@@ -264,11 +264,11 @@ export function NewOwnerDialog({ open, onClose }: { open: boolean; onClose: () =
           </Field>
         </div>
 
-        <Field label={t('owner.address')} hint={t('owner.addressHint')} required error={errors.address}>
-          {(p) => (
-            <Textarea {...p} rows={2} value={form.address} onChange={(e) => set('address', e.target.value)} />
-          )}
-        </Field>
+        {/*
+          No address field. Governorate and wilayah above are the company's
+          location of record; NASEK posts nothing to anyone. See
+          `20260913000100`, which retires the column without dropping it.
+        */}
 
         {/* ---------------------------------------------------- licensing */}
         <p className="pt-1 text-2xs font-bold uppercase tracking-[0.14em] text-ink-400">

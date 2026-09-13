@@ -368,6 +368,15 @@ export const en = {
   'booking.invoiceNo': 'NASEK invoice number',
   'booking.reference': 'Booking reference',
   'booking.awaitingPayment': 'Awaiting payment',
+  // ------------------------------ what a request does and does not hold
+  //
+  // Said plainly, and said before the customer walks away, because it is the
+  // one part of the manual-payment workflow that can cost them the trip. A
+  // request reserves nothing until the owner records payment — the seats stay
+  // on sale in the meantime, and someone who pays first gets them.
+  'booking.seatNotHeld': 'Your seat is not reserved yet',
+  'booking.seatNotHeldBody':
+    'The trip keeps these seats on sale until the campaign owner confirms your payment. Send the invoice and pay as soon as you can — the seats are yours from the moment they confirm, and not before.',
   'booking.sendWhatsapp': 'Send invoice to campaign owner via WhatsApp',
   'booking.sendWhatsappNote':
     'You will contact the campaign owner directly to receive payment details and complete your booking.',
@@ -385,6 +394,11 @@ export const en = {
   'auth.passwordRequired': 'Enter your password',
   'auth.signInChecking': 'Checking…',
   'auth.signInFailed': 'Those details do not match an account.',
+  'auth.emailTaken': 'An account already uses that email address.',
+  'auth.emailOrPhone': 'Email address or phone number',
+  'auth.emailOrPhoneInvalid': 'Enter the email address or phone number on your account.',
+  'auth.phoneSignInUnavailable':
+    'Signing in by phone number is not available yet. Use your email address and password.',
   'auth.showPassword': 'Show password',
   'auth.hidePassword': 'Hide password',
   'auth.password': 'Password',
@@ -484,6 +498,8 @@ export const en = {
   'dash.cancelled': 'Cancelled',
   'dash.pending': 'Awaiting payment',
   'dash.awaitingPaymentNote': 'Awaiting payment completion with the campaign owner',
+  'dash.seatNotHeld':
+    'These seats are still on sale until the campaign owner confirms your payment.',
   'dash.resendInvoice': 'Send the invoice again on WhatsApp',
   'dash.noBookings': 'You have no bookings yet',
   'dash.noBookingsHint': 'When you book a trip it will appear here with its reference number.',

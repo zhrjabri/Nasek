@@ -24,7 +24,6 @@ export interface NewOwnerInput {
   description: string
   wilayahId: string
   governorate: string
-  address: string
   experienceYears: number
   phone: string
   commercialRegistration: string

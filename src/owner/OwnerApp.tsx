@@ -10,6 +10,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { OwnerShell } from './layout/OwnerShell'
 import { OwnerLoginPage } from './LoginPage'
 import { SetPasswordPage } from './SetPasswordPage'
+import { CompanyRegistrationPage } from './RegisterPage'
 import { PendingPage, RejectedPage, SuspendedPage } from './StatusPages'
 
 /*
@@ -74,6 +75,22 @@ type Gate =
   | { phase: 'out'; linkError?: 'expired' | 'wrong_browser' | 'failed' }
   /** Arrived from an invitation or a reset link; owes a password. */
   | { phase: 'password' }
+  /**
+   * Signed in, and owns no company yet.
+   *
+   * The state a self-registering owner is in the moment they follow the
+   * confirmation link: a real NASEK account, a confirmed address, and nothing
+   * on `providers` with their id against it. The company form is what they came
+   * for, so it is what they get.
+   *
+   * This used to be an immediate sign-out — "you are not a campaign owner, go
+   * away" — which was right while an administrator was the only way onto the
+   * platform. It is wrong now that a company can register itself, and it would
+   * have made the confirmation link a dead end. Nothing is granted by reaching
+   * the form: `register_provider` decides the role itself, always leaves the
+   * company `pending`, and an administrator still has to verify the permit.
+   */
+  | { phase: 'register' }
   | { phase: 'in' }
 
 /**
@@ -211,11 +228,32 @@ export function OwnerApp() {
      * a session is signed out rather than left in a portal whose every query
      * would come back empty.
      */
-    if (session.user.role !== 'provider') {
+    /*
+     * An administrator is still shown the door.
+     *
+     * The administration dashboard is a separate build with a separate session
+     * key, and an administrator with a session here has arrived somewhere they
+     * have no business being. Offering them a company registration form would
+     * be offering to demote the account that moderates the platform.
+     */
+    if (session.user.role === 'admin') {
       await signOutRemote()
       dispatch({ type: 'signOut' })
       clearOwesPassword()
       settle({ phase: 'out' })
+      return
+    }
+
+    /*
+     * Anyone else signed in without a company is offered one.
+     *
+     * `role !== 'provider'` is the same test as before; what changed is the
+     * answer. See the `register` phase above.
+     */
+    if (session.user.role !== 'provider') {
+      dispatch({ type: 'registerUser', user: session.user })
+      dispatch({ type: 'signIn', user: session.user })
+      settle({ phase: owesPassword() ? 'password' : 'register' })
       return
     }
 
@@ -247,6 +285,22 @@ export function OwnerApp() {
 
   if (gate.phase === 'out') {
     return <OwnerLoginPage onSignedIn={check} linkError={gate.linkError} />
+  }
+
+  if (gate.phase === 'register') {
+    return (
+      <CompanyRegistrationPage
+        onDone={async () => {
+          /*
+           * Re-read rather than assume. `register_provider` has promoted the
+           * account to 'provider' and created a `pending` company, and both
+           * facts live in Postgres — this asks it, and the answer lands the
+           * owner on the "awaiting verification" screen.
+           */
+          await check()
+        }}
+      />
+    )
   }
 
   if (gate.phase === 'password') {

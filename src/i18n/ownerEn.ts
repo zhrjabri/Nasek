@@ -147,12 +147,10 @@ export const ownerEn = {
   'owner.signInSubtitle': 'Sign in with your email and password',
   'owner.signInCta': 'Sign in',
   'owner.passwordOnly':
-    'Campaign owners sign in with a password. If you do not have one yet, NASEK will have sent you an invitation.',
+    'Sign in with the email address or phone number on your account, and your password. If NASEK invited you and you have no password yet, use the link in the invitation.',
   'owner.wrongDoor':
     'This account is not a campaign owner. If you believe it should be, contact NASEK.',
   'owner.noAccount': 'Not a campaign owner yet?',
-  'owner.noAccountBody':
-    'Campaign owners are added by the NASEK team. Get in touch and we will take you through it.',
   'owner.forgot': 'Forgotten your password?',
   'owner.forgotTitle': 'Reset your password',
   'owner.forgotBody':
@@ -232,8 +230,6 @@ export const ownerEn = {
   'owner.permitOpening': 'Opening…',
   'owner.permitFailed': 'That permit could not be opened. It may have been removed.',
   'owner.governorate': 'Governorate',
-  'owner.address': 'Address',
-  'owner.addressHint': 'Street, building, and anything else a courier would need.',
   'owner.commercialRegistration': 'Commercial registration number',
   'owner.commercialRegistrationHint':
     'From your Ministry of Commerce record, if the company has one.',
@@ -314,7 +310,6 @@ export const ownerEn = {
   'owner.notOwnerLink': 'Go to the NASEK site',
   'owner.portalBlurb': 'Publish Hajj and Umrah campaigns on NASEK, manage seats, and see every registration in one place.',
   'owner.registerCta': 'Submit the application',
-  'owner.registerLink': 'Apply to join NASEK',
   'owner.sectionAccess': 'Your sign-in',
   'owner.sectionCompany': 'The company',
   'owner.sectionContact': 'Who we speak to',
@@ -354,6 +349,55 @@ export const ownerEn = {
   'owner.permitReplace': 'Replace the permit',
   'owner.permitReplaceHint':
     'PDF, JPEG, PNG or WebP. Leave empty to keep the permit already on file.',
+
+  // ----------------------------- seats are held on confirmation, not on request
+  //
+  // The owner is the only person who can turn a request into a held seat, so
+  // the owner is who has to understand the rule. Two things they need on the
+  // screen: that a pending request is not holding anything, and that if the
+  // requests in front of them add up to more than the trip has left, confirming
+  // them all is not possible.
+  'prov.seatsOnConfirm':
+    'A request holds no seat. The seats leave the trip when you confirm payment — first confirmed, first served.',
+  'prov.pendingExceedSeats':
+    '{pending} seats are requested and {available} remain. Confirm in the order the money arrives; the ones you cannot fit will be refused by the system.',
+
+
+  // ============================================ registering a company on NASEK
+  //
+  // Two screens, and the split is the project's own configuration rather than a
+  // design choice: email confirmation is on, so `signUp` returns no session and
+  // nothing that needs a signed-in caller — the permit upload, `register_provider`
+  // — can run until the address is confirmed. Saying "step 1 of 2" out loud is
+  // better than a form that appears to have worked and has not finished.
+  'owner.registerLink': 'Register your company',
+  'owner.registerStep1': 'Step 1 of 2',
+  'owner.registerStep2': 'Step 2 of 2',
+  'owner.signUpTitle': 'Create your sign-in',
+  'owner.signUpSubtitle':
+    'The email address and password you will use to reach this portal. Your company details come next.',
+  'owner.signUpSubmit': 'Create my sign-in',
+  'owner.signUpHaveAccount': 'Already registered?',
+  'owner.signUpBackToSignIn': 'Sign in instead',
+  'owner.confirmSentTitle': 'Confirm your email address',
+  'owner.confirmSentBody':
+    'A confirmation link is on its way to {email}. Open it and you will come back here to enter your company details. The link works on any device.',
+  'owner.passwordConfirm': 'Confirm password',
+  'owner.passwordMismatch': 'The two passwords do not match.',
+
+  'owner.companyTitle': 'Your company',
+  'owner.companySubtitle':
+    'What NASEK verifies you on. An administrator checks the permit against these details before your trips can be published.',
+  'owner.companySubmit': 'Submit for verification',
+  'owner.companyWrongAccount':
+    'You are signed in as {email}. Registering a company here makes this account its owner.',
+  'owner.registerFailed': 'The company could not be registered',
+  'owner.registerPhoneNote':
+    'The number pilgrims will contact you on, and the one you can sign in with once phone sign-in is switched on.',
+  'owner.registerPhonePending':
+    'Your company is registered. Phone sign-in is not switched on yet — use your email address and password until it is.',
+  'owner.signOutInstead': 'Sign out',
+
 } as const
 
 export type OwnerMessageKey = keyof typeof ownerEn

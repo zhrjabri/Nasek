@@ -75,7 +75,7 @@ export type ProviderRow = {
   tagline_en: string
   description_ar: string
   description_en: string
-  wilayah_id: string | null
+  wilayah_id: string
   verification: VerificationStatusRow
   experience_years: number
   rating: number
@@ -97,10 +97,21 @@ export type ProviderRow = {
   verified_by: string | null
   verified_at: string | null
   created_at: string
-  // Added by 20260904000200. Nullable throughout: rows registered before that
-  // migration have none of them, and the form — not the column — is what makes
-  // them required from now on.
-  governorate: string | null
+  /*
+   * Governorate and wilayah are `not null` in the database as of
+   * 20260913000100, and non-blank besides. They are typed non-null here to
+   * match, which is what makes a component that renders `provider.governorate`
+   * stop needing a fallback for a case that can no longer occur.
+   */
+  governorate: string
+  /**
+   * RETIRED from the profile workflow by 20260913000100.
+   *
+   * The column is not dropped and existing values are kept — two companies
+   * have an address somebody typed for a reason. But no form collects it, no
+   * RPC writes it and nothing displays it. Governorate and wilayah are the
+   * location of record. Do not reintroduce it without a product decision.
+   */
   address: string | null
   commercial_registration: string | null
   permit_number: string | null
@@ -186,6 +197,35 @@ export type CampaignRow = {
   terms_en: string
 }
 
+/** The three buckets `site_visits.kind` allows. */
+export type VisitKindRow = 'page' | 'campaign' | 'smart_match'
+
+/**
+ * What `site_analytics()` returns.
+ *
+ * Every field is a count or a leaderboard entry. There is deliberately nothing
+ * here that could identify a visitor: no ids, no timestamps of individual
+ * visits, no sessions. `campaign_id` appears because a campaign is not a
+ * person.
+ */
+export type SiteAnalytics = {
+  visits_total: number
+  visitors_total: number
+  visits_today: number
+  visitors_today: number
+  visits_week: number
+  visits_month: number
+  campaign_views: number
+  smart_match_visits: number
+  top_pages: { path: string; views: number }[]
+  top_campaigns: {
+    campaign_id: string
+    title_ar: string
+    title_en: string
+    views: number
+  }[]
+}
+
 export type BookingRow = {
   id: string
   reference: string
@@ -205,6 +245,12 @@ export type BookingRow = {
   booking_date: string
   notes: string | null
   created_at: string
+  /**
+   * When the campaign owner recorded payment, and therefore when the seats
+   * left the campaign. Null for anything not yet confirmed. Added by
+   * 20260913000100 along with the move to seats-on-confirmation.
+   */
+  confirmed_at: string | null
 }
 
 export type TravellerRow = {
@@ -382,7 +428,6 @@ export type Database = {
           p_description?: string
           p_wilayah_id?: string | null
           p_governorate?: string | null
-          p_address?: string | null
           p_experience_years?: number
           p_phone?: string | null
           p_email?: string | null
@@ -407,7 +452,6 @@ export type Database = {
           p_description?: string
           p_wilayah_id?: string | null
           p_governorate?: string | null
-          p_address?: string | null
           p_experience_years?: number
           p_phone?: string | null
           p_email?: string | null
@@ -434,7 +478,6 @@ export type Database = {
           p_description?: string | null
           p_wilayah_id?: string | null
           p_governorate?: string | null
-          p_address?: string | null
           p_phone?: string | null
           p_email?: string | null
           p_experience_years?: number | null
@@ -535,6 +578,55 @@ export type Database = {
       }
       /** Advances the caller's own past-dated bookings; returns how many moved. */
       complete_past_bookings: { Args: Record<string, never>; Returns: number }
+      /**
+       * Count one page view. Returns nothing, on purpose.
+       *
+       * Never called through this client. The visitor id travels in an
+       * `x-nasek-visitor` header and supabase-js cannot set a header on a
+       * single call, so `services/analytics/visits.ts` posts to the REST
+       * endpoint directly. The entry is here so the signature is written down
+       * in the same place as every other function's.
+       */
+      record_visit: {
+        Args: { p_path: string; p_kind?: VisitKindRow; p_campaign_id?: string | null }
+        Returns: void
+      }
+      /**
+       * The visitor figures, for an administrator.
+       *
+       * Counts and two small leaderboards. No `visitor_id` and no row from
+       * `site_visits` ever leaves the database — the table has no SELECT
+       * policy at all, for anybody, so this function is the only way to read
+       * it and it can only answer "how many".
+       */
+      site_analytics: { Args: Record<string, never>; Returns: SiteAnalytics }
+      /**
+       * An administrator edits a company, with the diff written to
+       * `admin_audit`.
+       *
+       * An administrator could already UPDATE `providers` directly, so this
+       * adds no authority. What it adds is a record: which administrator
+       * changed which field, from what, to what. Every argument defaults to
+       * null and null means "leave alone", so a form may send only what it
+       * touched.
+       */
+      admin_update_provider: {
+        Args: {
+          p_provider_id: string
+          p_name?: string | null
+          p_tagline?: string | null
+          p_description?: string | null
+          p_governorate?: string | null
+          p_wilayah_id?: string | null
+          p_phone?: string | null
+          p_email?: string | null
+          p_experience_years?: number | null
+          p_commercial_registration?: string | null
+          p_permit_number?: string | null
+          p_permit_expiry?: string | null
+        }
+        Returns: ProviderRow
+      }
     }
     Enums: {
       user_role: UserRole

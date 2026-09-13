@@ -28,7 +28,6 @@ export interface OwnerProfileInput {
   description: string
   wilayahId: string
   governorate: string
-  address: string
   phone: string
   /** The company's contact address, not the owner's sign-in credential. */
   email: string
@@ -77,7 +76,6 @@ export async function submitOwnerProfile(
     p_description: input.description,
     p_wilayah_id: input.wilayahId,
     p_governorate: input.governorate,
-    p_address: input.address,
     p_phone: input.phone,
     p_email: input.email,
     p_experience_years: input.experienceYears,

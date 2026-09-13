@@ -92,7 +92,7 @@ export const adminEn = {
   'admin.noCampaignMatch': 'No campaigns match',
   'admin.campNote':
     'Suspending hides a campaign from pilgrims but keeps everything intact, and can be undone. Featuring promotes it onto the home page. Deleting is permanent.',
-  'admin.bookingSearch': 'Search by reference, name, email or phone',
+  'admin.bookingSearch': 'Search by invoice number, customer, company or trip',
   'admin.bookingFilter': 'Filter bookings',
   'admin.statusConfirmed': 'Confirmed',
   'admin.statusPending': 'Pending',
@@ -339,7 +339,6 @@ export const adminEn = {
   'admin.ownerPermitExpiry': 'Permit expires',
   'admin.ownerPermitExpired': 'Expired',
   'admin.ownerCommercialRegistration': 'Commercial registration',
-  'admin.ownerAddress': 'Address',
   'admin.ownerGovernorate': 'Governorate',
   'admin.ownerIncomplete': 'Registered before these details were collected',
 
@@ -392,6 +391,70 @@ export const adminEn = {
   'admin.ownerChangeRejectTitle': 'Refuse this change',
   'admin.ownerChangeRejectBody':
     'The owner reads this word for word and corrects their submission against it. Say what is wrong and what would fix it. Their current approved details are kept.',
+
+
+  // ============================================================== analytics
+  //
+  // Wording chosen carefully: these are *visits*, not users. NASEK counts a
+  // random browser-generated id and joins it to nothing, so "visitors" here
+  // means distinct browsers that have not cleared their site data. Calling
+  // them accounts or people would overstate what the number is.
+  'admin.analytics': 'Analytics',
+  'admin.analyticsTitle': 'Site traffic',
+  'admin.analyticsBody':
+    'How many people opened the public site and what they looked at. Counted from a random id kept in the visitor’s own browser — no account, no name, no email, no phone, no IP address.',
+  'admin.analyticsVisitsTotal': 'Page views, all time',
+  'admin.analyticsVisitorsTotal': 'Visitors, all time',
+  'admin.analyticsVisitsToday': 'Page views today',
+  'admin.analyticsVisitorsToday': 'Visitors today',
+  'admin.analyticsVisitsWeek': 'Page views, last 7 days',
+  'admin.analyticsVisitsMonth': 'Page views, last 30 days',
+  'admin.analyticsCampaignViews': 'Trip pages opened',
+  'admin.analyticsSmartMatch': 'Smart Match sessions',
+  'admin.analyticsTopPages': 'Most-visited pages',
+  'admin.analyticsTopCampaigns': 'Most-viewed trips',
+  'admin.analyticsPage': 'Page',
+  'admin.analyticsViews': 'Views',
+  'admin.analyticsEmpty': 'Nothing recorded yet',
+  'admin.analyticsEmptyBody':
+    'No visit has been counted. Either nobody has opened the public site since this was switched on, or the site is not reaching the backend.',
+  'admin.analyticsUnavailable': 'The figures could not be read',
+  'admin.analyticsUnavailableBody':
+    'The server did not answer. Nothing is shown rather than zeros — a nought here would look like a real count.',
+  'admin.analyticsPrivacy':
+    'A visit records a page, a category and a random browser id. It is never joined to an account, and the underlying table cannot be read row by row — not even by an administrator.',
+
+
+  // ======================================= an administrator editing a company
+  //
+  // Correcting a record, not deciding on one. The verification badge is
+  // deliberately absent from this form: approving, refusing and suspending go
+  // through the buttons in the row, which attach a reason and tell the owner.
+  'admin.editOwner': 'Edit',
+  'admin.editOwnerTitle': 'Edit company details',
+  'admin.editOwnerBody':
+    'Corrects what NASEK holds about this company. Every change is written to the audit log with your name against it, and the owner sees the new details immediately — they are not asked to approve them.',
+  'admin.editOwnerNote':
+    'This does not change the verification badge. Approve, refuse and suspend are the buttons in the list.',
+  'admin.editOwnerSave': 'Save changes',
+  'admin.editOwnerSaved': '{name} — saved',
+  'admin.editOwnerNoChange': 'Nothing was changed',
+  'admin.editOwnerFailed': 'The change could not be saved',
+
+
+  // ============================================== the booking / invoice ledger
+  'admin.bookingDateFrom': 'Requested from',
+  'admin.bookingDateTo': 'Requested to',
+  'admin.bookingDatesClear': 'Clear dates',
+  'admin.bookingConfirmedOn': 'Paid on',
+  'admin.bookingNotConfirmed': 'Not yet',
+  'admin.viewInvoice': 'Invoice',
+  'admin.invoiceTitle': 'Invoice {ref}',
+  'admin.invoiceBody':
+    'The invoice NASEK issued for this request, exactly as the customer received it. NASEK did not take the payment and holds no record of it — the campaign owner marks a request paid once the money reaches them.',
+  'admin.invoiceSeatsHeld': 'Seats held on the trip',
+  'admin.invoiceSeatsHeldYes': 'Yes — deducted when the owner confirmed payment',
+  'admin.invoiceSeatsHeldNo': 'No — a request holds no seat until it is paid',
 
 }
 

@@ -788,6 +788,25 @@ function InvoiceScreen({
         </dl>
       </Card>
 
+      {/*
+        The one thing that can cost this customer the trip.
+
+        Seats used to be taken the moment a request was created, so "your
+        booking request is saved" also meant "your seats are yours". Since
+        20260913000100 it does not: a pending request holds nothing, and the
+        trip keeps selling until the campaign owner records payment. That is
+        the right rule — an unpaid request could otherwise sit on five seats
+        indefinitely — but it is only fair if the person it affects is told,
+        and told here, on the screen they are about to walk away from.
+
+        Above the WhatsApp button rather than below it, because it is the
+        reason to press the button.
+      */}
+      <Notice tone="warn" className="mt-7">
+        <p className="font-semibold">{t('booking.seatNotHeld')}</p>
+        <p className="mt-1 leading-relaxed">{t('booking.seatNotHeldBody')}</p>
+      </Notice>
+
       {/* ------------------------------------------------------- WhatsApp */}
       <div className="mt-7">
         {href ? (

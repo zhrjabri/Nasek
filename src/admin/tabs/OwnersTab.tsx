@@ -4,6 +4,7 @@ import {
   Ban,
   Building2,
   FileImage,
+  Pencil,
   ShieldCheck,
   ShieldX,
   UserPlus,
@@ -18,6 +19,7 @@ import { useSnapshotLoader } from '@/hooks/useRemoteData'
 import { useStore } from '@/store/AppStore'
 import { Badge, Button, EmptyState, Field, Modal, Rating, Spinner, Textarea } from '@/components/ui'
 import { BodyRow, HeadRow, Kpi, TableShell, Th, Toolbar, useCountLabel } from './shared'
+import { EditOwnerDialog } from './EditOwnerDialog'
 import { NewOwnerDialog } from './NewOwnerDialog'
 import { OwnerChangesPanel } from './OwnerChangesPanel'
 
@@ -51,6 +53,14 @@ export function OwnersTab({ providers }: { providers: Provider[] }) {
   // applications waiting on a decision are the reason this screen exists.
   const [filter, setFilter] = useState<Filter>('pending')
   const [permit, setPermit] = useState<Provider | null>(null)
+  /*
+   * Correcting a company's record, which is a different act from deciding
+   * on it. NASEK types these details in at onboarding, so NASEK is who has
+   * to be able to fix them; the alternative was asking the owner to sign in
+   * and edit their own profile, which for an approved company routes half
+   * the fields back through this same queue for approval.
+   */
+  const [editing, setEditing] = useState<Provider | null>(null)
   const [refusing, setRefusing] = useState<{ provider: Provider; status: 'rejected' | 'suspended' } | null>(null)
   /*
    * Adding one, which is now the only way a company gets onto NASEK.
@@ -249,6 +259,10 @@ export function OwnersTab({ providers }: { providers: Provider[] }) {
                     </td>
                     <td className="p-3.5">
                       <div className="flex flex-wrap justify-end gap-2">
+                        <Button size="xs" variant="secondary" onClick={() => setEditing(p)}>
+                          <Pencil className="size-3.5" />
+                          {t('admin.editOwner')}
+                        </Button>
                         {/*
                           Not for a suspended company, which already has
                           "Restore" at the end of this row.
@@ -334,7 +348,7 @@ export function OwnersTab({ providers }: { providers: Provider[] }) {
               date — which is enough to look at a licence and not enough to
               verify one. There was no number to compare with the number printed
               on the document, no expiry to notice had passed, no commercial
-              registration and no address. An administrator was being asked to
+              registration and no governorate. An administrator was being asked to
               grant the badge NASEK's whole proposition rests on with nothing but
               a photograph.
             */}
@@ -373,7 +387,6 @@ export function OwnersTab({ providers }: { providers: Provider[] }) {
                 </dt>
                 <dd className="nums mt-1 text-sm text-ink-800">{n(permit.experienceYears)}</dd>
               </div>
-              <PermitFact label={t('admin.ownerAddress')} value={permit.address} wide />
               <PermitFact label={t('owner.description')} value={bl(permit.description)} wide />
               <div>
                 <dt className="text-2xs font-bold uppercase tracking-wider text-ink-400">
@@ -403,7 +416,7 @@ export function OwnersTab({ providers }: { providers: Provider[] }) {
                 broken row and should not read as one — but the reviewer has to
                 know that the blanks are missing history rather than an
                 application somebody submitted half-finished. */}
-            {!permit.permitNumber && !permit.address && (
+            {!permit.permitNumber && !permit.commercialRegistration && (
               <p className="rounded-[3px] border border-ivory-300 bg-ivory-50 p-3 text-xs text-ink-500">
                 {t('admin.ownerIncomplete')}
               </p>
@@ -445,6 +458,9 @@ export function OwnersTab({ providers }: { providers: Provider[] }) {
       </Modal>
 
       <NewOwnerDialog open={adding} onClose={() => setAdding(false)} />
+
+      {/* ---------------------------------------- correcting the record */}
+      <EditOwnerDialog provider={editing} onClose={() => setEditing(null)} />
 
       {/* -------------------------------------------------------- the reason */}
       <RefusalDialog

@@ -138,11 +138,9 @@ export const ownerAr: Record<OwnerMessageKey, string> = {
   'owner.signInSubtitle': 'سجّل الدخول بالبريد الإلكتروني وكلمة المرور',
   'owner.signInCta': 'تسجيل الدخول',
   'owner.passwordOnly':
-    'يدخل أصحاب الحملات بكلمة مرور. وإن لم تكن لديك كلمة مرور بعد، فقد أرسلت إليك ناسِك دعوة.',
+    'سجّل الدخول بالبريد الإلكتروني أو رقم الهاتف المسجَّل في حسابك مع كلمة المرور. وإن دعتك ناسِك ولم تضع كلمة مرور بعد، فاستخدم الرابط في الدعوة.',
   'owner.wrongDoor': 'هذا الحساب ليس حساب صاحب حملة. إن كنت ترى غير ذلك فتواصل مع ناسِك.',
   'owner.noAccount': 'لست صاحب حملة بعد؟',
-  'owner.noAccountBody':
-    'يُضاف أصحاب الحملات من قِبل فريق ناسِك. تواصل معنا وسنتولى الإجراءات معك.',
   'owner.forgot': 'نسيت كلمة المرور؟',
   'owner.forgotTitle': 'إعادة تعيين كلمة المرور',
   'owner.forgotBody':
@@ -203,8 +201,6 @@ export const ownerAr: Record<OwnerMessageKey, string> = {
   'owner.permitOpening': 'جارٍ الفتح…',
   'owner.permitFailed': 'تعذّر فتح التصريح، ربما تم حذفه.',
   'owner.governorate': 'المحافظة',
-  'owner.address': 'العنوان',
-  'owner.addressHint': 'الشارع والمبنى وما يحتاجه المندوب للوصول إليكم.',
   'owner.commercialRegistration': 'رقم السجل التجاري',
   'owner.commercialRegistrationHint': 'من سجل وزارة التجارة، إن وُجد للشركة سجل.',
   'owner.permitNumber': 'رقم التصريح / الترخيص',
@@ -275,7 +271,6 @@ export const ownerAr: Record<OwnerMessageKey, string> = {
   'owner.notOwnerLink': 'انتقل إلى موقع ناسِك',
   'owner.portalBlurb': 'انشر حملات الحج والعمرة على ناسِك، وأدر المقاعد، وتابع كل تسجيل في مكان واحد.',
   'owner.registerCta': 'إرسال الطلب',
-  'owner.registerLink': 'تقدّم بطلب الانضمام إلى ناسِك',
   'owner.sectionAccess': 'بيانات الدخول',
   'owner.sectionCompany': 'بيانات الشركة',
   'owner.sectionContact': 'الشخص المسؤول',
@@ -313,5 +308,42 @@ export const ownerAr: Record<OwnerMessageKey, string> = {
   'owner.permitReplace': 'استبدال التصريح',
   'owner.permitReplaceHint':
     'PDF أو JPEG أو PNG أو WebP. اتركه فارغاً للإبقاء على التصريح المحفوظ.',
+
+
+  // ----------------------------- seats are held on confirmation, not on request
+  'prov.seatsOnConfirm':
+    'الطلب لا يحجز مقعداً. تُخصم المقاعد من الرحلة حين تؤكّد السداد — والأسبقية لمن يؤكَّد أولاً.',
+  'prov.pendingExceedSeats':
+    'المطلوب {pending} مقعداً والمتبقي {available}. أكّد حسب ترتيب وصول المبالغ؛ وما لا تتّسع له الرحلة سيرفضه النظام.',
+
+
+  // ============================================ registering a company on NASEK
+  'owner.registerLink': 'سجّل شركتك',
+  'owner.registerStep1': 'الخطوة ١ من ٢',
+  'owner.registerStep2': 'الخطوة ٢ من ٢',
+  'owner.signUpTitle': 'أنشئ بيانات دخولك',
+  'owner.signUpSubtitle':
+    'البريد الإلكتروني وكلمة المرور اللذان ستدخل بهما إلى هذه البوابة. وتأتي بيانات شركتك بعدها.',
+  'owner.signUpSubmit': 'إنشاء بيانات الدخول',
+  'owner.signUpHaveAccount': 'مسجَّل من قبل؟',
+  'owner.signUpBackToSignIn': 'سجّل الدخول',
+  'owner.confirmSentTitle': 'أكّد بريدك الإلكتروني',
+  'owner.confirmSentBody':
+    'أُرسل رابط تأكيد إلى {email}. افتحه لتعود إلى هنا وتُدخل بيانات شركتك. ويعمل الرابط على أي جهاز.',
+  'owner.passwordConfirm': 'تأكيد كلمة المرور',
+  'owner.passwordMismatch': 'كلمتا المرور غير متطابقتين.',
+
+  'owner.companyTitle': 'شركتك',
+  'owner.companySubtitle':
+    'ما توثّقك ناسِك بناءً عليه. يطابق المشرف الترخيص مع هذه البيانات قبل أن تُنشر رحلاتك.',
+  'owner.companySubmit': 'إرسال للتوثيق',
+  'owner.companyWrongAccount':
+    'أنت داخل بحساب {email}. وتسجيل شركة هنا يجعل هذا الحساب مالكها.',
+  'owner.registerFailed': 'تعذّر تسجيل الشركة',
+  'owner.registerPhoneNote':
+    'الرقم الذي يتواصل عليه الحجاج معك، والذي يمكنك الدخول به حين يُفعَّل الدخول بالهاتف.',
+  'owner.registerPhonePending':
+    'سُجّلت شركتك. والدخول برقم الهاتف غير مفعَّل بعد — استخدم بريدك وكلمة المرور إلى أن يُفعَّل.',
+  'owner.signOutInstead': 'تسجيل الخروج',
 
 }

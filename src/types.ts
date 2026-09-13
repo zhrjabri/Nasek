@@ -217,10 +217,20 @@ export interface Provider {
    * none of them. The registration form is what makes them required going
    * forward; the admin queue is what shows an older row as incomplete.
    */
-  /** Governorate, as chosen on the registration form. Derivable from the wilayah,
-   *  stored so the queue and any export need no join. */
-  governorate?: string
-  address?: string
+  /**
+   * Governorate, and it is not optional.
+   *
+   * `not null` in the database as of 20260913000100, non-blank besides, and
+   * required by every form that writes a company. Typing it as required is
+   * what stops a screen carrying a fallback for a company that cannot exist.
+   *
+   * `address` used to sit on this line and is gone. The column is still in the
+   * database and still holds what two companies typed into it — deleting real
+   * data to tidy a form would be a loss — but nothing in NASEK collects it,
+   * writes it or shows it any more. Governorate and wilayah are the location of
+   * record. See `20260913000100`.
+   */
+  governorate: string
   commercialRegistration?: string
   /** The number printed on the operating permit, to check against the scan. */
   permitNumber?: string
@@ -433,6 +443,17 @@ export interface Booking {
   totalPrice: number
   status: BookingStatus
   bookingDate: string
+  /**
+   * When the campaign owner recorded payment — and therefore when the seats
+   * actually left the trip.
+   *
+   * Undefined until then, and undefined forever on a booking that is cancelled
+   * or expires unpaid. Not the same thing as `bookingDate`, which is when the
+   * request was made: under the manual-payment workflow those can be days
+   * apart, and the gap between them is precisely the period in which the seats
+   * were *not* held. See `20260913000100`.
+   */
+  confirmedAt?: string
   notes?: string
 }
 

@@ -58,6 +58,7 @@ import {
   Card,
   EmptyState,
   Input,
+  Notice,
   ProgressBar,
   RuleAnchor,
   RuleButton,
@@ -263,6 +264,21 @@ export function DashboardPage() {
       /** Every live request, paid or not — this is a workload, not a revenue figure. */
       bookings: bookings.filter((b) => b.status !== 'cancelled').length,
       awaiting: bookings.filter((b) => b.status === 'pending').length,
+      /*
+       * Seats asked for and not yet paid for, against seats the trips have
+       * left.
+       *
+       * Since 20260913000100 a pending request holds no seat, so these two
+       * numbers can — legitimately — disagree: five people may each request
+       * the last four seats and every request is valid until somebody pays.
+       * The owner is the only person who can resolve that, and they can only
+       * resolve it if they can see it, which is what the notice below the
+       * table is for.
+       */
+      pendingSeats: bookings
+        .filter((b) => b.status === 'pending')
+        .reduce((sum, b) => sum + b.travellersCount, 0),
+      seatsLeft: campaigns.reduce((sum, c) => sum + c.seatsAvailable, 0),
       revenue,
       active: campaigns.filter((c) => c.seatsAvailable > 0).length,
       seatsAvailable,
@@ -307,8 +323,18 @@ export function DashboardPage() {
     }
     dispatch({ type: 'setBookingStatus', bookingId: booking.id, status: 'confirmed' })
     toast(t('prov.markedPaid', { ref: booking.reference }), 'success')
-    // The seat ledger is unchanged by a confirmation, but the revenue figures
-    // above this table are not — re-read so they move with it.
+    /*
+     * Re-read, because a confirmation now moves the seat ledger as well as the
+     * money.
+     *
+     * This comment used to say the opposite, and it was true when it was
+     * written: `book_campaign` took the seats at request time, so confirming
+     * changed nothing but the status. 20260913000100 moved the deduction here
+     * — a request holds nothing, and the seats leave the trip at the moment the
+     * owner says they have been paid. So both the revenue figures above this
+     * table and the remaining-seats counts on the trip cards are stale until
+     * this returns.
+     */
     await reload()
   }
 
@@ -724,6 +750,27 @@ export function DashboardPage() {
             <EmptyState icon={<Users className="size-5" />} title={t('prov.noCustomers')} />
           ) : (
             <>
+              {/*
+                What a pending request is, and is not.
+
+                It used to hold its seats from the moment it was created, which
+                made "confirm payment" a bookkeeping act. It is now the act that
+                takes the seats off the trip, and an owner working down a list
+                of requests has to know two things: that none of these people
+                have a seat yet, and — when the requests add up to more than the
+                trip has left — that confirming them all is not something the
+                database will allow. Better read here than discovered as a
+                refusal halfway down the list.
+              */}
+              <Notice tone={stats.pendingSeats > stats.seatsLeft ? 'warn' : 'info'} className="mb-4">
+                {stats.pendingSeats > stats.seatsLeft
+                  ? t('prov.pendingExceedSeats', {
+                      pending: n(stats.pendingSeats),
+                      available: n(stats.seatsLeft),
+                    })
+                  : t('prov.seatsOnConfirm')}
+              </Notice>
+
               <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <div className="relative flex-1">
                   <SearchIcon className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-ink-400" />

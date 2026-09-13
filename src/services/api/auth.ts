@@ -1,4 +1,5 @@
 import type { Provider, Role, User } from '@/types'
+import { wilayahById } from '@/data/geo'
 import { request } from './client'
 
 /**
@@ -54,7 +55,6 @@ export interface ProviderSignUpInput {
    */
   /** Governorate, chosen first — it is what narrows the wilayah list. */
   governorate?: string
-  address?: string
   commercialRegistration?: string
   /** The number printed on the permit, to check against the uploaded scan. */
   permitNumber?: string
@@ -140,6 +140,9 @@ export const authApi = {
           tagline: { ar: input.tagline, en: input.tagline },
           description: { ar: input.tagline, en: input.tagline },
           wilayahId: input.wilayahId,
+          // Required on the type, so derived from the wilayah rather than left
+          // out — the form asks for both, and the two must not disagree.
+          governorate: input.governorate ?? wilayahById(input.wilayahId)?.governorate.en ?? '',
           verification: 'pending',
           experienceYears: input.experienceYears,
           // No trips and no travellers yet, so nothing to average.

@@ -9,6 +9,7 @@ import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
 import { ToastHost } from '@/components/layout/ToastHost'
 import { EmptyState, LinkButton, RuleLink, Spinner } from '@/components/ui'
+import { recordVisit } from '@/services/analytics/visits'
 
 import { HomePage } from '@/pages/HomePage'
 import { CampaignsPage } from '@/pages/CampaignsPage'
@@ -68,6 +69,33 @@ function ScrollToTop() {
     }
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
   }, [pathname, hash])
+  return null
+}
+
+/** A bare v4 UUID and nothing else — the id in `/campaigns/<id>`. */
+const UUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
+
+/**
+ * Count the visit, once per route.
+ *
+ * Deliberately a sibling of `ScrollToTop` rather than something each page
+ * calls: a page that forgets is a page that silently stops being counted, and
+ * the difference between "nobody visited the map" and "nobody added the call
+ * to the map" is invisible in the numbers.
+ *
+ * Only the path is sent, and only after it has been reduced to a shape — see
+ * `services/analytics/visits.ts` for what is and is not collected. The
+ * campaign id is passed on a campaign page because "which trips are people
+ * looking at" is the question the owner and the administration actually have;
+ * it is validated as a UUID first so that a mistyped URL is counted as a page
+ * rather than rejected by the server.
+ */
+function RecordVisit() {
+  const { pathname } = useLocation()
+  useEffect(() => {
+    const id = pathname.match(/^\/campaigns\/([^/]+)$/)?.[1]
+    recordVisit(pathname, id && UUID.test(id) ? id : null)
+  }, [pathname])
   return null
 }
 
@@ -182,6 +210,7 @@ export function App() {
       </a>
 
       <ScrollToTop />
+      <RecordVisit />
       <Navbar />
 
       <div id="main" className="flex-1">

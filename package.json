@@ -23,7 +23,7 @@
     "verify:admin": "vite build --ssr scripts/verify-admin.ts --outDir .verify --mode harness --logLevel warn && node .verify/verify-admin.js",
     "verify:approval": "node scripts/run-approval.mjs",
     "verify:catalogue": "vite build --ssr scripts/verify-catalogue.ts --outDir .verify --mode harness --logLevel warn && node .verify/verify-catalogue.js",
-    "verify": "npm run verify:wiring && npm run verify:journeys && npm run verify:flow && npm run verify:auth && npm run verify:redirect && npm run verify:admin && npm run verify:approval && npm run verify:catalogue && npm run verify:ai && npm run verify:map && npm run verify:render && npm run verify:interaction && npm run verify:favourites && npm run verify:otp && npm run verify:booking && npm run verify:logo && npm run verify:security && npm run verify:isolation",
+    "verify": "npm run verify:wiring && npm run verify:journeys && npm run verify:flow && npm run verify:auth && npm run verify:redirect && npm run verify:admin && npm run verify:approval && npm run verify:catalogue && npm run verify:ai && npm run verify:map && npm run verify:render && npm run verify:interaction && npm run verify:favourites && npm run verify:otp && npm run verify:booking && npm run verify:logo && npm run verify:portal && npm run verify:security && npm run verify:isolation",
     "verify:journeys": "vite build --ssr scripts/verify-journeys.ts --outDir .verify --mode harness --logLevel warn && node .verify/verify-journeys.js",
     "verify:isolation": "node scripts/verify-isolation.mjs",
     "verify:favourites": "vite build --ssr scripts/verify-favourites.ts --outDir .verify --mode harness --logLevel warn && node .verify/verify-favourites.js",
@@ -40,6 +40,7 @@
     "verify:security": "vite build --ssr scripts/verify-security.tsx --outDir .verify --mode harness --logLevel warn && node .verify/verify-security.js",
     "verify:logo": "vite build --ssr scripts/verify-logo.tsx --outDir .verify --mode harness --logLevel warn && node .verify/verify-logo.js",
     "verify:booking": "vite build --ssr scripts/verify-booking.tsx --outDir .verify --mode harness --logLevel warn && node scripts/run-booking.mjs",
+    "verify:portal": "vite build --ssr scripts/verify-portal.tsx --outDir .verify --mode harness --logLevel warn && node scripts/run-portal.mjs",
     "harness": "vite --config vite.harness.config.ts --mode harness"
   },
   "dependencies": {

@@ -685,6 +685,10 @@ function PendingPayment({ booking }: { booking: Booking }) {
   return (
     <Card className="mt-2 border-gold-200 bg-gold-50/60 p-4">
       <p className="text-sm font-semibold text-gold-900">{t('dash.awaitingPaymentNote')}</p>
+      {/* Same fact as on the invoice screen, repeated where a customer comes
+          back to look days later. A seat this booking is not holding is not
+          something to learn about at the airport. */}
+      <p className="mt-1 text-xs leading-relaxed text-gold-800/90">{t('dash.seatNotHeld')}</p>
       <p className="mt-1 nums text-2xs text-gold-800/80" dir="ltr">
         {t('booking.invoiceNo')}: {booking.reference}
       </p>

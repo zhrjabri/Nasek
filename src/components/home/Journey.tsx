@@ -146,7 +146,7 @@ export function JourneyLine({
       const progress = Math.max(0, Math.min(1, head / container.offsetHeight))
       line.style.strokeDashoffset = String(length * (1 - progress))
       for (const dot of dots) {
-        dot.el.setAttribute('fill', dot.y <= head ? 'var(--color-gold-500)' : '#faf7f0')
+        dot.el.setAttribute('fill', dot.y <= head ? 'var(--color-gold-500)' : '#fbfaf7')
       }
     }
 
@@ -199,7 +199,7 @@ export function JourneyLine({
         circle.setAttribute('cy', String(point.y))
         // The last marker is the terminus, and reads as one.
         circle.setAttribute('r', i === stages.length - 1 ? '6' : '4')
-        circle.setAttribute('fill', reduced ? 'var(--color-gold-500)' : '#faf7f0')
+        circle.setAttribute('fill', reduced ? 'var(--color-gold-500)' : '#fbfaf7')
         circle.setAttribute('stroke', 'var(--color-gold-500)')
         circle.setAttribute('stroke-width', '1')
         if (!reduced) circle.style.transition = 'fill 0.42s var(--ease-out-soft)'

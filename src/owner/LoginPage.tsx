@@ -8,6 +8,7 @@ import { isSupabaseConfigured } from '@/services/supabase/client'
 import { PasswordSignIn } from '@/components/auth/PasswordSignIn'
 import { Button, Field, Input, Notice } from '@/components/ui'
 import { OwnerAuthShell } from './layout/OwnerShell'
+import { OwnerSignUpPage } from './RegisterPage'
 
 /**
  * The campaign owner's door — the only one this application has.
@@ -22,19 +23,30 @@ import { OwnerAuthShell } from './layout/OwnerShell'
  * links here. A pilgrim never learns this portal exists; an owner is given its
  * address by NASEK along with their invitation.
  *
- * WHY THERE IS NO "REGISTER" ON THIS SCREEN
+ * REGISTERING, AND WHY IT IS BACK
  *
- * There used to be. Public self-registration meant anybody could create a
- * company row and put it in the verification queue, which made the queue a
- * moderation problem as much as a verification one. Owners are now created by
- * an administrator — who enters the company details, uploads and checks the
- * permit, and sends an invitation — so by the time somebody reaches this screen
- * NASEK has already decided they belong here.
+ * Public self-registration was removed once, because anybody could create a
+ * company row and put it in the verification queue — which made the queue a
+ * moderation problem as well as a verification one. An administrator adding
+ * companies by hand solved that and replaced it with a worse one: a company
+ * that wants to join NASEK has to find someone at NASEK first, and the platform
+ * grows only as fast as somebody types.
  *
- * There is deliberately no one-time code either. That is the pilgrims' method,
- * and offering it here would collapse the two doors back into one. An owner who
- * has lost their password resets it, which proves control of the same address a
+ * It is back, and the thing that made it unsafe is not. A registration still
+ * ends in `pending` and still cannot publish a single trip until an
+ * administrator has looked at the permit — `provider_can_publish()` is what
+ * enforces that, in the database, and no form on this screen can talk it round.
+ * What self-registration costs is a queue with some applications in it that will
+ * be refused, which is what a queue is.
+ *
+ * There is deliberately no one-time code. That is the pilgrims' method, and
+ * offering it here would collapse the two doors back into one. An owner who has
+ * lost their password resets it, which proves control of the same address a
  * code would and ends in a password rather than in a session with none.
+ *
+ * The number is a door too, once the project has an SMS provider — Supabase's
+ * own phone identity, checked by Supabase. NASEK does not hold the password and
+ * never compares one; the number on a company record is contact information.
  */
 /** What to say when the link that brought them here could not be completed. */
 const LINK_MESSAGE: Record<'expired' | 'wrong_browser' | 'failed', MessageKey> = {
@@ -62,6 +74,7 @@ export function OwnerLoginPage({
   const { dispatch } = useStore()
   const [error, setError] = useState<MessageKey | null>(null)
   const [resetting, setResetting] = useState(false)
+  const [registering, setRegistering] = useState(false)
 
   /**
    * What happens after the password is accepted.
@@ -94,7 +107,16 @@ export function OwnerLoginPage({
       setError('auth.sessionFailed')
       return
     }
-    if (session.user.role !== 'provider') {
+    /*
+     * An administrator is shown the door; anyone else is let through to the
+     * gate, which offers them the company registration form.
+     *
+     * This used to bounce every non-owner, and that turned the confirmation
+     * link at the end of a registration into a dead end: a freshly confirmed
+     * account is a 'customer' until `register_provider` runs, and
+     * `register_provider` cannot run for somebody who has just been signed out.
+     */
+    if (session.user.role === 'admin') {
       await signOutRemote()
       dispatch({ type: 'signOut' })
       setError('owner.wrongDoor')
@@ -106,6 +128,7 @@ export function OwnerLoginPage({
     await onSignedIn()
   }
 
+  if (registering) return <OwnerSignUpPage onBackToSignIn={() => setRegistering(false)} />
   if (resetting) return <ResetRequest onBack={() => setResetting(false)} />
 
   return (
@@ -115,7 +138,13 @@ export function OwnerLoginPage({
       footer={
         <p className="leading-relaxed">
           <span className="font-semibold text-ink-700">{t('owner.noAccount')}</span>{' '}
-          {t('owner.noAccountBody')}
+          <button
+            type="button"
+            onClick={() => setRegistering(true)}
+            className="font-bold text-ivory-50 underline underline-offset-2"
+          >
+            {t('owner.registerLink')}
+          </button>
         </p>
       }
     >
@@ -147,7 +176,17 @@ export function OwnerLoginPage({
         for it to be folded away *from* — the password is the whole method — and
         a collapsed form would suggest an alternative exists.
       */}
-      <PasswordSignIn bare defaultOpen onSignedIn={finish} />
+      {/*
+        `allowPhone`, and only here.
+
+        An owner registers with both an address and a number, and the number is
+        the one they know without looking it up. It authenticates against
+        Supabase's phone identity, not against anything on the company record —
+        see `signInWithPhonePassword`. The public site does not get this prop:
+        pilgrims sign in with a one-time code and have no password to pair with
+        a number.
+      */}
+      <PasswordSignIn bare defaultOpen allowPhone onSignedIn={finish} />
 
       <button
         type="button"

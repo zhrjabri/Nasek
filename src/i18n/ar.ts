@@ -348,6 +348,10 @@ export const ar: Record<PublicMessageKey, string> = {
   'booking.invoiceNo': 'رقم فاتورة ناسِك',
   'booking.reference': 'رقم الحجز',
   'booking.awaitingPayment': 'بانتظار الدفع',
+  // ------------------------------ what a request does and does not hold
+  'booking.seatNotHeld': 'مقعدك ليس محجوزاً بعد',
+  'booking.seatNotHeldBody':
+    'تبقى هذه المقاعد معروضة للبيع حتى يؤكّد صاحب الحملة استلام مبلغك. أرسل الفاتورة وسدّد في أقرب وقت — فالمقاعد تصبح لك من لحظة التأكيد، لا قبلها.',
   'booking.sendWhatsapp': 'إرسال الفاتورة لصاحب الحملة عبر واتساب',
   'booking.sendWhatsappNote':
     'سيتم التواصل مع صاحب الحملة مباشرة للحصول على بيانات الدفع وإتمام الحجز.',
@@ -365,6 +369,11 @@ export const ar: Record<PublicMessageKey, string> = {
   'auth.passwordRequired': 'أدخل كلمة المرور',
   'auth.signInChecking': 'جارٍ التحقق…',
   'auth.signInFailed': 'لا تطابق هذه البيانات أي حساب.',
+  'auth.emailTaken': 'يوجد حساب مسجَّل بهذا البريد الإلكتروني.',
+  'auth.emailOrPhone': 'البريد الإلكتروني أو رقم الهاتف',
+  'auth.emailOrPhoneInvalid': 'أدخل البريد الإلكتروني أو رقم الهاتف المسجَّل في حسابك.',
+  'auth.phoneSignInUnavailable':
+    'تسجيل الدخول برقم الهاتف غير متاح بعد. استخدم بريدك الإلكتروني وكلمة المرور.',
   'auth.showPassword': 'إظهار كلمة المرور',
   'auth.hidePassword': 'إخفاء كلمة المرور',
   'auth.password': 'كلمة المرور',
@@ -460,6 +469,8 @@ export const ar: Record<PublicMessageKey, string> = {
   'dash.cancelled': 'الملغاة',
   'dash.pending': 'بانتظار الدفع',
   'dash.awaitingPaymentNote': 'بانتظار إتمام الدفع مع صاحب الحملة',
+  'dash.seatNotHeld':
+    'ما زالت هذه المقاعد معروضة للبيع حتى يؤكّد صاحب الحملة استلام مبلغك.',
   'dash.resendInvoice': 'إعادة إرسال الفاتورة عبر واتساب',
   'dash.noBookings': 'لا توجد لديك حجوزات بعد',
   'dash.noBookingsHint': 'عند حجز رحلة ستظهر هنا مع رقم الحجز الخاص بها.',

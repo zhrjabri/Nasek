@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
+  BarChart3,
   Building2,
   Globe,
   KeyRound,
@@ -41,6 +42,7 @@ export interface AdminSection {
 
 export const ADMIN_SECTIONS: AdminSection[] = [
   { to: '/overview', key: 'admin.overview', icon: LayoutGrid, group: 'platform' },
+  { to: '/analytics', key: 'admin.analytics', icon: BarChart3, group: 'platform' },
   { to: '/users', key: 'admin.users', icon: UserCog, group: 'people' },
   { to: '/owners', key: 'admin.providers', icon: Building2, group: 'people' },
   { to: '/campaigns', key: 'admin.campaigns', icon: Ticket, group: 'catalogue' },

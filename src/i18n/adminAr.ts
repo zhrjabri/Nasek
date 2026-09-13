@@ -72,7 +72,7 @@ export const adminAr: Record<AdminMessageKey, string> = {
   'admin.noCampaignMatch': 'لا توجد حملات مطابقة',
   'admin.campNote':
     'الإيقاف يخفي الحملة عن الحجّاج مع بقاء كل شيء كما هو، ويمكن التراجع عنه. والإبراز ينشرها في الصفحة الرئيسية. أما الحذف فنهائي.',
-  'admin.bookingSearch': 'ابحث بالرقم المرجعي أو الاسم أو البريد أو الهاتف',
+  'admin.bookingSearch': 'ابحث برقم الفاتورة أو العميل أو الشركة أو الرحلة',
   'admin.bookingFilter': 'تصفية الحجوزات',
   'admin.statusConfirmed': 'مؤكّد',
   'admin.statusPending': 'قيد الانتظار',
@@ -307,7 +307,6 @@ export const adminAr: Record<AdminMessageKey, string> = {
   'admin.ownerPermitExpiry': 'انتهاء التصريح',
   'admin.ownerPermitExpired': 'منتهٍ',
   'admin.ownerCommercialRegistration': 'السجل التجاري',
-  'admin.ownerAddress': 'العنوان',
   'admin.ownerGovernorate': 'المحافظة',
   'admin.ownerIncomplete': 'سُجّلت قبل جمع هذه البيانات',
 
@@ -359,5 +358,60 @@ export const adminAr: Record<AdminMessageKey, string> = {
   'admin.ownerChangeRejectTitle': 'رفض هذا التعديل',
   'admin.ownerChangeRejectBody':
     'يقرأ صاحب الحملة هذا النص حرفياً ويصحّح طلبه بناءً عليه. اذكر الخطأ وما يصلحه. وتبقى بياناته المعتمدة الحالية كما هي.',
+
+
+  // ============================================================== analytics
+  'admin.analytics': 'الإحصاءات',
+  'admin.analyticsTitle': 'حركة الموقع',
+  'admin.analyticsBody':
+    'كم شخصاً فتح الموقع العام وماذا تصفّح. يُحتسب من معرّف عشوائي محفوظ في متصفّح الزائر نفسه — بلا حساب ولا اسم ولا بريد ولا هاتف ولا عنوان إنترنت.',
+  'admin.analyticsVisitsTotal': 'مرات الاطّلاع الإجمالية',
+  'admin.analyticsVisitorsTotal': 'الزوّار إجمالاً',
+  'admin.analyticsVisitsToday': 'مرات الاطّلاع اليوم',
+  'admin.analyticsVisitorsToday': 'زوّار اليوم',
+  'admin.analyticsVisitsWeek': 'آخر ٧ أيام',
+  'admin.analyticsVisitsMonth': 'آخر ٣٠ يوماً',
+  'admin.analyticsCampaignViews': 'صفحات رحلات فُتحت',
+  'admin.analyticsSmartMatch': 'جلسات المطابقة الذكية',
+  'admin.analyticsTopPages': 'أكثر الصفحات زيارة',
+  'admin.analyticsTopCampaigns': 'أكثر الرحلات مشاهدة',
+  'admin.analyticsPage': 'الصفحة',
+  'admin.analyticsViews': 'مرات الاطّلاع',
+  'admin.analyticsEmpty': 'لا يوجد مسجّل بعد',
+  'admin.analyticsEmptyBody':
+    'لم تُحتسب أي زيارة. إمّا أنّ أحداً لم يفتح الموقع العام منذ تفعيل هذا، وإمّا أنّ الموقع لا يصل إلى الخادم.',
+  'admin.analyticsUnavailable': 'تعذّرت قراءة الأرقام',
+  'admin.analyticsUnavailableBody':
+    'لم يستجب الخادم. لا يُعرَض شيء بدلاً من الأصفار — فالصفر هنا يُقرأ كأنّه عدد حقيقي.',
+  'admin.analyticsPrivacy':
+    'تُسجّل الزيارة صفحةً وتصنيفاً ومعرّفاً عشوائياً للمتصفّح. ولا تُربط بحساب أبداً، ولا يمكن قراءة جدولها سطراً سطراً — ولا حتى لمشرف.',
+
+
+  // ======================================= an administrator editing a company
+  'admin.editOwner': 'تعديل',
+  'admin.editOwnerTitle': 'تعديل بيانات الشركة',
+  'admin.editOwnerBody':
+    'يصحّح ما تحتفظ به ناسِك عن هذه الشركة. يُسجَّل كل تعديل في سجل التدقيق باسمك، ويرى صاحب الحملة البيانات الجديدة فوراً — ولا يُطلب منه اعتمادها.',
+  'admin.editOwnerNote':
+    'لا يغيّر هذا شارة التوثيق. الاعتماد والرفض والإيقاف أزرارٌ في القائمة.',
+  'admin.editOwnerSave': 'حفظ التعديلات',
+  'admin.editOwnerSaved': '{name} — حُفظ',
+  'admin.editOwnerNoChange': 'لم يتغيّر شيء',
+  'admin.editOwnerFailed': 'تعذّر حفظ التعديل',
+
+
+  // ============================================== the booking / invoice ledger
+  'admin.bookingDateFrom': 'من تاريخ الطلب',
+  'admin.bookingDateTo': 'إلى تاريخ الطلب',
+  'admin.bookingDatesClear': 'مسح التواريخ',
+  'admin.bookingConfirmedOn': 'تاريخ السداد',
+  'admin.bookingNotConfirmed': 'لم يُسدَّد بعد',
+  'admin.viewInvoice': 'الفاتورة',
+  'admin.invoiceTitle': 'فاتورة {ref}',
+  'admin.invoiceBody':
+    'الفاتورة التي أصدرتها ناسِك لهذا الطلب كما وصلت العميل. ولم تستلم ناسِك المبلغ ولا تحتفظ بسجلٍّ له — يؤكّد صاحب الحملة السداد حين يصله المال.',
+  'admin.invoiceSeatsHeld': 'حجز المقاعد على الرحلة',
+  'admin.invoiceSeatsHeldYes': 'نعم — خُصمت عند تأكيد صاحب الحملة للسداد',
+  'admin.invoiceSeatsHeldNo': 'لا — الطلب لا يحجز مقعداً حتى يُسدَّد',
 
 }

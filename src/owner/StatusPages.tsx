@@ -178,7 +178,6 @@ export function RejectedPage() {
      * retype their whole company profile to correct a date is an owner who
      * decides NASEK is not worth the trouble.
      */
-    address: provider?.address ?? '',
     commercialRegistration: provider?.commercialRegistration ?? '',
     permitNumber: provider?.permitNumber ?? '',
     permitExpiry: provider?.permitExpiry ?? '',
@@ -194,6 +193,9 @@ export function RejectedPage() {
     e.preventDefault()
     const next: Record<string, string> = {}
     if (!form.companyName.trim()) next.companyName = t('common.required')
+    // Required by the database as of 20260913000100, and named here so the
+    // owner reads which field rather than a server's rejection.
+    if (!form.wilayahId.trim()) next.wilayahId = t('common.required')
     if (!/^\S+@\S+\.\S+$/.test(form.email)) next.email = t('auth.emailInvalid')
     if (!isValidPhone(form.phone)) next.phone = t('auth.phoneInvalid')
     setErrors(next)
@@ -230,7 +232,6 @@ export function RejectedPage() {
           // it, and a second dropdown on a correction form is a second thing to
           // get wrong.
           governorate: wilayahById(form.wilayahId)?.governorate.en,
-          address: form.address,
           companyName: form.companyName,
           tagline: form.tagline,
           description: form.description,
@@ -314,7 +315,7 @@ export function RejectedPage() {
                 />
               )}
             </Field>
-            <Field label={t('common.wilayah')}>
+            <Field label={t('common.wilayah')} required error={errors.wilayahId}>
               {(p) => (
                 <Select
                   {...p}
@@ -367,16 +368,10 @@ export function RejectedPage() {
             )}
           </Field>
 
-          <Field label={t('owner.address')} hint={t('owner.addressHint')}>
-            {(p) => (
-              <Textarea
-                {...p}
-                rows={2}
-                value={form.address}
-                onChange={(e) => set('address', e.target.value)}
-              />
-            )}
-          </Field>
+          {/*
+            No address field — see `CompanyProfilePanel`. The wilayah above,
+            which carries its governorate with it, is the location of record.
+          */}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label={t('owner.permitNumber')}>

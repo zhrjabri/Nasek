@@ -60,9 +60,13 @@ export function toProvider(row: ProviderRow | ProviderPublicRow): Provider {
     rejectionReason: full.rejection_reason ?? undefined,
     submittedAt: full.submitted_at ?? undefined,
     // `governorate` is on both the table and the public view; the rest is only
-    // ever on the table, so `full` is doing real work for four of these five.
-    governorate: row.governorate ?? undefined,
-    address: full.address ?? undefined,
+    // ever on the table, so `full` is doing real work for three of these four.
+    //
+    // The `?? ''` is belt and braces rather than a real case: the column is
+    // `not null` and non-blank as of 20260913000100. It stays because a mapper
+    // that throws on a row is worse than one that renders an empty label, and
+    // because this same function serves the public view.
+    governorate: row.governorate ?? '',
     commercialRegistration: full.commercial_registration ?? undefined,
     permitNumber: full.permit_number ?? undefined,
     permitExpiry: full.permit_expiry ?? undefined,
@@ -221,6 +225,7 @@ export function toBooking(row: BookingRow, travellers: TravellerRow[] = []): Boo
     totalPrice: Number(row.total_price) || 0,
     status: row.status,
     bookingDate: row.booking_date,
+    confirmedAt: row.confirmed_at ?? undefined,
     notes: row.notes ?? undefined,
   }
 }
