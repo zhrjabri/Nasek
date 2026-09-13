@@ -86,8 +86,6 @@ export const ownerEn = {
     'This action is briefly unavailable while NASEK finishes an update. The booking is unchanged — please try again shortly.',
   'prov.markPaid': 'Mark as paid',
   'prov.markedPaid': 'Booking {ref} is confirmed as paid',
-  'prov.confirmedBookings': 'Confirmed bookings',
-  'prov.noConfirmedFinancial': 'No confirmed financial data yet',
   'prov.noPhoneTitle': 'Your company has no contact number on file',
   'prov.noPhoneBody':
     'Customers send their booking invoice to you on WhatsApp, and that button is disabled until your company record carries a number. Add one on your company profile.',
@@ -95,9 +93,6 @@ export const ownerEn = {
    * `prov.planCommission` — "Mediation fee (2%)" — is gone with the fee. NASEK
    * charges the campaign owner nothing, so there is no figure to label.
    */
-  'prov.plan': 'What NASEK charges',
-  'prov.planNote':
-    'Nothing at all. NASEK takes no percentage of your bookings and charges you nothing for them. Customers pay you directly, and the whole of what a traveller pays is yours.',
   'prov.noData': 'No data yet',
   'prov.lowSeats': '{n} trips are almost full',
   'prov.respondReview': 'Reply',

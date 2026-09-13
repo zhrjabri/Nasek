@@ -195,6 +195,8 @@ export const adminEn = {
   'admin.bookingsByType': 'Bookings by trip type',
   'admin.growth': 'Platform growth',
   'admin.noData': 'No data yet',
+  /* The `providers.plan` tier column. Not a price: no tier has one. */
+  'admin.plan': 'Plan',
   'admin.licence': 'Permit',
   'admin.viewLicence': 'View permit',
   'admin.noLicence': 'No permit uploaded',

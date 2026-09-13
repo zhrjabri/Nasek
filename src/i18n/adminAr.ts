@@ -159,6 +159,7 @@ export const adminAr: Record<AdminMessageKey, string> = {
   'admin.bookingsByType': 'الحجوزات حسب نوع الرحلة',
   'admin.growth': 'نمو المنصة',
   'admin.noData': 'لا توجد بيانات بعد',
+  'admin.plan': 'الباقة',
   'admin.licence': 'الترخيص',
   'admin.viewLicence': 'عرض الترخيص',
   'admin.noLicence': 'لم يُرفع ترخيص',

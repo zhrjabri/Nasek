@@ -263,7 +263,6 @@ export function DashboardPage() {
       /** Every live request, paid or not — this is a workload, not a revenue figure. */
       bookings: bookings.filter((b) => b.status !== 'cancelled').length,
       awaiting: bookings.filter((b) => b.status === 'pending').length,
-      confirmedCount: earned.length,
       revenue,
       active: campaigns.filter((c) => c.seatsAvailable > 0).length,
       seatsAvailable,
@@ -508,36 +507,18 @@ export function DashboardPage() {
           )}
 
           {/*
-            What NASEK charges, which is nothing.
+            A "What NASEK charges" card used to sit here.
 
-            This card carried a "Mediation fee (2%)" figure — a running total of
-            what the owner owed NASEK on confirmed business. There is no such
-            fee: NASEK takes no percentage from the customer, the owner, the
-            booking or the invoice. The figure is gone and so is the arithmetic
-            behind it; what is left is the one sentence an owner opens this to
-            read, and the count of business they have actually confirmed.
+            It made sense while there was an answer other than nothing — first a
+            monthly subscription, then a 2% mediation fee. Both are gone, and a
+            card whose whole subject is a charge that does not exist invites the
+            question it was meant to settle. An owner reading "NASEK charges you
+            nothing" starts wondering what the catch is.
+
+            Nothing replaces it. The figures it ended up carrying — confirmed
+            bookings and their value — were already on the KPI row above, which
+            is where a business statistic belongs.
           */}
-          <Card className="p-6">
-            <h2 className="text-md font-bold text-ink-900">{t('prov.plan')}</h2>
-            <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-500">
-              {t('prov.planNote')}
-            </p>
-            <dl className="mt-5 grid gap-4 sm:grid-cols-2">
-              <PlanFigure
-                label={t('prov.confirmedBookings')}
-                value={n(stats.confirmedCount)}
-                highlight
-              />
-              <PlanFigure
-                label={t('prov.kpiRevenue')}
-                value={
-                  stats.confirmedCount
-                    ? money(stats.revenue)
-                    : t('prov.noConfirmedFinancial')
-                }
-              />
-            </dl>
-          </Card>
 
           <Card className="p-6">
             <h2 className="mb-5 text-md font-bold text-ink-900">{t('prov.chartBookings')}</h2>
@@ -1190,28 +1171,6 @@ function Kpi({
   )
 }
 
-function PlanFigure({
-  label,
-  value,
-  highlight,
-}: {
-  label: string
-  value: string
-  highlight?: boolean
-}) {
-  return (
-    <div
-      className={cx(
-        'rounded-[3px] border p-4',
-        highlight ? 'border-nasek-200 bg-nasek-50' : 'border-ivory-300 bg-ivory-50/60',
-      )}
-    >
-      <dt className="text-2xs font-bold uppercase tracking-wider text-ink-400">{label}</dt>
-      {/* The `note` line went with the subscription tier it named. */}
-      <dd className="nums mt-2 text-2xl font-bold text-ink-900">{value}</dd>
-    </div>
-  )
-}
 
 /** What a chart shows before this owner has been booked. */
 function NoData({ label }: { label: string }) {

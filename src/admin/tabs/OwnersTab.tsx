@@ -200,7 +200,7 @@ export function OwnersTab({ providers }: { providers: Provider[] }) {
                 <Th>{t('admin.providers')}</Th>
                 <Th>{t('common.wilayah')}</Th>
                 <Th>{t('common.rating')}</Th>
-                <Th>{t('prov.plan')}</Th>
+                <Th>{t('admin.plan')}</Th>
                 <Th>{t('admin.licence')}</Th>
                 <Th>{t('provider.verificationLabel')}</Th>
                 <Th end>{t('admin.userActions')}</Th>

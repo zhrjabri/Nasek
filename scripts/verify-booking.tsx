@@ -308,14 +308,21 @@ check('no dictionary calls a booking figure NASEK revenue',
     Object.values(d).some((v) => typeof v === 'string' && /NASEK revenue|إيرادات ناسِك/i.test(v))))
 
 /*
- * What the owner is told they owe, which is nothing.
+ * The owner is told nothing about fees, because there is nothing to tell.
+ *
+ * `prov.plan` and `prov.planNote` were the heading and body of a card that
+ * answered "what does NASEK charge". With the answer permanently "nothing", the
+ * card invited the doubt it existed to remove, so it and its strings are gone.
+ * These keys must stay gone — a fee card is the shape this keeps growing back
+ * in.
  */
-check('the owner is told NASEK charges nothing, in English',
-  /takes no percentage of your bookings and charges you nothing/.test(
-    ownerEnDict['prov.planNote'],
-  ),
-  ownerEnDict['prov.planNote'])
-check('and in Arabic', /لا شيء/.test(ownerArDict['prov.planNote']), ownerArDict['prov.planNote'])
+for (const key of ['prov.plan', 'prov.planNote', 'prov.confirmedBookings',
+  'prov.noConfirmedFinancial']) {
+  check(`the owner dictionary has no ${key}`,
+    !(key in (ownerEnDict as Record<string, unknown>)) &&
+      !(key in (ownerArDict as Record<string, unknown>)),
+    key)
+}
 
 // ================================================ 2. the booking itself
 
