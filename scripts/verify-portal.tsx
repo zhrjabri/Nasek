@@ -579,6 +579,17 @@ check(
     read('src/components/auth/PasswordSignIn.tsx'),
   ),
 )
+check(
+  'and so does the set-password screen\'s',
+  /<div className="relative" dir="ltr">\s*<Input[\s\S]{0,300}type=\{reveal \? 'text' : 'password'\}[\s\S]{0,300}className="pe-10"/.test(
+    read('src/owner/SetPasswordPage.tsx'),
+  ),
+)
+check(
+  'the "register your company" link is readable on the ivory page',
+  /onClick=\{\(\) => setRegistering\(true\)\}[\s\S]{0,400}className="[^"]*text-nasek-700[^"]*"/.test(read('src/owner/LoginPage.tsx')) &&
+    !/onClick=\{\(\) => setRegistering\(true\)\}[\s\S]{0,400}className="[^"]*text-ivory-50[^"]*"/.test(read('src/owner/LoginPage.tsx')),
+)
 check('and requires a permit', /if \(!licence\) next\.licence/.test(REGISTER))
 check('and requires a phone number', /if \(!isValidPhone\(form\.phone\)\)/.test(REGISTER))
 check(

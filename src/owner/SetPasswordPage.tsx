@@ -77,7 +77,10 @@ export function SetPasswordPage({ onDone }: { onDone: () => Promise<void> | void
           error={errors.password}
         >
           {(p) => (
-            <div className="relative">
+            // LTR as a whole, like the input inside it. In the Arabic page the
+            // button's `end-2` otherwise resolves to the left while the input's
+            // `pe-10` space is on the right, and the eye sat on the password.
+            <div className="relative" dir="ltr">
               <Input
                 {...p}
                 type={reveal ? 'text' : 'password'}

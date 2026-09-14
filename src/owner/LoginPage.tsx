@@ -148,7 +148,10 @@ export function OwnerLoginPage({
           <button
             type="button"
             onClick={() => setRegistering(true)}
-            className="font-bold text-ivory-50 underline underline-offset-2"
+            // The portal's text-link green, as on "Forgot your password?". This
+            // footer sits on the ivory page, not a dark band — ivory-50 here was
+            // white on near-white.
+            className="font-bold text-nasek-700 underline underline-offset-2 transition-colors hover:text-nasek-800"
           >
             {t('owner.registerLink')}
           </button>
