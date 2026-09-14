@@ -573,6 +573,12 @@ check(
   'the show-password eye shares the input\'s LTR direction, so it cannot sit on the text in Arabic',
   /<div className="relative" dir="ltr">\s*<Input[\s\S]{0,200}type=\{reveal \? 'text' : 'password'\}[\s\S]{0,200}className="pe-10"/.test(REGISTER),
 )
+check(
+  'and so does the sign-in form\'s',
+  /<div className="relative" dir="ltr">\s*<Input[\s\S]{0,300}type=\{reveal \? 'text' : 'password'\}[\s\S]{0,300}className="pe-10"/.test(
+    read('src/components/auth/PasswordSignIn.tsx'),
+  ),
+)
 check('and requires a permit', /if \(!licence\) next\.licence/.test(REGISTER))
 check('and requires a phone number', /if \(!isValidPhone\(form\.phone\)\)/.test(REGISTER))
 check(
