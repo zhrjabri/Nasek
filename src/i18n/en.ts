@@ -158,6 +158,8 @@ export const en = {
   'campaign.noResultsHint':
     'Try widening your budget, choosing another wilayah, or clearing some filters.',
   'campaign.includes': 'Included services',
+  'campaign.departureLocation': 'Departure location',
+  'campaign.officeNumber': 'Office number',
   'campaign.moreServices': '+{n} more',
   'campaign.duration': '{n} days',
   'campaign.coverHajj': 'Makkah · The Holy Sites',
@@ -595,7 +597,6 @@ export const en = {
   // `campaign.terms` and `campaign.contact` already exist above and are reused
   // rather than restated: the headings were always there; what was missing was
   // anything for them to display.
-  'campaign.excluded': 'Not included',
   'campaign.deadline': 'Register by',
   'campaign.deadlinePassed': 'Registration has closed',
   'campaign.gallery': 'Photographs',

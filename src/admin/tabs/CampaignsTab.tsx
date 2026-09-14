@@ -14,7 +14,7 @@ import {
 import type { Campaign, CampaignStatus, Provider } from '@/types'
 import { useI18n } from '@/i18n'
 import { wilayahName } from '@/data/geo'
-import { serviceLabel } from '@/data/services'
+import { includedServiceLines } from '@/data/services'
 import { publicCampaignUrl } from '@/lib/publicSite'
 import {
   removeCampaign,
@@ -647,20 +647,28 @@ export function CampaignsTab({
               />
               <DetailRow label={t('campaign.makkah')} value={bl(detail.hotelMakkah) || '—'} />
               <DetailRow label={t('campaign.madinah')} value={bl(detail.hotelMadinah) || '—'} />
+              {/* The same lines the public page shows, including an older
+                  trip's fixed service keys. Edited in the campaign form. */}
               <DetailRow
                 label={t('campaign.includes')}
                 value={
-                  detail.services.map((s) => serviceLabel(s, lang)).join('، ') || '—'
+                  <span className="whitespace-pre-line">
+                    {includedServiceLines(detail, lang).join('\n') || '—'}
+                  </span>
                 }
                 wide
               />
               <DetailRow
-                label={t('admin.campaignExcluded')}
+                label={t('campaign.departureLocation')}
                 value={
-                  detail.excludedServices.map((s) => serviceLabel(s, lang)).join('، ') || '—'
+                  <span className="whitespace-pre-line">{detail.departureLocation?.trim() || '—'}</span>
                 }
                 wide
               />
+              {/* Optional, so only drawn when the owner gave one. */}
+              {detail.officeNumber?.trim() && (
+                <DetailRow label={t('campaign.officeNumber')} value={detail.officeNumber.trim()} wide />
+              )}
               <DetailRow
                 label={t('admin.campaignContact')}
                 value={

@@ -281,7 +281,6 @@ export const adminAr: Record<AdminMessageKey, string> = {
   'admin.campaignSubmitted': 'أُرسلت',
   'admin.campaignNoImages': 'لا توجد صور',
   'admin.campaignDeadline': 'يُغلق التسجيل',
-  'admin.campaignExcluded': 'غير شامل',
   'admin.campaignTerms': 'الشروط',
   'admin.campaignContact': 'التواصل',
 

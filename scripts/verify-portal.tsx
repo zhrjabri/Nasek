@@ -33,6 +33,12 @@ import { adminEn } from '@/i18n/adminEn'
 import { adminAr } from '@/i18n/adminAr'
 import { ownerEn } from '@/i18n/ownerEn'
 import { ownerAr } from '@/i18n/ownerAr'
+import {
+  INCLUDED_SERVICES_MAX_LENGTH,
+  includedServiceLines,
+  parseIncludedServices,
+  servicesStillListed,
+} from '@/data/services'
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = '') => {
@@ -1025,6 +1031,94 @@ check(
 )
 
 // =========================================== 8. and NASEK still charges nothing
+
+head('what a trip includes, where it leaves from, and its office (20260914000100)')
+
+{
+  check(
+    'the text area becomes one entry per non-blank line, trimmed',
+    JSON.stringify(parseIncludedServices('  تأشيرة العمرة \r\n\n\t\nسكن قريب من الحرم\n  ')) ===
+      JSON.stringify(['تأشيرة العمرة', 'سكن قريب من الحرم']),
+  )
+  check('an empty or whitespace-only text area is no services at all', parseIncludedServices(' \n\t ').length === 0)
+  check('the included services text allows a long list', INCLUDED_SERVICES_MAX_LENGTH >= 2000)
+
+  // A trip written in the new form: no keys, typed lines, shown as typed.
+  check(
+    'a new trip shows exactly what its owner typed',
+    JSON.stringify(includedServiceLines({ services: [], includedServices: ['وجبات يومية', 'مرشد'] }, 'ar')) ===
+      JSON.stringify(['وجبات يومية', 'مرشد']),
+  )
+  // An existing trip: keys only — exactly what every live trip holds today.
+  check(
+    'an existing trip still lists its old services by name, in either language',
+    JSON.stringify(includedServiceLines({ services: ['hotel_makkah', 'visa'], includedServices: [] }, 'ar')) ===
+      JSON.stringify(['سكن في مكة', 'إجراءات التأشيرة']) &&
+      JSON.stringify(includedServiceLines({ services: ['hotel_makkah', 'visa'], includedServices: [] }, 'en')) ===
+        JSON.stringify(['Makkah accommodation', 'Visa processing']),
+  )
+  check(
+    'an existing trip with keys and extras keeps both, keys first',
+    JSON.stringify(includedServiceLines({ services: ['meals'], includedServices: ['ماء زمزم'] }, 'ar')) ===
+      JSON.stringify(['وجبات', 'ماء زمزم']),
+  )
+  check(
+    'once saved in the new form, a key already in the text is not listed twice',
+    JSON.stringify(includedServiceLines({ services: ['meals'], includedServices: ['وجبات', 'ماء زمزم'] }, 'ar')) ===
+      JSON.stringify(['وجبات', 'ماء زمزم']),
+  )
+  check(
+    'an edited trip keeps a key only while its label is still one of the lines',
+    JSON.stringify(servicesStillListed(['meals', 'visa', 'transport'], ['وجبات', 'Visa processing', 'مرشد'])) ===
+      JSON.stringify(['meals', 'visa']),
+  )
+  check('…and none when the owner removed them all', servicesStillListed(['meals'], ['مرشد']).length === 0)
+  check('an unknown key never crashes the list', includedServiceLines({ services: ['nope' as never], includedServices: [] }, 'ar').length === 0)
+}
+
+{
+  const FORM = read('src/components/campaign/CampaignForm.tsx')
+  const DETAIL = read('src/pages/CampaignDetailPage.tsx')
+  const ADMIN_TAB = read('src/admin/tabs/CampaignsTab.tsx')
+  const code = (source: string) => source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\{\/\*[\s\S]*?\*\/\}/g, '').replace(/^\s*\/\/.*$/gm, '')
+
+  check('the campaign form no longer draws predefined service options', !/SERVICE_KEYS|<Checkbox|serviceLabel\(/.test(code(FORM)))
+  check('the form requires a trimmed departure location', /if \(!form\.departureLocation\.trim\(\)\)/.test(FORM))
+  check('the office number is not a number input', !/officeNumber[\s\S]{0,200}type="number"/.test(code(FORM)))
+  check('"not included" is gone from the form, the trip page and the admin view', ![FORM, DETAIL, ADMIN_TAB].some((f) => /excludedServices|campaign\.excluded|admin\.campaignExcluded|formExcluded/.test(code(f))))
+  check('the trip page draws the office number only when there is one', /\{officeNumber && \(/.test(DETAIL))
+  check('the admin view does the same', /detail\.officeNumber\?\.trim\(\) && \(/.test(ADMIN_TAB))
+  check('the admin view shows the departure location', /t\('campaign\.departureLocation'\)/.test(ADMIN_TAB))
+
+  const everyDictionary = { en, ar, ownerEn, ownerAr, adminEn, adminAr } as Record<string, Record<string, string>>
+  const notIncluded = Object.entries(everyDictionary).flatMap(([name, dict]) =>
+    Object.entries(dict)
+      .filter(([, value]) => /غير شامل|not included/i.test(value))
+      .map(([key]) => `${name}:${key}`),
+  )
+  check('no dictionary says "not included" / "غير شامل" any more', notIncluded.length === 0, notIncluded.join(', '))
+  for (const key of ['prov.formServices', 'prov.formExcluded', 'prov.formExcludedHint', 'prov.formIncluded', 'prov.addIncluded', 'prov.servicesCount', 'prov.moveUp']) {
+    check(`${key} is gone`, !(key in ownerEn) && !(key in ownerAr))
+  }
+  check('campaign.excluded and admin.campaignExcluded are gone', !('campaign.excluded' in en) && !('campaign.excluded' in ar) && !('admin.campaignExcluded' in adminEn))
+  check(
+    'the Arabic labels read as specified',
+    ar['campaign.includes'] === 'الخدمات المشمولة' &&
+      ar['campaign.departureLocation'] === 'مكان الانطلاق' &&
+      ownerAr['prov.formOfficeNumber'] === 'رقم المكتب (إن وجد)',
+  )
+  check(
+    'each label is defined once — the form reuses the trip page\'s words rather than a copy',
+    ![ownerEn, ownerAr, adminEn, adminAr].some((dict) =>
+      Object.values(dict).some((v) => v === en['campaign.includes'] || v === ar['campaign.includes'] || v === en['campaign.departureLocation'] || v === ar['campaign.departureLocation']),
+    ),
+  )
+  check(
+    'the placeholders say what to write, in both languages',
+    ownerAr['prov.formIncludedPlaceholder'].startsWith('اكتب الخدمات المشمولة في الحملة') &&
+      ownerEn['prov.formIncludedPlaceholder'].startsWith('Enter the services included in this trip'),
+  )
+}
 
 head('no fee has crept back in')
 

@@ -63,7 +63,8 @@ const trip = (id: string, providerId: string, over: Partial<Campaign> = {}): Cam
     // no part — but a fixture that quietly omits it would be one more place a
     // campaign is constructed as though the state did not exist.
     status: 'active',
-    excludedServices: [],
+    departureLocation: '',
+    officeNumber: '',
     images: [],
     terms: { ar: '', en: '' },
     ...over,

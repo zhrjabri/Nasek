@@ -311,7 +311,6 @@ export const adminEn = {
   'admin.campaignSubmitted': 'Submitted',
   'admin.campaignNoImages': 'No photographs',
   'admin.campaignDeadline': 'Registration closes',
-  'admin.campaignExcluded': 'Not included',
   'admin.campaignTerms': 'Terms',
   'admin.campaignContact': 'Contact',
 

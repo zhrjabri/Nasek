@@ -18,13 +18,12 @@ import {
   Phone,
   Plane,
   Users,
-  X,
 } from 'lucide-react'
 import type { Campaign } from '@/types'
 import { useI18n } from '@/i18n'
 import { ProviderMark } from '@/components/brand/ProviderMark'
 import { wilayahName } from '@/data/geo'
-import { serviceLabel } from '@/data/services'
+import { includedServiceLines } from '@/data/services'
 import { campaignImageUrl } from '@/services/storage/campaignImages'
 import { isSupabaseConfigured } from '@/services/supabase/client'
 
@@ -157,6 +156,10 @@ export function CampaignDetailPage() {
   const days = tripDays(campaign)
   const booked = campaign.seatsTotal - campaign.seatsAvailable
   const soldOut = campaign.seatsAvailable === 0
+  const includedLines = includedServiceLines(campaign, lang)
+  // Trimmed again here, so a value that is only whitespace draws nothing.
+  const departureLocation = campaign.departureLocation?.trim() ?? ''
+  const officeNumber = campaign.officeNumber?.trim() ?? ''
   /*
    * Registration closes before the trip departs, where the owner set a date.
    *
@@ -288,6 +291,40 @@ export function CampaignDetailPage() {
             <p className="text-md leading-[1.85] text-ink-600">{bl(campaign.description)}</p>
           </Section>
 
+          {/* ------------------------------------------ where it leaves from */}
+          {/*
+            Written by the owner, so shown as written: line breaks kept, no
+            reformatting. A trip created before the field existed may have no
+            departure location yet, and the office number is optional — each is
+            drawn only when it has a value, and the section not at all when
+            neither does.
+          */}
+          {(departureLocation || officeNumber) && (
+            <Section title={t(departureLocation ? 'campaign.departureLocation' : 'campaign.officeNumber')}>
+              <div className="rounded-[3px] border border-ivory-300 bg-ivory-50/60 p-4">
+                {departureLocation && (
+                  <p className="flex items-start gap-2.5 text-md leading-[1.85] text-ink-700">
+                    <MapPin className="mt-1.5 size-4 shrink-0 text-nasek-600" aria-hidden />
+                    <span className="min-w-0 whitespace-pre-line break-words">{departureLocation}</span>
+                  </p>
+                )}
+                {officeNumber && (
+                  <p
+                    className={cx(
+                      'text-sm text-ink-600',
+                      departureLocation && 'mt-3 border-t border-ivory-300 pt-3',
+                    )}
+                  >
+                    {departureLocation && (
+                      <span className="font-semibold text-ink-500">{t('campaign.officeNumber')}: </span>
+                    )}
+                    <span className="break-words font-semibold text-ink-800">{officeNumber}</span>
+                  </p>
+                )}
+              </div>
+            </Section>
+          )}
+
           {/* ------------------------------------------------ photographs */}
           {/*
             Shown only when there are some, rather than reserving a gallery
@@ -313,70 +350,28 @@ export function CampaignDetailPage() {
           )}
 
           {/* ---------------------------------------------------- services */}
-          <Section title={t('campaign.includes')}>
-            <ul className="grid gap-2.5 sm:grid-cols-2">
-              {campaign.services.map((s) => (
-                <li
-                  key={s}
-                  className="flex items-center gap-2.5 rounded-[3px] border border-ivory-300 bg-ivory-50/60 px-3.5 py-2.5"
-                >
-                  <BadgeCheck className="size-4 shrink-0 text-nasek-600" />
-                  <span className="text-sm font-medium text-ink-700">
-                    {serviceLabel(s, lang)}
-                  </span>
-                </li>
-              ))}
-              {/*
-                And whatever the six did not cover, in the owner's own words.
-
-                Rendered in the same list rather than a section of its own: a
-                pilgrim reading "what is included" does not care which of these
-                NASEK can filter on. The six are a closed set because the
-                Campaigns facets and Smart Match match on them; these are the
-                rest of the offer, typed by the person running the trip.
-              */}
-              {campaign.includedServices.map((text, i) => (
-                <li
-                  key={`extra-${i}`}
-                  className="flex items-center gap-2.5 rounded-[3px] border border-ivory-300 bg-ivory-50/60 px-3.5 py-2.5"
-                >
-                  <BadgeCheck className="size-4 shrink-0 text-nasek-600" />
-                  <span className="text-sm font-medium text-ink-700">{text}</span>
-                </li>
-              ))}
-            </ul>
-
-            {/*
-              What the price does not cover, immediately under what it does.
-
-              Together rather than in separate sections, because they are one
-              question — "what am I paying for" — and a pilgrim who reads the
-              included list and stops has read half an answer. Only what the
-              owner ticked appears: a service in neither list is simply not
-              mentioned, which is honest, and listing every unticked service as
-              excluded would publish a wall of things nobody claimed.
-            */}
-            {campaign.excludedServices.length > 0 && (
-              <>
-                <h3 className="mt-6 mb-2.5 text-2xs font-bold uppercase tracking-[0.14em] text-ink-400">
-                  {t('campaign.excluded')}
-                </h3>
-                <ul className="grid gap-2.5 sm:grid-cols-2">
-                  {campaign.excludedServices.map((s) => (
-                    <li
-                      key={s}
-                      className="flex items-center gap-2.5 rounded-[3px] border border-ivory-300 bg-ivory-50/40 px-3.5 py-2.5"
-                    >
-                      <X className="size-4 shrink-0 text-ink-400" />
-                      <span className="text-sm font-medium text-ink-500">
-                        {serviceLabel(s, lang)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-          </Section>
+          {/*
+            What the price includes, as the owner wrote it — one line each.
+            `includedServiceLines` also carries an older trip's fixed service
+            keys, so a listing created before the form became free text shows
+            the same list it always did. Nothing is drawn when there is nothing
+            to list: a heading over an empty box reads as a broken page.
+          */}
+          {includedLines.length > 0 && (
+            <Section title={t('campaign.includes')}>
+              <ul className="grid gap-2.5 sm:grid-cols-2">
+                {includedLines.map((text, i) => (
+                  <li
+                    key={`included-${i}`}
+                    className="flex items-center gap-2.5 rounded-[3px] border border-ivory-300 bg-ivory-50/60 px-3.5 py-2.5"
+                  >
+                    <BadgeCheck className="size-4 shrink-0 text-nasek-600" />
+                    <span className="text-sm font-medium text-ink-700">{text}</span>
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          )}
 
           {/* ----------------------------------------------- accommodation */}
           <Section title={t('campaign.accommodation')}>

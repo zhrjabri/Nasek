@@ -148,6 +148,8 @@ export const ar: Record<PublicMessageKey, string> = {
   'campaign.noResultsHint':
     'جرّب توسيع الميزانية، أو اختيار ولاية أخرى، أو إزالة بعض خيارات الفرز.',
   'campaign.includes': 'الخدمات المشمولة',
+  'campaign.departureLocation': 'مكان الانطلاق',
+  'campaign.officeNumber': 'رقم المكتب',
   'campaign.moreServices': '+{n} أخرى',
   'campaign.duration': '{n} أيام',
   'campaign.coverHajj': 'مكة المكرمة · المشاعر المقدسة',
@@ -564,7 +566,6 @@ export const ar: Record<PublicMessageKey, string> = {
   'auth.mfaLabel': 'رمز تطبيق المصادقة',
   'auth.licenceUploadFailed': 'تعذّر رفع الترخيص. تحقّق من اتصالك وحاول مرة أخرى.',
   // ------------------------------------------------------ إضافات الحملة
-  'campaign.excluded': 'غير شامل',
   'campaign.deadline': 'آخر موعد للتسجيل',
   'campaign.deadlinePassed': 'أُغلق باب التسجيل',
   'campaign.gallery': 'الصور',  'auth.noAccountNeeded':

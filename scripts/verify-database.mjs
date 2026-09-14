@@ -86,13 +86,23 @@ async function seed(db) {
   await db.query(company, [ID.company, ID.owner, 'Company', OWNER_PHONE, APPROVED_PERMIT])
   await db.query(company, [ID.rivalCompany, ID.rival, 'Rival', '+96890000002', null])
 
+  /*
+   * Seeded the way every trip on the live project exists today: created before
+   * 20260914000100, so with no departure location and a value in the retired
+   * `excluded_services`. The departure rule is switched off for the seed only —
+   * it is exactly the state that rule must never break — and every check below
+   * that confirms, cancels or reviews on these trips is therefore also a check
+   * that an old trip keeps working.
+   */
+  await db.exec('alter table public.campaigns disable trigger campaigns_departure_rules')
   const trip = `insert into public.campaigns
       (id, provider_id, type, title_ar, price, travel_method, wilayah_id,
-       departure_date, return_date, seats_total, seats_available)
-    values ($1, $2, 'umrah', $3, 150, 'land', 'muscat', $4, $5, 10, 10)`
+       departure_date, return_date, seats_total, seats_available, excluded_services)
+    values ($1, $2, 'umrah', $3, 150, 'land', 'muscat', $4, $5, 10, 10, '{meals}')`
   await db.query(trip, [ID.trip, ID.company, 'Trip', day(60), day(70)])
   await db.query(trip, [ID.rivalTrip, ID.rivalCompany, 'Rival trip', day(60), day(70)])
   await db.query(trip, [ID.pastTrip, ID.company, 'Returned trip', day(-20), day(-10)])
+  await db.exec('alter table public.campaigns enable trigger campaigns_departure_rules')
 
   await db.query(
     `insert into storage.objects (bucket_id, name, owner) values ('provider-licences', $1, $2)`,
@@ -238,8 +248,8 @@ const ownNew = await as(db, ID.owner, (q) =>
   q(
     `insert into public.campaigns
        (provider_id, type, title_ar, price, travel_method, wilayah_id, departure_date, return_date,
-        seats_total, seats_available, bookings_count, rating, review_count)
-     values ($1, 'umrah', 'New', 100, 'land', 'muscat', $2, $3, 20, 3, 50, 5, 9)
+        seats_total, seats_available, bookings_count, rating, review_count, departure_location)
+     values ($1, 'umrah', 'New', 100, 'land', 'muscat', $2, $3, 20, 3, 50, 5, 9, 'Muscat')
      returning seats_available, bookings_count, rating, review_count, status`,
     [ID.company, day(40), day(50)],
   ),
@@ -409,6 +419,107 @@ check(
     (q) => q(`delete from storage.objects where bucket_id = 'provider-licences' and name = $1 returning id`, [APPROVED_PERMIT]),
     { amr: [{ method: 'otp' }] },
   )).length === 1,
+)
+
+head('D. departure location and office number (20260914000100)')
+
+const DEPARTURE = '20260914000100_campaign_departure_location_and_office.sql'
+const PLACE = 'مواقف جامع السلطان قابوس الأكبر – البوابة الجنوبية، مسقط'
+const newTrip = (userId, departure, office, extra = {}) =>
+  as(
+    db,
+    userId,
+    (q) =>
+      q(
+        `insert into public.campaigns
+           (provider_id, type, title_ar, price, travel_method, wilayah_id,
+            departure_date, return_date, seats_total, seats_available, departure_location, office_number)
+         values ($1, 'umrah', 'New trip', 150, 'land', 'muscat', $2, $3, 10, 10, $4, $5)
+         returning id, departure_location, office_number`,
+        [ID.company, day(90), day(100), departure, office],
+      ),
+    { amr: userId === ID.admin ? [{ method: 'otp' }] : undefined, ...extra },
+  )
+
+const legacyTrip = await campaign(db, ID.trip)
+check('an existing trip has no departure location (precondition)', legacyTrip.departure_location === '' && legacyTrip.office_number === '')
+check('…and it was confirmed, cancelled and reviewed on above without the rule getting in the way', legacyTrip.bookings_count >= 1, JSON.stringify({ bookings: legacyTrip.bookings_count }))
+const legacyEdit = await as(
+  db,
+  ID.owner,
+  (q) => q(`update public.campaigns set title_ar = 'Old trip, edited' where id = $1 returning title_ar, departure_location`, [ID.trip]),
+)
+check('an owner can still edit an existing trip that has no departure location', legacyEdit[0]?.title_ar === 'Old trip, edited')
+
+const blankInsert = await attempt(() => newTrip(ID.owner, '', ''))
+check('a new trip with no departure location is refused', blankInsert !== null && /departure location is required/.test(blankInsert), blankInsert ?? 'accepted')
+const spaceInsert = await attempt(() => newTrip(ID.owner, '   \n\t ', ''))
+check('…and one that is only whitespace', spaceInsert !== null && /departure location is required/.test(spaceInsert), spaceInsert ?? 'accepted')
+const adminBlank = await attempt(() => newTrip(ID.admin, ' ', ''))
+check('…by an administrator too', adminBlank !== null, adminBlank ?? 'accepted')
+
+const created = await newTrip(ID.owner, `  ${PLACE}\nبجانب المدخل  `, '  مكتب 5 - الدور الثاني ', { keep: true })
+check('a new trip with a departure location is accepted', created.length === 1)
+check('…stored trimmed, line break kept', created[0]?.departure_location === `${PLACE}\nبجانب المدخل`, JSON.stringify(created[0]?.departure_location))
+check('an office number with letters and symbols is stored, trimmed', created[0]?.office_number === 'مكتب 5 - الدور الثاني', JSON.stringify(created[0]?.office_number))
+const noOffice = await newTrip(ID.owner, PLACE, '')
+check('the office number is optional', noOffice[0]?.office_number === '')
+const officeOmitted = await as(db, ID.owner, (q) =>
+  q(
+    `insert into public.campaigns
+       (provider_id, type, title_ar, price, travel_method, wilayah_id, departure_date, return_date,
+        seats_total, seats_available, departure_location)
+     values ($1, 'umrah', 'No office column', 150, 'land', 'muscat', $2, $3, 10, 10, $4)
+     returning office_number`,
+    [ID.company, day(90), day(100), PLACE],
+  ),
+)
+check('…even when the column is left out entirely', officeOmitted[0]?.office_number === '')
+
+const createdId = created[0]?.id
+const cleared = await attempt(() =>
+  as(db, ID.owner, (q) => q(`update public.campaigns set departure_location = '' where id = $1`, [createdId])),
+)
+check('a departure location, once set, cannot be cleared', cleared !== null, cleared ?? 'accepted')
+const whitened = await attempt(() =>
+  as(db, ID.owner, (q) => q(`update public.campaigns set departure_location = '    ' where id = $1`, [createdId])),
+)
+check('…nor replaced with whitespace', whitened !== null, whitened ?? 'accepted')
+const relocated = await as(db, ID.owner, (q) =>
+  q(`update public.campaigns set departure_location = ' Muscat bus station ', office_number = '' where id = $1 returning departure_location, office_number`, [createdId]),
+)
+check('…but can be changed to another place, and the office number removed', relocated[0]?.departure_location === 'Muscat bus station' && relocated[0]?.office_number === '')
+
+const tooLong = await attempt(() => newTrip(ID.owner, 'x'.repeat(1001), ''))
+check('a departure location over 1000 characters is refused', tooLong !== null, tooLong ?? 'accepted')
+const officeTooLong = await attempt(() => newTrip(ID.owner, PLACE, 'x'.repeat(101)))
+check('an office number over 100 characters is refused', officeTooLong !== null, officeTooLong ?? 'accepted')
+
+const seatsOnOld = await as(
+  db,
+  ID.owner,
+  (q) => q(`update public.campaigns set seats_total = seats_total + 1 where id = $1 returning seats_total`, [ID.trip]),
+)
+check('an old trip still accepts a seat change with its departure location blank', seatsOnOld.length === 1)
+check(
+  'the retired excluded_services column is kept, with its data',
+  JSON.stringify((await campaign(db, ID.trip)).excluded_services) === '["meals"]',
+  JSON.stringify((await campaign(db, ID.trip)).excluded_services),
+)
+const anonReads = await as(db, null, (q) =>
+  q(`select departure_location, office_number from public.campaigns where id = $1`, [createdId]),
+)
+check('a signed-out visitor can read both new columns on a live trip', anonReads.length === 1 && anonReads[0].departure_location === created[0]?.departure_location && anonReads[0].office_number === 'مكتب 5 - الدور الثاني', JSON.stringify(anonReads))
+
+const departureReport = (() => {
+  const sql = fs.readFileSync(path.join(root, 'supabase/migrations', DEPARTURE), 'utf8').replace(/\r\n/g, '\n')
+  return sql.slice(sql.lastIndexOf('\nselect\n') + 1)
+})()
+const departureRow = (await db.query(departureReport)).rows[0]
+check(
+  "the departure migration's closing report row is all true",
+  Object.values(departureRow).length === 4 && Object.values(departureRow).every((v) => v === true),
+  JSON.stringify(departureRow),
 )
 
 head('what the SQL Editor shows after the migration runs')

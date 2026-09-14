@@ -183,11 +183,15 @@ export type CampaignRow = {
   reviewed_by: string | null
   reviewed_at: string | null
   registration_deadline: string | null
-  /** Free text, in Arabic. Additional to `services`, which holds the filterable keys. */
+  /** What the price includes, as the owner typed it: one entry per line. */
   included_services: string[]
   /** `[{ name, phone }]`. Shape enforced by `campaigns_contact_persons_shape`. */
   contact_persons: { name: string; phone: string }[]
-  excluded_services: string[]
+  // `excluded_services` is retired (20260914000100): kept in the table, never read.
+  /** Added by 20260914000100. Trimmed, and required for new trips, by `campaigns_departure_rules`. */
+  departure_location: string
+  /** Added by 20260914000100. Free text; '' when not given. */
+  office_number: string
   /** Object paths in the `campaign-images` bucket. Never URLs. */
   images: string[]
   contact_name: string | null
@@ -392,7 +396,7 @@ export type Database = {
       wilayat: Table<WilayahRow>
       profiles: Table<ProfileRow, Insertable<ProfileRow, 'created_at' | 'avatar_color' | 'role' | 'suspended' | 'removed' | 'name' | 'nationality'>>
       providers: Table<ProviderRow, Insertable<ProviderRow, 'id' | 'created_at' | 'joined_at' | 'verification' | 'rating' | 'review_count' | 'plan' | 'initials' | 'brand_color' | 'experience_years' | 'verified_by' | 'verified_at' | 'tagline_ar' | 'tagline_en' | 'description_ar' | 'description_en' | 'governorate' | 'address' | 'commercial_registration' | 'permit_number' | 'permit_expiry' | 'licence_mime'>>
-      campaigns: Table<CampaignRow, Insertable<CampaignRow, 'id' | 'created_at' | 'rating' | 'review_count' | 'featured' | 'bookings_count' | 'suspended' | 'deleted' | 'services' | 'description_ar' | 'description_en' | 'hotel_makkah_ar' | 'hotel_makkah_en' | 'hotel_madinah_ar' | 'hotel_madinah_en' | 'haram_distance_m' | 'status' | 'rejection_reason' | 'submitted_at' | 'reviewed_by' | 'reviewed_at' | 'registration_deadline' | 'excluded_services' | 'included_services' | 'contact_persons' | 'images' | 'contact_name' | 'contact_phone' | 'contact_email' | 'terms_ar' | 'terms_en'>>
+      campaigns: Table<CampaignRow, Insertable<CampaignRow, 'id' | 'created_at' | 'rating' | 'review_count' | 'featured' | 'bookings_count' | 'suspended' | 'deleted' | 'services' | 'description_ar' | 'description_en' | 'hotel_makkah_ar' | 'hotel_makkah_en' | 'hotel_madinah_ar' | 'hotel_madinah_en' | 'haram_distance_m' | 'status' | 'rejection_reason' | 'submitted_at' | 'reviewed_by' | 'reviewed_at' | 'registration_deadline' | 'included_services' | 'departure_location' | 'office_number' | 'contact_persons' | 'images' | 'contact_name' | 'contact_phone' | 'contact_email' | 'terms_ar' | 'terms_en'>>
       // Written only by `book_campaign`; the insert shape is kept accurate so
       // that a hand-written insert would still have to name the same columns.
       bookings: Table<BookingRow, Insertable<BookingRow, 'id' | 'created_at' | 'booking_date' | 'status' | 'notes' | 'male_count' | 'female_count' | 'price_per_person'>>

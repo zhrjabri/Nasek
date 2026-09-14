@@ -99,7 +99,7 @@ const main = async () => {
     // Exactly what `CampaignForm` produces on a new trip: in the queue, not on
     // the site. The trigger in Postgres forces the same value server-side, so
     // this is the state a campaign genuinely starts in on both paths.
-    status: 'pending_approval', excludedServices: [], images: [],
+    status: 'pending_approval', departureLocation: '', officeNumber: '', images: [],
     terms: { ar: '', en: '' },
   } as Campaign
   state = reducer(state, { type: 'upsertCampaign', campaign: trip })

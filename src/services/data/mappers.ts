@@ -119,7 +119,10 @@ export function toCampaign(row: CampaignRow): Campaign {
     submittedAt: row.submitted_at ?? undefined,
     reviewedAt: row.reviewed_at ?? undefined,
     registrationDeadline: row.registration_deadline ?? undefined,
-    excludedServices: (row.excluded_services ?? []) as ServiceKey[],
+    // `?? ''`: a trip written before 20260914000100 has none, and a project
+    // that has not applied it sends no column at all.
+    departureLocation: row.departure_location ?? '',
+    officeNumber: row.office_number ?? '',
     images: row.images ?? [],
     includedServices: row.included_services ?? [],
     /*
@@ -163,7 +166,9 @@ export function fromCampaign(campaign: Campaign) {
     hotel_madinah_en: campaign.hotelMadinah.en,
     haram_distance_m: campaign.haramDistanceM,
     registration_deadline: campaign.registrationDeadline || null,
-    excluded_services: campaign.excludedServices,
+    // Not `excluded_services`: retired, and left exactly as it is in the row.
+    departure_location: (campaign.departureLocation ?? '').trim(),
+    office_number: (campaign.officeNumber ?? '').trim(),
     images: campaign.images,
     included_services: campaign.includedServices,
     /*

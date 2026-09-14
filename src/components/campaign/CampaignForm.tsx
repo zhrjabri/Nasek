@@ -1,13 +1,17 @@
 import { useRef, useState } from 'react'
-import { GripVertical, Plus, X } from 'lucide-react'
-import type { Campaign, CampaignType, ContactPerson, Provider, ServiceKey, TravelMethod } from '@/types'
+import { Plus, X } from 'lucide-react'
+import type { Campaign, CampaignType, ContactPerson, Provider, TravelMethod } from '@/types'
 import { useI18n } from '@/i18n'
 import { WILAYAT } from '@/data/geo'
-import { SERVICE_KEYS, serviceLabel } from '@/data/services'
+import {
+  INCLUDED_SERVICES_MAX_LENGTH,
+  includedServiceLines,
+  parseIncludedServices,
+  servicesStillListed,
+} from '@/data/services'
 import { CampaignImagePicker } from '@/owner/CampaignImagePicker'
 import {
   Button,
-  Checkbox,
   Field,
   Input,
   Modal,
@@ -51,11 +55,9 @@ interface ContactRow extends ContactPerson {
   key: string
 }
 
-/** Same, for a free-text service. */
-interface ServiceRow {
-  key: string
-  text: string
-}
+/** Longest departure location and office number the form accepts. Mirrors the column checks. */
+const DEPARTURE_LOCATION_MAX_LENGTH = 1000
+const OFFICE_NUMBER_MAX_LENGTH = 100
 
 /*
  * A counter rather than `Math.random().toString(36).slice(2, 10)`.
@@ -140,11 +142,17 @@ export function CampaignForm({
     hotelMakkah: campaign?.hotelMakkah.ar ?? '',
     hotelMadinah: campaign?.hotelMadinah.ar ?? '',
     haramDistanceM: String(campaign?.haramDistanceM ?? 800),
-    services: campaign?.services ?? (['hotel_makkah', 'transport', 'visa'] as ServiceKey[]),
     registrationDeadline: campaign?.registrationDeadline ?? '',
-    excludedServices: campaign?.excludedServices ?? ([] as ServiceKey[]),
     images: campaign?.images ?? ([] as string[]),
-    included: (campaign?.includedServices ?? []).map((text) => ({ key: rowKey(), text })) as ServiceRow[],
+    /*
+     * One text area. An older trip opens with what its page already shows —
+     * the labels of its fixed service keys, then anything typed — one per line,
+     * so the owner edits the list a pilgrim reads rather than an empty box.
+     */
+    includedText: campaign ? includedServiceLines(campaign, lang).join('\n') : '',
+    // '' for a trip created before these existed; the owner is asked on save.
+    departureLocation: campaign?.departureLocation ?? '',
+    officeNumber: campaign?.officeNumber ?? '',
     contacts: (campaign?.contactPersons ?? []).map((person) => ({
       ...person,
       key: rowKey(),
@@ -208,28 +216,14 @@ export function CampaignForm({
     returnDate: t('prov.formReturn'),
     registrationDeadline: t('prov.formDeadline'),
     seatsTotal: t('prov.formSeats'),
+    departureLocation: t('campaign.departureLocation'),
   }
 
   /** Closing a half-filled form is one stray click away — on the backdrop, on
    *  Escape. Ask before throwing the work away. */
   const requestClose = () => (dirty ? setConfirmClose(true) : onClose())
 
-  // ------------------------------------------------------- the two lists
-
-  const addIncluded = () =>
-    set('included', [...form.included, { key: rowKey(), text: '' }])
-  const setIncluded = (key: string, text: string) =>
-    set('included', form.included.map((row) => (row.key === key ? { ...row, text } : row)))
-  const removeIncluded = (key: string) =>
-    set('included', form.included.filter((row) => row.key !== key))
-  /** Up or down by one. A list this short does not need dragging to be ordered. */
-  const moveIncluded = (index: number, by: -1 | 1) => {
-    const next = [...form.included]
-    const target = index + by
-    if (target < 0 || target >= next.length) return
-    ;[next[index], next[target]] = [next[target], next[index]]
-    set('included', next)
-  }
+  // ------------------------------------------------------- the contact list
 
   const addContact = () =>
     set('contacts', [...form.contacts, { key: rowKey(), name: '', phone: '' }])
@@ -247,6 +241,11 @@ export function CampaignForm({
     if (isAdmin && !form.providerId) next.providerId = t('common.required')
     if (!form.departureDate) next.departureDate = t('common.required')
     if (!form.returnDate) next.returnDate = t('common.required')
+    // Whitespace alone is not a place. The database trims and refuses the same
+    // (`campaigns_departure_rules`); this says so in a sentence first.
+    if (!form.departureLocation.trim()) {
+      next.departureLocation = t('prov.errDepartureLocation')
+    }
     /*
      * The price and the seat count, which nothing was checking.
      *
@@ -298,6 +297,7 @@ export function CampaignForm({
      * means an English-speaking pilgrim sees the trip's real name rather than
      * an empty heading.
      */
+    const includedLines = parseIncludedServices(form.includedText)
     onSave({
       id: campaign?.id ?? `own-${Date.now()}`,
       providerId: form.providerId,
@@ -312,7 +312,9 @@ export function CampaignForm({
       seatsTotal: Number(form.seatsTotal),
       // What the database will hold after the save. Sent only for a new trip.
       seatsAvailable: Math.max(0, Number(form.seatsTotal) - bookedSeats),
-      services: form.services,
+      // No longer chosen here. A new trip has none; an edited one keeps only the
+      // keys its owner's text still lists (see `servicesStillListed`).
+      services: campaign ? servicesStillListed(campaign.services, includedLines) : [],
       hotelMakkah: { ar: form.hotelMakkah, en: form.hotelMakkah },
       hotelMadinah: { ar: form.hotelMadinah, en: form.hotelMadinah },
       haramDistanceM: Number(form.haramDistanceM),
@@ -321,9 +323,10 @@ export function CampaignForm({
       featured: campaign?.featured ?? false,
       bookingsCount: campaign?.bookingsCount ?? 0,
       registrationDeadline: form.registrationDeadline || undefined,
-      excludedServices: form.excludedServices,
       images: form.images,
-      includedServices: form.included.map((row) => row.text.trim()).filter(Boolean),
+      includedServices: includedLines,
+      departureLocation: form.departureLocation.trim(),
+      officeNumber: form.officeNumber.trim(),
       contactPersons: form.contacts
         .map((row) => ({ name: row.name.trim(), phone: row.phone.trim() }))
         .filter((person) => person.name !== ''),
@@ -491,6 +494,37 @@ export function CampaignForm({
           </Field>
         </div>
 
+        {/*
+          Where the trip leaves from, in the owner's words. Free text on
+          purpose: a car park, a gate, a landmark — nothing a list of wilayat or
+          a map pin says well. The wilayah above stays; it is what the
+          catalogue filters on.
+        */}
+        <Field label={t('campaign.departureLocation')} required error={errors.departureLocation}>
+          {(p) => (
+            <Textarea
+              {...p}
+              rows={3}
+              maxLength={DEPARTURE_LOCATION_MAX_LENGTH}
+              placeholder={t('prov.formDepartureLocationPlaceholder')}
+              value={form.departureLocation}
+              onChange={(e) => set('departureLocation', e.target.value)}
+            />
+          )}
+        </Field>
+
+        {/* Free text: "12", "Office 204", "مكتب 5 - الدور الثاني". Not a number field. */}
+        <Field label={t('prov.formOfficeNumber')}>
+          {(p) => (
+            <Input
+              {...p}
+              maxLength={OFFICE_NUMBER_MAX_LENGTH}
+              value={form.officeNumber}
+              onChange={(e) => set('officeNumber', e.target.value)}
+            />
+          )}
+        </Field>
+
         <Field
           label={t('prov.formDeadline')}
           hint={t('prov.formDeadlineHint')}
@@ -559,127 +593,24 @@ export function CampaignForm({
           </Field>
         </div>
 
-        <fieldset>
-          <legend className="mb-2 text-sm font-semibold text-ink-700">
-            {t('prov.formServices')}
-          </legend>
-          <div className="grid gap-x-4 sm:grid-cols-2">
-            {SERVICE_KEYS.map((s) => (
-              <Checkbox
-                key={s}
-                checked={form.services.includes(s)}
-                onChange={() =>
-                  set(
-                    'services',
-                    form.services.includes(s)
-                      ? form.services.filter((x) => x !== s)
-                      : [...form.services, s],
-                  )
-                }
-                label={serviceLabel(s, lang)}
-              />
-            ))}
-          </div>
-          <p className="mt-2 nums text-2xs text-ink-400">
-            {t('prov.servicesCount', {
-              n: n(form.services.length),
-              total: n(SERVICE_KEYS.length),
-            })}
-          </p>
-        </fieldset>
-
         {/*
-          Anything the six do not cover, in the owner's own words.
-
-          The six above are not a menu — they are what the Campaigns filter and
-          Smart Match match on, so they have to stay a closed set. This is the
-          rest of the offer, unlimited, and it is free text precisely because
-          nobody can enumerate in advance what a campaign includes.
+          What the price includes, in the owner's own words — one service per
+          line. It replaced a set of tick-boxes and a list of input rows: no
+          fixed menu covers what a campaign offers, and a pilgrim reads the
+          list exactly as it is typed here.
         */}
-        <fieldset>
-          <legend className="mb-1 text-sm font-semibold text-ink-700">
-            {t('prov.formIncluded')}
-          </legend>
-          <p className="mb-2 text-xs leading-relaxed text-ink-400">{t('prov.formIncludedHint')}</p>
-
-          <div className="space-y-2">
-            {form.included.map((row, index) => (
-              <div key={row.key} className="flex items-center gap-2">
-                <div className="flex flex-col">
-                  <button
-                    type="button"
-                    onClick={() => moveIncluded(index, -1)}
-                    disabled={index === 0}
-                    aria-label={t('prov.moveUp')}
-                    className="rounded-[3px] px-1 text-ink-400 hover:text-ink-700 disabled:opacity-30"
-                  >
-                    <GripVertical className="size-3.5" aria-hidden />
-                  </button>
-                </div>
-                <Input
-                  dir="rtl"
-                  value={row.text}
-                  aria-label={`${t('prov.formIncluded')} ${n(index + 1)}`}
-                  onChange={(e) => setIncluded(row.key, e.target.value)}
-                  className="flex-1"
-                />
-                <button
-                  type="button"
-                  onClick={() => removeIncluded(row.key)}
-                  aria-label={t('common.remove')}
-                  className="rounded-[3px] p-2 text-ink-400 transition-colors hover:bg-red-50 hover:text-red-600"
-                >
-                  <X className="size-4" aria-hidden />
-                </button>
-              </div>
-            ))}
-          </div>
-
-          <Button type="button" variant="secondary" size="sm" className="mt-2" onClick={addIncluded}>
-            <Plus className="size-3.5" />
-            {t('prov.addIncluded')}
-          </Button>
-        </fieldset>
-
-        {/*
-          What the price does not cover.
-
-          A separate list rather than the inverse of the one above, and the
-          distinction is the whole reason it is worth a fieldset. Treating
-          everything unticked as "excluded" would publish a wall of things
-          nobody claimed — a campaign that never mentioned wheelchairs would
-          announce that it excludes them. Only what an owner deliberately ticks
-          here is stated outright; silence stays silence.
-        */}
-        <fieldset>
-          <legend className="mb-1 text-sm font-semibold text-ink-700">
-            {t('prov.formExcluded')}
-          </legend>
-          <p className="mb-2 text-xs leading-relaxed text-ink-400">
-            {t('prov.formExcludedHint')}
-          </p>
-          <div className="grid gap-x-4 sm:grid-cols-2">
-            {SERVICE_KEYS.map((s) => (
-              <Checkbox
-                key={s}
-                checked={form.excludedServices.includes(s)}
-                onChange={() =>
-                  setForm((f) => {
-                    const on = f.excludedServices.includes(s)
-                    return {
-                      ...f,
-                      excludedServices: on
-                        ? f.excludedServices.filter((x) => x !== s)
-                        : [...f.excludedServices, s],
-                      services: on ? f.services : f.services.filter((x) => x !== s),
-                    }
-                  })
-                }
-                label={serviceLabel(s, lang)}
-              />
-            ))}
-          </div>
-        </fieldset>
+        <Field label={t('campaign.includes')}>
+          {(p) => (
+            <Textarea
+              {...p}
+              rows={6}
+              maxLength={INCLUDED_SERVICES_MAX_LENGTH}
+              placeholder={t('prov.formIncludedPlaceholder')}
+              value={form.includedText}
+              onChange={(e) => set('includedText', e.target.value)}
+            />
+          )}
+        </Field>
 
         {/* --------------------------------------------------- photographs */}
         <p className="border-t border-ivory-300 pt-4 text-2xs font-bold uppercase tracking-[0.14em] text-ink-400">

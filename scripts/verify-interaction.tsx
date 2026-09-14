@@ -40,7 +40,6 @@ import { EMAIL_CODE_LENGTH } from '@/services/auth/otp'
 import { customerRouteUrl } from '@/lib/publicSite'
 import { ar } from '@/i18n/ar'
 import { en } from '@/i18n/en'
-import { SERVICE_KEYS } from '@/data/services'
 import type {
   Booking,
   Campaign,
@@ -175,6 +174,9 @@ function mount(node: React.ReactElement): Mounted {
   }
 }
 
+/** What the last bare form handed to `onSave`, so the payload itself is checked. */
+let lastSaved: Campaign | null = null
+
 /** The form on its own, as each caller passes it. */
 const bareForm = (providers?: Provider[]) => () =>
   mount(
@@ -183,7 +185,9 @@ const bareForm = (providers?: Provider[]) => () =>
       providerId={providers ? '' : 'p1'}
       providers={providers}
       onClose={() => {}}
-      onSave={() => {}}
+      onSave={(campaign) => {
+        lastSaved = campaign
+      }}
     />,
   )
 
@@ -213,7 +217,7 @@ const DESCRIPTION =
   'تشمل الرحلة زيارة المدينة المنورة ومرشدًا دينيًا طوال الرحلة.'
 const EXTRAS = ['زيارة المدينة المنورة', 'مرشد نسائي', 'حقيبة للمعتمر', 'ماء زمزم', 'تأمين صحي']
 
-function suite(name: string, open: () => Mounted) {
+function suite(name: string, open: () => Mounted, { checksPayload = false } = {}) {
   console.log(`\n--- ${name} ${'-'.repeat(Math.max(3, 56 - name.length))}\n`)
   const ui = open()
   const { container } = ui
@@ -268,98 +272,67 @@ function suite(name: string, open: () => Mounted) {
     `${desc.value.split('\n').length} line(s)`,
   )
 
-  // ----------------------------------- 4. every canonical service, on and off
-  const canonical = () =>
-    [...container.querySelectorAll('fieldset')[0].querySelectorAll('input[type=checkbox]')]
+  // ------------------------- 4. no predefined services, and no "not included"
+  check(
+    'the form offers no predefined service tick-boxes',
+    container.querySelectorAll('input[type=checkbox]').length === 0,
+    `${container.querySelectorAll('input[type=checkbox]').length} checkbox(es)`,
+  )
+  check(
+    'nor the old add/move service row buttons',
+    !byText(container, 'button', 'إضافة خدمة') && byAria(container, 'تحريك لأعلى').length === 0,
+  )
+  check(
+    '"غير شامل في السعر" is gone from the form',
+    !(container.textContent ?? '').includes('غير شامل'),
+  )
 
-  let crashedOn = ''
-  let inert = ''
-  for (let pass = 0; pass < 2 && !crashedOn && !inert; pass += 1) {
-    for (const [i, key] of SERVICE_KEYS.entries()) {
-      const boxes = canonical() as HTMLInputElement[]
-      if (boxes.length !== SERVICE_KEYS.length) {
-        crashedOn = `${key} (${boxes.length} of ${SERVICE_KEYS.length} boxes on screen)`
-        break
-      }
-      const was = boxes[i].checked
-      click(boxes[i])
-      if (ui.errors.length || ui.blank()) {
-        crashedOn = key
-        break
-      }
-      // A click that changes nothing would make every other assertion here
-      // vacuous, so the toggle is proved rather than assumed.
-      const now = (canonical() as HTMLInputElement[])[i]?.checked
-      if (now === was) {
-        inert = `${key} stayed ${was ? 'ticked' : 'unticked'}`
-        break
-      }
-    }
+  // --------------------------------- 5. included services is one text area
+  const included = byLabel(container, 'الخدمات المشمولة')
+  check('included services is a multi-line textarea', included.tagName === 'TEXTAREA', included.tagName)
+  check(
+    'with a placeholder saying what to write',
+    (included.getAttribute('placeholder') ?? '').startsWith('اكتب الخدمات المشمولة'),
+    included.getAttribute('placeholder') ?? '',
+  )
+  const INCLUDED = EXTRAS.join('\n')
+  act(() => included.focus())
+  let includedLost = 0
+  for (let i = 0; i < INCLUDED.length; i += 1) {
+    keystroke(included as HTMLTextAreaElement, INCLUDED.slice(0, i + 1))
+    if (document.activeElement !== included && !includedLost) includedLost = i + 1
   }
   check(
-    'every canonical included service toggles on and off without crashing',
-    !crashedOn,
-    crashedOn ? `died on ${crashedOn} — ${ui.errors.map(describe).join('; ')}` : '',
+    'the included services can be typed continuously, line after line',
+    includedLost === 0,
+    includedLost ? `focus left the field after character ${includedLost}` : '',
   )
-  check('and each tick actually registers', !inert, inert)
-  if (ui.blank()) {
-    check('the form is still on screen after the canonical services', false, 'the tree is gone')
-    return
-  }
-
-  // ------------------------------------------------- 5. five extra services
-  const addService = byText(container, 'button', 'إضافة خدمة')!
-  for (let i = 0; i < 5; i += 1) {
-    click(addService)
-    if (ui.errors.length || ui.blank()) break
-  }
-  const rows = () => byAria(container, 'خدمات أخرى مشمولة') as HTMLInputElement[]
   check(
-    'five additional services can be added',
-    !ui.errors.length && !ui.blank() && rows().length === 5,
-    ui.errors.length
-      ? ui.errors.map(describe).join('; ')
-      : ui.blank()
-        ? 'blank page'
-        : `${rows().length} row(s)`,
-  )
-  if (ui.blank()) return
-
-  // -------------------------------------- 6. edit each, without losing focus
-  let rowLost = ''
-  EXTRAS.forEach((text, i) => {
-    const row = rows()[i]
-    act(() => row.focus())
-    for (let c = 0; c < text.length; c += 1) {
-      keystroke(row, text.slice(0, c + 1))
-      if (document.activeElement !== rows()[i] && !rowLost) rowLost = `row ${i + 1}, character ${c + 1}`
-    }
-  })
-  check('each additional service can be typed into continuously', !rowLost, rowLost)
-  check(
-    'and each holds its own text',
-    rows().every((row, i) => row.value === EXTRAS[i]),
-    rows().map((r) => r.value).join(' | '),
+    'and hold every line',
+    (included as HTMLTextAreaElement).value === INCLUDED,
+    `${(included as HTMLTextAreaElement).value.split('\n').length} line(s)`,
   )
 
-  // --------------------------------------------------- 7. remove the middle
-  click(byAria(container, 'إزالة')[2])
+  // -------------------------------- 6. departure location, and office number
+  const departure = byLabel(container, 'مكان الانطلاق')
+  check('departure location is a textarea', departure.tagName === 'TEXTAREA', departure.tagName)
   check(
-    'removing a service from the middle removes exactly that one',
-    !ui.errors.length &&
-      rows().map((r) => r.value).join('|') ===
-        [EXTRAS[0], EXTRAS[1], EXTRAS[3], EXTRAS[4]].join('|'),
-    ui.errors.length ? ui.errors.map(describe).join('; ') : rows().map((r) => r.value).join(' | '),
+    'and is marked required',
+    departure.getAttribute('aria-required') === 'true' ||
+      (departure.closest('div')?.parentElement?.textContent ?? '').includes('*') ||
+      [...container.querySelectorAll('label')].some(
+        (l) => (l.textContent ?? '').startsWith('مكان الانطلاق') && (l.textContent ?? '').includes('*'),
+      ),
   )
-
-  // ------------------------------------------------------------ 8. reorder
-  const before = rows().map((r) => r.value)
-  click(byAria(container, 'تحريك لأعلى')[1])
-  const after = rows().map((r) => r.value)
+  const office = byLabel(container, 'رقم المكتب')
   check(
-    'a service moves up a place and takes its text with it',
-    !ui.errors.length && after.join('|') === [before[1], before[0], before[2], before[3]].join('|'),
-    ui.errors.length ? ui.errors.map(describe).join('; ') : after.join(' | '),
+    'office number is a plain text input, not a number field',
+    office.tagName === 'INPUT' && (office as HTMLInputElement).type === 'text',
+    `${office.tagName} type=${(office as HTMLInputElement).type}`,
+  )
+  check(
+    'and is labelled as optional',
+    [...container.querySelectorAll('label')].some((l) => (l.textContent ?? '').trim().startsWith('رقم المكتب (إن وجد)')),
   )
 
   // ---------------------------------------- 9. the responsible-person list
@@ -393,6 +366,74 @@ function suite(name: string, open: () => Mounted) {
     names()[0].value === NAME && names().slice(1).every((el) => el.value === ''),
   )
 
+  // ------------------------------------------- 10. what a save will accept
+  keystroke(byLabel(container, 'عنوان الرحلة') as HTMLInputElement, TITLE)
+  keystroke(byLabel(container, 'تاريخ المغادرة') as HTMLInputElement, '2031-01-10')
+  keystroke(byLabel(container, 'تاريخ العودة') as HTMLInputElement, '2031-01-20')
+  const submitForm = () =>
+    act(() => {
+      container.querySelector('form')!.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }))
+    })
+  const DEPARTURE_REQUIRED = ownerAr['prov.errDepartureLocation']
+
+  lastSaved = null
+  keystroke(departure as HTMLTextAreaElement, '')
+  submitForm()
+  check(
+    'an empty departure location is refused with its own message',
+    lastSaved === null && (container.textContent ?? '').includes(DEPARTURE_REQUIRED),
+  )
+  lastSaved = null
+  keystroke(departure as HTMLTextAreaElement, '   \n\t  ')
+  submitForm()
+  check(
+    'a whitespace-only departure location is refused too',
+    lastSaved === null && (container.textContent ?? '').includes(DEPARTURE_REQUIRED),
+  )
+
+  const PLACE = 'مواقف جامع السلطان قابوس الأكبر – البوابة الجنوبية، مسقط'
+  keystroke(departure as HTMLTextAreaElement, `  ${PLACE}\nبجانب المدخل  `)
+  keystroke(office as HTMLInputElement, '')
+  submitForm()
+  if (checksPayload) {
+    const saved = lastSaved as Campaign | null
+    check('a real departure location lets the trip save', saved !== null, ui.errors.map(describe).join('; '))
+    check(
+      'saved trimmed, with its line break kept',
+      saved?.departureLocation === `${PLACE}\nبجانب المدخل`,
+      JSON.stringify(saved?.departureLocation),
+    )
+    check('the office number is optional — saved as empty', saved?.officeNumber === '', JSON.stringify(saved?.officeNumber))
+    check(
+      'the included services are saved one per line, as typed',
+      JSON.stringify(saved?.includedServices) === JSON.stringify(EXTRAS),
+      JSON.stringify(saved?.includedServices),
+    )
+    check('a new trip carries no predefined service keys', JSON.stringify(saved?.services) === '[]')
+    check(
+      'and nothing "not included" is sent',
+      saved !== null && !('excludedServices' in (saved as object)),
+    )
+
+    lastSaved = null
+    keystroke(office as HTMLInputElement, '  مكتب 5 - الدور الثاني ')
+    submitForm()
+    check(
+      'an office number with letters and symbols is accepted, trimmed',
+      (lastSaved as Campaign | null)?.officeNumber === 'مكتب 5 - الدور الثاني',
+      JSON.stringify((lastSaved as Campaign | null)?.officeNumber),
+    )
+    lastSaved = null
+    keystroke(office as HTMLInputElement, 'Office 204')
+    submitForm()
+    check('…and so is "Office 204"', (lastSaved as Campaign | null)?.officeNumber === 'Office 204')
+  } else {
+    check(
+      'a real departure location clears its error',
+      !(container.textContent ?? '').includes(DEPARTURE_REQUIRED),
+    )
+  }
+
   // -------------------------------------------------- 11. nothing escaped
   check(
     'no uncaught runtime error reached the root',
@@ -423,7 +464,7 @@ const PROVIDERS = [
   },
 ] as unknown as Provider[]
 
-suite('Owner — Add Trip, on its own', bareForm())
+suite('Owner — Add Trip, on its own', bareForm(), { checksPayload: true })
 suite('Owner — Add Trip, opened from the dashboard', dashboardForm())
 suite('Administration — Add Trip', bareForm(PROVIDERS))
 
@@ -954,9 +995,10 @@ async function rest() {
       suspended: false,
       deleted: false,
       status: 'active',
-      excludedServices: [],
       images: [],
       includedServices: [],
+      departureLocation: '',
+      officeNumber: '',
       contactPersons: [],
       terms: { ar: '', en: '' },
       ...over,
@@ -1177,9 +1219,10 @@ async function rest() {
       suspended: false,
       deleted: false,
       status: 'active',
-      excludedServices: [],
       images: [],
       includedServices: [],
+      departureLocation: '',
+      officeNumber: '',
       contactPersons: [],
       terms: { ar: '', en: '' },
     }
@@ -1244,6 +1287,84 @@ async function rest() {
 
     act(() => ui.root.unmount())
     ui.container.remove()
+
+    /*
+     * Included services, departure location and office number, as a pilgrim
+     * reads them — for a trip written in the new form, one without an office
+     * number, and one created before any of this existed.
+     */
+    console.log(`\n--- A trip page: what it includes, and where it leaves from ${'-'.repeat(2)}\n`)
+    const openTrip = async (trip: Campaign) => {
+      const page = mount(
+        <MemoryRouter initialEntries={[`/campaigns/${trip.id}`]}>
+          <TripSeed>
+            <Routes>
+              <Route path="/campaigns/:id" element={<CampaignDetailPage />} />
+            </Routes>
+          </TripSeed>
+        </MemoryRouter>,
+      )
+      await settle(2)
+      act(() => {
+        tripDispatch?.({
+          type: 'hydrateRemote',
+          snapshot: { providers: [], campaigns: [trip], bookings: [], reviews: [], notifications: [], savedIds: [], profiles: [] },
+        })
+      })
+      for (let i = 0; i < 5; i += 1) {
+        await act(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 220))
+        })
+      }
+      return page
+    }
+
+    const PLACE = 'مواقف جامع السلطان قابوس الأكبر – البوابة الجنوبية، مسقط'
+    const fresh = await openTrip({
+      ...TRIP,
+      id: 'c-new',
+      services: [],
+      includedServices: ['تأشيرة العمرة', 'سكن قريب من الحرم'],
+      departureLocation: PLACE,
+      officeNumber: 'مكتب 5 - الدور الثاني',
+    })
+    const freshText = fresh.container.textContent ?? ''
+    check('the trip page shows the departure location', freshText.includes(ar['campaign.departureLocation']) && freshText.includes(PLACE))
+    check('and the office number, because this trip has one', freshText.includes(ar['campaign.officeNumber']) && freshText.includes('مكتب 5 - الدور الثاني'))
+    check('and the typed included services, each one', freshText.includes('تأشيرة العمرة') && freshText.includes('سكن قريب من الحرم'))
+    check('and no "not included" heading', !freshText.includes('غير شامل'))
+    check('nothing threw', fresh.errors.length === 0, fresh.errors.map(describe).join('; '))
+    act(() => fresh.root.unmount())
+    fresh.container.remove()
+
+    const noOffice = await openTrip({ ...TRIP, id: 'c-no-office', departureLocation: PLACE, officeNumber: '   ' })
+    const noOfficeText = noOffice.container.textContent ?? ''
+    check('a trip with no office number shows its departure location', noOfficeText.includes(PLACE))
+    check('but no office number row at all', !noOfficeText.includes(ar['campaign.officeNumber']))
+    act(() => noOffice.root.unmount())
+    noOffice.container.remove()
+
+    // Exactly what an existing row maps to: keys, no typed text, no new columns.
+    const legacy = await openTrip({
+      ...TRIP,
+      id: 'c-legacy',
+      services: ['hotel_makkah', 'transport', 'visa'],
+      includedServices: [],
+      departureLocation: undefined as unknown as string,
+      officeNumber: undefined as unknown as string,
+    })
+    const legacyText = legacy.container.textContent ?? ''
+    check('an existing trip still opens', legacyText.includes('رحلة العمرة الفضية') && legacy.errors.length === 0, legacy.errors.map(describe).join('; '))
+    check(
+      'and still lists its old included services by name',
+      legacyText.includes('سكن في مكة') && legacyText.includes('مواصلات داخلية') && legacyText.includes('إجراءات التأشيرة'),
+    )
+    check(
+      'with no empty departure or office section',
+      !legacyText.includes(ar['campaign.departureLocation']) && !legacyText.includes(ar['campaign.officeNumber']),
+    )
+    act(() => legacy.root.unmount())
+    legacy.container.remove()
   }
 
   /*

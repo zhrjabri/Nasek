@@ -295,15 +295,19 @@ export interface Campaign {
   // --------------------------------------------------------- what is on offer
   /** Last day a pilgrim may register. Never after `departureDate`. */
   registrationDeadline?: string
-  /**
-   * What the price does *not* cover.
-   *
-   * A separate list rather than the inverse of `services`, because they are not
-   * complements: a service that appears in neither is simply not mentioned,
-   * which is honest, while listing every unticked service as "excluded" would
-   * publish a wall of things nobody claimed in the first place.
+  /*
+   * `excludedServices` ("not included in the price") stood here. It was
+   * retired in 20260914000100: no screen asks for it or shows it. The
+   * `excluded_services` column is kept with its data and simply not read.
    */
-  excludedServices: ServiceKey[]
+  /**
+   * Where the trip leaves from, in the owner's own words — a car park, a gate,
+   * a landmark. Required for new trips; trips created before 20260914000100
+   * may still have none, and every reader must cope with ''.
+   */
+  departureLocation: string
+  /** The company's office number for this trip, free text. '' when not given. */
+  officeNumber: string
   /**
    * Object paths in the public `campaign-images` bucket — never URLs.
    *
@@ -313,13 +317,13 @@ export interface Campaign {
    */
   images: string[]
   /**
-   * Services the owner typed out, in their own words.
+   * What the price includes, typed by the owner — one entry per line of the
+   * form's text area. This is what a pilgrim reads.
    *
-   * Alongside `services` rather than instead of it. The six keys in `services`
-   * are what the Campaigns filter facets and Smart Match match on, and free
-   * text cannot be matched on — "يشمل الإفطار" and "وجبة الإفطار" are one
-   * service and no equality test says so. So the six stay for filtering, and
-   * everything they do not cover lives here.
+   * `services` (the fixed keys the Campaigns filter and Smart Match match on)
+   * is no longer chosen in the form. A trip created before that change may have
+   * keys and no text; `includedServiceLines` shows the keys' labels then, so an
+   * older trip never loses its list.
    */
   includedServices: string[]
   /**
