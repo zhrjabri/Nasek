@@ -114,6 +114,17 @@ export function CampaignForm({
   const { t, lang, n } = useI18n()
   const isNew = campaign === null
   const isAdmin = providers !== undefined
+  /*
+   * Seats already sold, which the form can show but never set.
+   *
+   * `seats_available` belongs to the booking workflow: it goes down when an
+   * owner confirms payment and back up when a confirmed booking is cancelled,
+   * and nothing else writes it. A form that sent its own copy used to undo a
+   * confirmation that landed while it was open, and sell the same seat twice.
+   * So the figure is derived here, the update leaves the column out, and the
+   * database moves it by exactly the change in `seats_total` (20260913000200).
+   */
+  const bookedSeats = campaign ? Math.max(0, campaign.seatsTotal - campaign.seatsAvailable) : 0
 
   const [form, setForm] = useState(() => ({
     titleAr: campaign?.title.ar ?? '',
@@ -126,7 +137,6 @@ export function CampaignForm({
     departureDate: campaign?.departureDate ?? '',
     returnDate: campaign?.returnDate ?? '',
     seatsTotal: String(campaign?.seatsTotal ?? 40),
-    seatsAvailable: String(campaign?.seatsAvailable ?? 40),
     hotelMakkah: campaign?.hotelMakkah.ar ?? '',
     hotelMadinah: campaign?.hotelMadinah.ar ?? '',
     haramDistanceM: String(campaign?.haramDistanceM ?? 800),
@@ -197,7 +207,7 @@ export function CampaignForm({
     departureDate: t('prov.formDeparture'),
     returnDate: t('prov.formReturn'),
     registrationDeadline: t('prov.formDeadline'),
-    seatsAvailable: t('prov.formSeatsAvailable'),
+    seatsTotal: t('prov.formSeats'),
   }
 
   /** Closing a half-filled form is one stray click away — on the backdrop, on
@@ -253,14 +263,14 @@ export function CampaignForm({
     }
     if (!form.seatsTotal.trim() || !Number.isFinite(Number(form.seatsTotal))) {
       next.seatsTotal = t('common.required')
+    } else if (Number(form.seatsTotal) < bookedSeats) {
+      // Mirrors the database, which refuses a total below what is confirmed.
+      next.seatsTotal = t('prov.errSeatsBelowBooked', { n: bookedSeats })
     }
     // These two used to report "Required" on a field that was filled in,
     // which said nothing about what was actually wrong with it.
     if (form.returnDate && form.departureDate && form.returnDate < form.departureDate) {
       next.returnDate = t('prov.errReturnBefore')
-    }
-    if (Number(form.seatsAvailable) > Number(form.seatsTotal)) {
-      next.seatsAvailable = t('prov.errSeatsExceed')
     }
     // Mirrors `campaigns_deadline_before_departure` in Postgres. Checked here so
     // the owner reads a sentence instead of a constraint name.
@@ -300,7 +310,8 @@ export function CampaignForm({
       departureDate: form.departureDate,
       returnDate: form.returnDate,
       seatsTotal: Number(form.seatsTotal),
-      seatsAvailable: Number(form.seatsAvailable),
+      // What the database will hold after the save. Sent only for a new trip.
+      seatsAvailable: Math.max(0, Number(form.seatsTotal) - bookedSeats),
       services: form.services,
       hotelMakkah: { ar: form.hotelMakkah, en: form.hotelMakkah },
       hotelMadinah: { ar: form.hotelMadinah, en: form.hotelMadinah },
@@ -505,27 +516,18 @@ export function CampaignForm({
                 type="number"
                 min={1}
                 value={form.seatsTotal}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    seatsTotal: e.target.value,
-                    // Nothing is booked on a trip that does not exist yet, so
-                    // "still available" can only be the total.
-                    seatsAvailable: isNew ? e.target.value : f.seatsAvailable,
-                  }))
-                }
+                onChange={(e) => set('seatsTotal', e.target.value)}
               />
             )}
           </Field>
           {!isNew && (
-            <Field label={t('prov.formSeatsAvailable')} error={errors.seatsAvailable}>
+            <Field label={t('prov.formSeatsAvailable')} hint={t('prov.seatsAvailableHint')}>
               {(p) => (
                 <Input
                   {...p}
                   type="number"
-                  min={0}
-                  value={form.seatsAvailable}
-                  onChange={(e) => set('seatsAvailable', e.target.value)}
+                  readOnly
+                  value={String(Math.max(0, (Number(form.seatsTotal) || 0) - bookedSeats))}
                 />
               )}
             </Field>

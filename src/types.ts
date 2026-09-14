@@ -76,9 +76,6 @@ export type BookingStatus =
  */
 export type CampaignStatus = 'pending_approval' | 'active' | 'rejected'
 
-/** Awaiting a decision — the campaign queue, exactly. */
-export const isPendingCampaign = (status: CampaignStatus) => status === 'pending_approval'
-
 /** Service tags a campaign can include. Kept as a closed union so filters,
  *  campaign detail and the AI layer all speak the same vocabulary. */
 export type ServiceKey =

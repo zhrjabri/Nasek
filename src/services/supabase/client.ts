@@ -130,20 +130,3 @@ export const supabase: SupabaseClient<Database> | null =
 
 /** True when a real backend is behind the app. Drives every fallback in `services/auth`. */
 export const isSupabaseConfigured = supabase !== null
-
-/**
- * The client, or a thrown error.
- *
- * Call this from code paths that have already checked `isSupabaseConfigured`
- * and cannot proceed without a backend. It converts a nullable client into a
- * non-null one at a single, named place rather than scattering `!` assertions
- * that would silently produce `undefined is not a function` at runtime.
- */
-export function requireSupabase(): SupabaseClient<Database> {
-  if (!supabase) {
-    throw new Error(
-      'Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.',
-    )
-  }
-  return supabase
-}

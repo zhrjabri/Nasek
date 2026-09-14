@@ -33,7 +33,6 @@ type ButtonVariant =
   | 'primary'
   | 'secondary'
   | 'hairline'
-  | 'hairlineDark'
   | 'ghost'
   | 'gold'
   | 'approve'
@@ -83,20 +82,6 @@ const VARIANTS: Record<ButtonVariant, string> = {
      a drawn line rather than a border the browser happened to put there. */
   hairline:
     'bg-transparent text-nasek-800 border border-gold-300/60 hover:border-gold-400 hover:bg-nasek-50',
-  /*
-   * The same frame over the hero photograph, and a separate variant rather
-   * than `hairline` plus a `text-ivory-50` override, because that override
-   * silently loses: Tailwind orders two text-colour utilities by its own
-   * scale, not by the order they appear in the class attribute, so the
-   * variant's `text-nasek-800` won and the hero shipped dark green text on a
-   * dark photograph. A variant cannot lose to itself.
-   *
-   * Gold-300 rather than gold-400 — the darker gold does not survive a bright
-   * sky at hairline weight.
-   */
-  hairlineDark:
-    'bg-transparent text-ivory-50 border border-gold-300/75 backdrop-blur-sm ' +
-    'hover:border-gold-300 hover:bg-ivory-50/12',
   ghost: 'bg-transparent text-ink-600 border border-transparent hover:bg-ivory-200 hover:text-ink-800',
   /* The brand's one moment, spent on the hero and nowhere else on the
      customer site. In the two operator applications gold means `approve`. */

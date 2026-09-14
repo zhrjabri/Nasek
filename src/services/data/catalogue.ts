@@ -142,12 +142,22 @@ async function readReviews() {
  * the admin tables all consume the same slices, and loading them per route
  * would mean six spinners where the prototype had none.
  *
- * A failing query yields an empty slice rather than rejecting the whole load. A
- * pilgrim who is signed out cannot read `bookings` at all, and that must leave
- * them a working catalogue rather than a blank site.
+ * A failing query yields an empty slice rather than rejecting the whole load, so
+ * one refused table leaves a working catalogue rather than a blank site.
+ *
+ * A signed-out visitor is not sent the account queries at all. They used to go
+ * out regardless and come back 401 — five red lines in the console of every
+ * page, for every anonymous visitor, for tables they hold no grant on — and the
+ * empty slices were the same either way. The session is read from local
+ * storage, so asking costs no request; and a query that is never awaited is
+ * never sent, so an unused builder costs nothing either.
  */
 export async function fetchSnapshot(): Promise<RemoteSnapshot | null> {
   if (!supabase) return null
+
+  const { data: auth } = await supabase.auth.getSession()
+  const signedIn = Boolean(auth.session)
+  const notAsked = { data: null, error: null } as const
 
   const [
     publicProviders,
@@ -180,7 +190,7 @@ export async function fetchSnapshot(): Promise<RemoteSnapshot | null> {
      * decides which of those this returns — nothing here filters, and nothing
      * here needs to know which kind of caller it is.
      */
-    supabase.from('providers').select('*'),
+    signedIn ? supabase.from('providers').select('*') : notAsked,
     supabase.from('campaigns').select('*').order('departure_date', { ascending: true }),
     /*
      * Travellers are fetched as their own query rather than embedded.
@@ -192,7 +202,7 @@ export async function fetchSnapshot(): Promise<RemoteSnapshot | null> {
      * the same policy, since `travellers` is readable only through a booking
      * the caller may already read.
      */
-    supabase.from('bookings').select('*'),
+    signedIn ? supabase.from('bookings').select('*') : notAsked,
     /*
      * The view, not the table: it carries the author's display name, which
      * `profiles` will not hand over for anybody but the caller. Row visibility
@@ -223,18 +233,20 @@ export async function fetchSnapshot(): Promise<RemoteSnapshot | null> {
      * this application is looking at, which is not a question Postgres can
      * answer — the request looks identical from there.
      */
-    supabase
-      .from('notifications')
-      .select('*')
-      .eq('audience', APP_AUDIENCE)
-      .order('created_at', { ascending: false }),
-    supabase.from('saved_campaigns').select('campaign_id'),
+    signedIn
+      ? supabase
+          .from('notifications')
+          .select('*')
+          .eq('audience', APP_AUDIENCE)
+          .order('created_at', { ascending: false })
+      : notAsked,
+    signedIn ? supabase.from('saved_campaigns').select('campaign_id') : notAsked,
     /*
      * The account directory, scoped by policy to exactly what the caller may
-     * see. A signed-out visitor gets 401 and an empty slice; a pilgrim gets one
-     * row; an administrator gets everyone.
+     * see. A signed-out visitor is not asked; a pilgrim gets one row; an
+     * administrator gets everyone.
      */
-    supabase.from('profiles').select('*'),
+    signedIn ? supabase.from('profiles').select('*') : notAsked,
   ])
 
   const bookingRows = (bookings.data ?? []) as BookingRow[]
@@ -256,8 +268,9 @@ export async function fetchSnapshot(): Promise<RemoteSnapshot | null> {
    * every listing — once from each query. The private row wins because it is a
    * superset: same columns, plus the permit and the contact details.
    *
-   * A caller with no private rows (a signed-out visitor gets 401, a pilgrim
-   * gets an empty set) simply keeps the base, which is the whole catalogue.
+   * A caller with no private rows (a signed-out visitor, who is not asked, or a
+   * pilgrim, who gets an empty set) simply keeps the base, which is the whole
+   * catalogue.
    */
   const providerRows = new Map<string, ProviderRow | ProviderPublicRow>()
   for (const row of (publicProviders.data ?? []) as ProviderPublicRow[]) {
@@ -289,8 +302,17 @@ export async function saveCampaign(campaign: Campaign): Promise<Campaign | null>
   // just filled in has a locally generated one that Postgres has never seen.
   const isPersisted = /^[0-9a-f-]{36}$/i.test(campaign.id)
 
+  /*
+   * An update never carries `seats_available`. The booking workflow owns that
+   * column — confirmation takes seats, cancellation gives them back — and a
+   * form's copy is only ever as fresh as the moment it opened, so sending it
+   * could undo a confirmation made since. The database refuses the write
+   * anyway (20260913000200); leaving it out keeps the request honest. A new
+   * trip still sends it, and the database holds it to `seats_total`.
+   */
+  const { seats_available: _notOwnedByTheForm, ...updatePayload } = payload
   const { data, error } = isPersisted
-    ? await supabase.from('campaigns').update(payload).eq('id', campaign.id).select('*').maybeSingle()
+    ? await supabase.from('campaigns').update(updatePayload).eq('id', campaign.id).select('*').maybeSingle()
     : await supabase.from('campaigns').insert(payload).select('*').maybeSingle()
 
   if (error || !data) return null

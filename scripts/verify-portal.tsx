@@ -1016,7 +1016,6 @@ for (const [label, dict] of [
   ['admin (ar)', adminAr],
 ] as [string, Record<string, string>][]) {
   const hits = Object.entries(dict)
-    .filter(([key]) => key !== 'campaign.termsBody')
     .filter(([, value]) =>
       typeof value === 'string' &&
       /mediation fee|\bcommission\b|service fee|platform fee|NASEK fee|رسوم وساطة|عمولة/i.test(

@@ -100,19 +100,15 @@ export async function loadAdminSession(): Promise<AdminSession> {
   if (!auth.session?.user?.id) return DENIED('anonymous')
 
   /*
-   * A second factor, if the account has one — whichever door was used.
+   * A second factor, if the account has one — however the session began.
    *
-   * This check belongs here rather than in the password form, and that is the
-   * correction. `PasswordSignIn` asks for the authenticator code and refuses to
-   * report success without it, so the password route was sound — but the login
-   * screen also offers "use a code instead", and an emailed one-time code
-   * produces a perfectly good `aal1` session with nothing to stop it. An
-   * administrator who had turned two-factor on could therefore be signed in
-   * past it by anyone holding their inbox, which is the single thing the second
-   * factor exists to prevent.
-   *
-   * Placing it at the gate covers the email route, a session restored from
-   * storage, and any door added later, because they all arrive here.
+   * The dashboard's own door is the access code, which ends in an ordinary
+   * `aal1` session. The check sits here, at the gate, rather than on the login
+   * screen, because a session can also arrive restored from storage or signed
+   * in somewhere else with the same account (an emailed one-time code on the
+   * public site, for one) — and every one of those arrives here. Checking only
+   * where the code is typed would let any of them past two-factor, which is
+   * the single thing the second factor exists to prevent.
    */
   const owed = await pendingMfaFactor()
   if (owed) return { user: null, reason: 'mfa_required', factorId: owed }

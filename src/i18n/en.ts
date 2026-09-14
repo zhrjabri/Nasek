@@ -10,8 +10,6 @@ export const en = {
   'common.appName': 'NASEK',
   'common.tagline': 'Oman’s Hajj & Umrah campaigns, in one place',
   'common.perPerson': 'per person',
-  'common.seat': 'seat',
-  'common.seats': 'seats',
   'common.seatsLeft': '{n} seats left',
   'common.lastSeats': 'Only {n} left',
   'common.soldOut': 'Fully booked',
@@ -21,7 +19,6 @@ export const en = {
   'common.to': 'to',
   'common.search': 'Search',
   'common.searching': 'Searching…',
-  'common.filter': 'Filter',
   'common.filters': 'Filters',
   'common.clear': 'Clear',
   'common.clearAll': 'Clear all',
@@ -49,10 +46,8 @@ export const en = {
   'common.saved': 'Saved',
   'common.edit': 'Edit',
   'common.delete': 'Delete',
-  'common.view': 'View',
   'common.viewAll': 'View all',
   'common.viewDetails': 'View details',
-  'common.book': 'Book',
   'common.bookNow': 'Book now',
   'common.required': 'Required',
   'common.all': 'All',
@@ -63,7 +58,6 @@ export const en = {
   'common.air': 'By air',
   'common.land': 'By land',
   'common.travellers': 'Travellers',
-  'common.traveller': 'traveller',
   'common.departure': 'Departure',
   'common.return': 'Return',
   'common.total': 'Total',
@@ -86,7 +80,6 @@ export const en = {
   'nav.map': 'Map',
   'nav.giving': 'NASEK Giving',
   'nav.about': 'About',
-  'nav.dashboard': 'Dashboard',
   'nav.signIn': 'Sign in',
   /* The navbar control is chromeless — no box to fill — so it can afford the
      full phrase on a laptop and shortens only where the bar is genuinely
@@ -98,7 +91,6 @@ export const en = {
   'nav.myBookings': 'My bookings',
 
   // ------------------------------------------------------------------ hero
-  'hero.eyebrow': 'The first platform gathering Oman’s Hajj & Umrah campaigns',
   'hero.titlePre': 'Your journey to ',
   'hero.titleMark': 'the House of God',
   'hero.titlePost': ',',
@@ -106,7 +98,6 @@ export const en = {
   'hero.subtitle':
     'Discover Hajj and Umrah campaigns easily, and find the right one for your journey.',
   'hero.trust': 'Every campaign here is trusted and approved by NASEK',
-  'hero.ctaPrimary': 'Find your campaign',
   'hero.ctaSecondary': 'Browse campaigns',
   'hero.statCampaigns': 'campaigns listed',
   'hero.statProviders': 'campaign owners',
@@ -168,7 +159,6 @@ export const en = {
     'Try widening your budget, choosing another wilayah, or clearing some filters.',
   'campaign.includes': 'Included services',
   'campaign.moreServices': '+{n} more',
-  'campaign.haramDistance': '{n} m from the Haram',
   'campaign.duration': '{n} days',
   'campaign.coverHajj': 'Makkah · The Holy Sites',
   'campaign.coverMakkahMadinah': 'Makkah · Madinah',
@@ -180,7 +170,7 @@ export const en = {
   'campaign.madinah': 'Madinah',
   'campaign.terms': 'Terms & conditions',
   'campaign.termsBody':
-    'Prices are per traveller and include the services listed above. A deposit secures the seat; the balance is due 30 days before departure. Cancellation more than 45 days before departure is refundable minus administrative fees. Passports must be valid for at least six months from the departure date.',
+    'Prices are per traveller and include the services listed above. Payment and cancellation terms are set by the campaign owner, so confirm them with the owner directly before you pay. Passports must be valid for at least six months from the departure date.',
   'campaign.contact': 'Contact the campaign',
   'review.write': 'Write a review',
   'review.thanks': 'Reviewed',
@@ -289,7 +279,6 @@ export const en = {
   'home.popular': 'Most booked this season',
   'home.popularSub': 'What other pilgrims in Oman are choosing right now.',
   'home.reviewsTitle': 'From travellers who used NASEK',
-  'home.reviewsSub': 'Reviews left after trips booked through the platform.',
   'home.mapTitle': 'Campaigns across Oman',
   'home.mapSub': 'Pick a wilayah to see which campaigns depart from there.',
   'home.finalCta.title': 'Ready to find your campaign?',
@@ -369,7 +358,6 @@ export const en = {
   'booking.requestBody':
     'NASEK has issued the invoice below. Send it to the campaign owner to receive their payment details.',
   'booking.invoiceNo': 'NASEK invoice number',
-  'booking.reference': 'Booking reference',
   'booking.awaitingPayment': 'Awaiting payment',
   // ------------------------------ what a request does and does not hold
   //
@@ -421,7 +409,6 @@ export const en = {
   'auth.passwordRejected': 'That password was not accepted.',
   'auth.passwordMismatch': 'Passwords do not match',
   'auth.phoneInvalid': 'Enter a valid Omani phone number',
-  'auth.nameRequired': 'Enter your full name',
   'auth.creating': 'Creating your account…',
   // -------------------------------------------- passwordless sign-in (OTP)
   'auth.otpTitle': 'Welcome to NASEK',
@@ -507,7 +494,7 @@ export const en = {
   'dash.noNotifications': 'No notifications',
   'dash.markAllRead': 'Mark all as read',
   'dash.cancelBooking': 'Cancel booking',
-  'dash.cancelConfirm': 'Cancel this booking? This cannot be undone in the prototype.',
+  'dash.cancelConfirm': 'Cancel this booking? This cannot be undone.',
   'dash.bookingCancelled': 'Booking cancelled',
   'dash.cancelFailed': 'That booking could not be cancelled. Nothing has changed — please try again.',
   'dash.daysToGo': 'in {n} days',
@@ -531,7 +518,7 @@ export const en = {
   'giving.h4.body': 'Contributors see how many journeys their support made possible.',
   'giving.plannedTitle': 'A planned feature',
   'giving.plannedBody':
-    'NASEK Giving is not yet accepting contributions. No donation system is connected to this prototype and no money can be collected here. This page describes the intended programme so partners and stakeholders can review it.',
+    'NASEK Giving is not yet accepting contributions. No donation system is connected and no money can be collected here. This page describes the intended programme so partners and stakeholders can review it.',
   'giving.interest': 'Register your interest',
   'giving.interestNote': 'We’ll get in touch when the programme opens.',
   'giving.interestFailed': 'That could not be saved just now. Please try again.',
@@ -569,7 +556,7 @@ export const en = {
   'trust.4.body':
     'A report button on every campaign sends the listing straight to the NASEK team.',
   'trust.disclaimer':
-    'This is a prototype built on demo data. The campaigns shown are fictional and no claim is made that any of them holds an official licence. Always confirm a campaign’s licence with the Ministry of Endowments and Religious Affairs before paying.',
+    'NASEK lists campaigns published by their owners and does not issue licences. Always confirm a campaign’s licence with the Ministry of Endowments and Religious Affairs before paying.',
   'trust.privacy': 'Privacy policy',
   'trust.terms': 'Terms of use',
   'trust.support': 'Contact support',
@@ -582,7 +569,7 @@ export const en = {
   /* See the Arabic file: two strings and a link rather than one sentence. */
   'footer.rights': '© {year} NASEK',
   'footer.builtBy': 'Developed by',
-  'footer.prototype': 'Prototype — demo data only. Not a live booking service.',
+  'footer.prototype': 'NASEK does not take payments. You pay the campaign owner directly.',
 
   // ------------------------------------------------------------ misc/state
   'state.errorBody': 'Something went wrong on our side. Try again in a moment.',
@@ -617,7 +604,6 @@ export const en = {
 
   // ============================================================== my account
   'account.title': 'My account',
-  'account.subtitle': 'Your details, and the address you sign in with.',
   'account.detailsTitle': 'Personal details',
   'account.detailsBody': 'Used to prefill your bookings, so you are asked once rather than every time.',
   'account.nameHint': 'The name a campaign will look for at the airport.',

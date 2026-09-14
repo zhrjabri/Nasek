@@ -520,11 +520,18 @@ Header: x-cron-secret: <CRON_SECRET>
 An administrator's own session can also call it, so **Security → Message
 delivery** in the dashboard shows what has been queued, sent or failed, and why.
 
-### Then set a password and turn on two-factor
+### Then turn on two-factor — and do not set a password
 
-The access code opens the dashboard; the account behind it should still be
-protected. **Security** in the sidebar sets a password and enrols an
-authenticator app (TOTP — Google Authenticator, 1Password, Aegis, any of them).
+The access code opens the dashboard, and it is the only way in. There is
+deliberately no password: one set on the administrator's account would be a
+second door that skips the access code entirely, straight through Supabase's
+own sign-in endpoint. The dashboard no longer offers to set one, and
+`is_admin()` refuses any session that signed in with a password
+(`20260913000200_security_hardening.sql`), so a password that already exists on
+the account grants nothing. Do not add one from the Supabase dashboard either.
+
+**Security** in the sidebar enrols an authenticator app (TOTP — Google
+Authenticator, 1Password, Aegis, any of them).
 
 Do enrol one. The second factor is checked at the gate, whichever door opened
 the session — including this one — so an access code that leaks is not on its

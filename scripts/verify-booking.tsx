@@ -236,9 +236,12 @@ head('no NASEK fee, commission or platform charge in any dictionary')
  *
  *   * "services" — what a trip includes. A campaign's `included_services` list
  *     has nothing to do with a service *fee*.
- *   * "administrative fees" in `campaign.termsBody` — the campaign owner's own
- *     cancellation policy, charged by them, to their customer. NASEK neither
- *     sets nor receives it, and deleting it would misstate an owner's terms.
+ *
+ * `campaign.termsBody` used to be excluded too, for "administrative fees" in a
+ * sample cancellation policy. It is NASEK's fallback text for a trip whose
+ * owner wrote no terms, and it now says only that the owner sets payment and
+ * cancellation terms — so it is checked like everything else, and a fee
+ * sentence put back into it would fail here.
  */
 const DICTIONARIES: [string, Record<string, string>][] = [
   ['customer (en)', enDict as unknown as Record<string, string>],
@@ -268,8 +271,8 @@ const FORBIDDEN: [RegExp, string][] = [
   [/مستحق لناسِك|مستحق لناسك/, 'مستحق لناسِك'],
 ]
 
-/** Strings that legitimately contain a near-miss, with the reason. */
-const ALLOWED = new Set(['campaign.termsBody'])
+/** Strings that legitimately contain a near-miss, with the reason. None, today. */
+const ALLOWED = new Set<string>()
 
 for (const [label, dict] of DICTIONARIES) {
   const hits: string[] = []

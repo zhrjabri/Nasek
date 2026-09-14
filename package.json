@@ -23,9 +23,10 @@
     "verify:admin": "vite build --ssr scripts/verify-admin.ts --outDir .verify --mode harness --logLevel warn && node .verify/verify-admin.js",
     "verify:approval": "node scripts/run-approval.mjs",
     "verify:catalogue": "vite build --ssr scripts/verify-catalogue.ts --outDir .verify --mode harness --logLevel warn && node .verify/verify-catalogue.js",
-    "verify": "npm run verify:wiring && npm run verify:journeys && npm run verify:flow && npm run verify:auth && npm run verify:redirect && npm run verify:admin && npm run verify:approval && npm run verify:catalogue && npm run verify:ai && npm run verify:map && npm run verify:render && npm run verify:interaction && npm run verify:favourites && npm run verify:otp && npm run verify:booking && npm run verify:logo && npm run verify:portal && npm run verify:security && npm run verify:isolation",
+    "verify": "npm run verify:wiring && npm run verify:journeys && npm run verify:flow && npm run verify:auth && npm run verify:redirect && npm run verify:admin && npm run verify:approval && npm run verify:catalogue && npm run verify:ai && npm run verify:map && npm run verify:render && npm run verify:interaction && npm run verify:favourites && npm run verify:otp && npm run verify:booking && npm run verify:logo && npm run verify:portal && npm run verify:security && npm run verify:database && npm run verify:isolation",
     "verify:journeys": "vite build --ssr scripts/verify-journeys.ts --outDir .verify --mode harness --logLevel warn && node .verify/verify-journeys.js",
     "verify:isolation": "node scripts/verify-isolation.mjs",
+    "verify:database": "node scripts/verify-database.mjs",
     "verify:favourites": "vite build --ssr scripts/verify-favourites.ts --outDir .verify --mode harness --logLevel warn && node .verify/verify-favourites.js",
     "verify:otp": "vite build --ssr scripts/verify-otp-layout.tsx --outDir .verify --mode harness --logLevel warn && node .verify/verify-otp-layout.js",
     "verify:wiring": "vite build --ssr scripts/verify-wiring.ts --outDir .verify --mode harness --logLevel warn && node .verify/verify-wiring.js",
@@ -52,6 +53,7 @@
     "recharts": "^2.15.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@tailwindcss/vite": "^4.0.0",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",

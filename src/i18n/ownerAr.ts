@@ -24,7 +24,6 @@ export const ownerAr: Record<OwnerMessageKey, string> = {
   'prov.addCampaign': 'إضافة رحلة',
   'prov.editCampaign': 'تعديل الرحلة',
   'prov.newCampaign': 'رحلة جديدة',
-  'prov.formTitle': 'عنوان الرحلة',
   /*
    * No "(in Arabic)" on either of these two.
    *
@@ -44,9 +43,7 @@ export const ownerAr: Record<OwnerMessageKey, string> = {
    * the label that stopped being true, not the field.
    */
   'prov.formTitleAr': 'عنوان الرحلة',
-  'prov.formTitleEn': 'عنوان الرحلة (بالإنجليزية)',
   'prov.formDescAr': 'الوصف',
-  'prov.formDescEn': 'الوصف (بالإنجليزية)',
   'prov.formType': 'نوع الرحلة',
   'prov.formPrice': 'السعر للمسافر (ر.ع)',
   'prov.formWilayah': 'ولاية المغادرة',
@@ -68,7 +65,6 @@ export const ownerAr: Record<OwnerMessageKey, string> = {
   'prov.customerName': 'العميل',
   'prov.customerPeople': 'العدد',
   'prov.customerTrip': 'الرحلة',
-  'prov.customerDate': 'تاريخ الحجز',
   'prov.noCustomers': 'لا توجد حجوزات على هذه الحملة بعد',
   'prov.chartBookings': 'الحجوزات عبر الزمن',
   'prov.chartRevenue': 'الإيرادات حسب الشهر',
@@ -94,8 +90,8 @@ export const ownerAr: Record<OwnerMessageKey, string> = {
   'prov.keepEditing': 'متابعة التحرير',
   'prov.fixErrors': 'راجع هذه الحقول قبل الحفظ',
   'prov.errReturnBefore': 'يجب أن يكون تاريخ العودة بعد تاريخ المغادرة.',
-  'prov.errSeatsExceed': 'لا يمكن أن تزيد عن إجمالي عدد المقاعد.',
-  'prov.seatsNewNote': 'تُنشر الرحلة الجديدة وجميع مقاعدها متاحة.',
+  'prov.errSeatsBelowBooked': 'لا يمكن أن يقلّ عن {n} مقعدًا مؤكدًا بالفعل.',
+  'prov.seatsAvailableHint': 'تُحسب من الحجوزات المؤكدة، وتتحدّث عند تأكيد حجز أو إلغائه.',
   'prov.servicesCount': 'اخترت {n} من {total}',
   'prov.searchCustomers': 'ابحث باسم المسافر أو الرحلة أو رقم الحجز',
   'prov.statusAll': 'كل الحالات',
@@ -133,10 +129,8 @@ export const ownerAr: Record<OwnerMessageKey, string> = {
 
   // ============================================================== البوابة
   'owner.portal': 'بوابة أصحاب الحملات',
-  'owner.portalShort': 'بوابة الحملات',
   'owner.signInTitle': 'بوابة أصحاب الحملات',
   'owner.signInSubtitle': 'سجّل الدخول بالبريد الإلكتروني وكلمة المرور',
-  'owner.signInCta': 'تسجيل الدخول',
   'owner.passwordOnly':
     'يسجّل أصحاب الحملات الدخول ببريدهم الإلكتروني وكلمة المرور. وإن دعتك ناسِك ولم تضع كلمة مرور بعد، فاستخدم الرابط في الدعوة.',
   'owner.wrongDoor': 'هذا الحساب ليس حساب صاحب حملة. إن كنت ترى غير ذلك فتواصل مع ناسِك.',
@@ -153,10 +147,7 @@ export const ownerAr: Record<OwnerMessageKey, string> = {
   'owner.setPasswordTitle': 'اختر كلمة المرور',
   'owner.setPasswordBody': 'اعتمدت ناسِك شركتك. عيّن كلمة مرور لتصبح البوابة لك.',
   'owner.setPasswordCta': 'احفظ وافتح البوابة',
-  'owner.setPasswordDone': 'حُفظت كلمة المرور',
   'owner.setPasswordFailed': 'لم تُقبل كلمة المرور. جرّب واحدة أطول.',
-  'owner.inviteExpired':
-    'انتهت صلاحية رابط الدعوة أو استُخدم من قبل. اطلب من ناسِك إرسال رابط جديد.',
 
   // ------------------------------------------------------- the company logo
   'owner.logoTitle': 'شعار الحملة',
@@ -183,7 +174,6 @@ export const ownerAr: Record<OwnerMessageKey, string> = {
   'owner.tabProfile': 'ملف الشركة',
   'owner.tabNotifications': 'الإشعارات',
 
-  'owner.profileTitle': 'ملف الشركة',
   'owner.profileBody': 'ما يراه الحجاج عن شركتك، وما اعتمدت عليه ناسِك في التحقق منها.',
   'owner.profilePublic': 'يظهر في حملاتك',
   'owner.profilePrivate': 'لدى ناسِك فقط',
@@ -221,8 +211,6 @@ export const ownerAr: Record<OwnerMessageKey, string> = {
   'campaignStatus.active': 'منشورة',
   'campaignStatus.rejected': 'موقوفة عن العرض',
   'campaignStatus.suspended': 'موقوفة',
-  'campaignStatus.activeNote': 'منشورة على ناسِك ومتاحة للحجز.',
-  'campaignStatus.suspendedNote': 'أوقفت الإدارة هذه الحملة، ولا تظهر على الموقع العام.',
   'campaignStatus.reason': 'سبب إيقاف العرض',
   'campaignStatus.editsGoLiveNote':
     'هذه الرحلة منشورة. أي تغيير هنا — السعر أو المواعيد أو الخدمات — يظهر على موقع ناسِك فور الحفظ.',
@@ -256,8 +244,6 @@ export const ownerAr: Record<OwnerMessageKey, string> = {
   'prov.formContact': 'وسيلة التواصل لهذه الحملة',
   'prov.formContactHint': 'إن تُركت فارغة، تُعرض بيانات الشركة بدلاً منها.',
   'prov.formContactName': 'اسم المسؤول',
-  'prov.formTerms': 'الشروط والأحكام',
-  'prov.formTermsHint': 'الإلغاء والدفع وما يوافق عليه الحاج. تُعرض في صفحة الحملة.',
   'prov.sectionMedia': 'الصور والشروط',
   'prov.viewPublicPending': 'غير منشورة بعد',
 
@@ -266,29 +252,12 @@ export const ownerAr: Record<OwnerMessageKey, string> = {
   // owner strings were split out of the public dictionary. Kept together so
   // the next reader can see they belong with the sections above rather than
   // being a separate concern.
-  'owner.haveAccount': 'حسابك معتمد بالفعل؟',
-  'owner.notOwner': 'تريد حجز رحلة بدلاً من ذلك؟',
-  'owner.notOwnerLink': 'انتقل إلى موقع ناسِك',
-  'owner.portalBlurb': 'انشر حملات الحج والعمرة على ناسِك، وأدر المقاعد، وتابع كل تسجيل في مكان واحد.',
-  'owner.registerCta': 'إرسال الطلب',
-  'owner.sectionAccess': 'بيانات الدخول',
   'owner.sectionCompany': 'بيانات الشركة',
   'owner.sectionContact': 'الشخص المسؤول',
   'owner.sectionLicensing': 'التراخيص',
   'owner.sectionLocation': 'مكان العمل',
-  'owner.signInLink': 'ادخل إلى البوابة',
-  'owner.tabAnalytics': 'التحليلات',
-  'owner.tabBookings': 'الحجوزات',
-  'owner.tabCampaigns': 'حملاتي',
-  'owner.tabOverview': 'نظرة عامة',
-  'owner.tabReviews': 'التقييمات',
   'prov.campaignSaveFailed': 'تعذّر الحفظ. لم يتغيّر شيء — يُرجى مراجعة البيانات والمحاولة مرة أخرى.',
   'prov.replyFailed': 'تعذّر حفظ الردّ. لم يتغيّر شيء — يُرجى المحاولة مرة أخرى.',
-  'prov.sectionBasics': 'بيانات الرحلة',
-  'prov.sectionContact': 'التواصل والشروط',
-  'prov.sectionDates': 'المواعيد والمقاعد',
-  'prov.sectionStay': 'الإقامة',
-  'prov.sentForReview': 'أُرسلت إلى ناسِك للمراجعة',
   // ------------------------------------------------- تعديل بيانات الشركة
   'owner.profileEdit': 'تعديل ملف الشركة',
   'owner.profileSaved': 'حُفظ ملف الشركة',

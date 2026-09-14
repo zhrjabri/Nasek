@@ -1,38 +1,40 @@
 import { useEffect, useState } from 'react'
-import { KeyRound, Mail, ShieldCheck, ShieldOff, Smartphone } from 'lucide-react'
+import { Mail, ShieldCheck, ShieldOff, Smartphone } from 'lucide-react'
 import { useI18n } from '@/i18n'
 import { useStore } from '@/store/AppStore'
 import { isSupabaseConfigured } from '@/services/supabase/client'
 import { fetchEmailOutbox } from '@/services/data/catalogue'
 import type { EmailOutboxRow } from '@/services/supabase/schema'
 import {
-  MIN_PASSWORD_LENGTH,
   confirmMfa,
   enrolMfa,
   mfaStatus,
-  passwordProblem,
-  setPassword,
   unenrolMfa,
   type MfaEnrolment,
 } from '@/services/auth/password'
-import { Button, Field, Input, Notice, Spinner } from '@/components/ui'
+import { Button, Notice, Spinner } from '@/components/ui'
 import { TOTP_CODE_LENGTH, CodeInput } from '@/components/auth/CodeInput'
 
 /**
  * The administrator's own account.
  *
- * Two controls and nothing else: the password this dashboard is opened with,
- * and the authenticator that has to accompany it. Both are about the person
- * signed in — an administrator cannot set anyone else's password or enrol
+ * The authenticator that accompanies the access code, and whether NASEK's mail
+ * went out. It is about the person signed in — an administrator cannot enrol
  * anyone else's phone from here, and there is deliberately no screen that could.
- * Supabase holds credentials in a schema NASEK's key cannot reach, and the one
- * function that changes a *role* is granted to `service_role` alone.
+ * The one function that changes a *role* is granted to `service_role` alone.
+ *
+ * There is no password here, and that is the rule rather than an omission. The
+ * dashboard is opened with the administration access code and nothing else; a
+ * password set on the account would be a second way in that skips the code
+ * entirely, straight through Supabase's own sign-in endpoint. The panel that
+ * used to set one is gone, and `is_admin()` refuses a session that signed in
+ * with a password (20260913000200), so a password set before it went buys
+ * nothing either.
  *
  * Two-factor is the reason this section exists. An administration account is
  * the single most valuable credential on the platform — it can suspend a
- * company, hide a review and read every booking — and a password on its own is
- * one phishing email away from all of that. Supabase supports TOTP on every
- * plan; nothing here needed buying.
+ * company, hide a review and read every booking. Supabase supports TOTP on
+ * every plan; nothing here needed buying.
  */
 export function SecurityTab() {
   const { t } = useI18n()
@@ -92,8 +94,6 @@ export function SecurityTab() {
           notify={toast}
         />
       )}
-
-      <PasswordPanel notify={toast} />
 
       <MailPanel />
     </section>
@@ -360,88 +360,6 @@ function TwoFactorPanel({
     await onChanged()
     notify(t('admin.mfaEnabled'), 'success')
   }
-}
-
-// ------------------------------------------------------------- password
-
-function PasswordPanel({
-  notify,
-}: {
-  notify: (message: string, tone?: 'success' | 'info' | 'warning') => void
-}) {
-  const { t } = useI18n()
-  const [password, setNext] = useState('')
-  const [confirm, setConfirm] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [errors, setErrors] = useState<Record<string, string>>({})
-
-  return (
-    <Panel
-      icon={<KeyRound className="size-4" />}
-      title={t('admin.passwordTitle')}
-      body={t('admin.passwordBody')}
-    >
-      <form
-        className="space-y-4"
-        noValidate
-        onSubmit={async (e) => {
-          e.preventDefault()
-          const problem = passwordProblem(password, confirm)
-          if (problem === 'short') {
-            setErrors({ password: t('auth.passwordShort', { n: MIN_PASSWORD_LENGTH }) })
-            return
-          }
-          if (problem === 'mismatch') {
-            setErrors({ confirm: t('auth.passwordMismatch') })
-            return
-          }
-          setErrors({})
-          setBusy(true)
-          const result = await setPassword(password)
-          setBusy(false)
-          if (!result.ok) {
-            setErrors({ password: t('admin.passwordFailed') })
-            return
-          }
-          setNext('')
-          setConfirm('')
-          notify(t('admin.passwordSaved'), 'success')
-        }}
-      >
-        <Field
-          label={t('auth.password')}
-          hint={t('auth.passwordHint', { n: MIN_PASSWORD_LENGTH })}
-          error={errors.password}
-        >
-          {(p) => (
-            <Input
-              {...p}
-              type="password"
-              dir="ltr"
-              autoComplete="new-password"
-              value={password}
-              onChange={(e) => setNext(e.target.value)}
-            />
-          )}
-        </Field>
-        <Field label={t('auth.confirmPassword')} error={errors.confirm}>
-          {(p) => (
-            <Input
-              {...p}
-              type="password"
-              dir="ltr"
-              autoComplete="new-password"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-            />
-          )}
-        </Field>
-        <Button size="sm" type="submit" loading={busy} disabled={!password}>
-          {t('admin.passwordSave')}
-        </Button>
-      </form>
-    </Panel>
-  )
 }
 
 function Panel({

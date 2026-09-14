@@ -1,11 +1,16 @@
 # NASEK data model
 
 The TypeScript shapes in `src/types.ts` are written to map directly onto a
-relational schema. This is that schema, as it would be built for production.
+relational schema. This is the design that schema was built from. The
+authoritative definition is `supabase/migrations/`, applied in order; where the
+two disagree, the migrations win.
 
 Bilingual fields (`{ ar, en }` in TypeScript) become two columns, `*_ar` and
-`*_en`. Money is `numeric(10,3)` — the Omani Rial has three decimal places, and
-the 2% mediation fee needs all of them.
+`*_en`. Money is `numeric(10,3)`, because the Omani Rial has three decimal places.
+
+**NASEK charges nothing.** There is no mediation fee, no commission and no
+subscription. A booking is a request; the customer pays the campaign owner
+directly, and the owner records in NASEK that they have been paid.
 
 ---
 
@@ -17,7 +22,7 @@ the 2% mediation fee needs all of them.
 | `name` | text | |
 | `email` | citext unique | |
 | `phone` | text | E.164 |
-| `password_hash` | text | Argon2id. **Never stored in the prototype.** |
+| — | — | No password column. Credentials live in Supabase Auth, never in public tables. |
 | `role` | enum | `customer` \| `provider` \| `admin` |
 | `wilayah_id` | text fk → wilayat | Drives "campaigns near me" |
 | `provider_id` | uuid fk → providers, null | Set only for `role = 'provider'` |
@@ -39,7 +44,7 @@ The campaign owner. One provider, many campaigns.
 | `rating` | numeric(2,1) | Denormalised from `reviews` |
 | `review_count` | int | Denormalised |
 | `phone`, `email` | text | |
-| `plan` | enum | `basic` \| `plus` \| `premium` — the subscription tier |
+| `plan` | enum | `basic` \| `plus` \| `premium`. A retained column from an earlier design; nothing is billed against it |
 | `joined_at` | date | |
 
 Verification needs an audit trail in production: who verified, when, against
@@ -83,16 +88,17 @@ and a GIN index on `services` for the "must include" filter.
 | `campaign_id` | uuid fk → campaigns | |
 | `travellers_count` | int | |
 | `contact_name`, `contact_phone`, `contact_email` | text | |
-| `total_price` | numeric(10,3) | Subtotal + 2% fee, captured at booking time |
+| `total_price` | numeric(10,3) | Price per traveller × travellers, captured at booking time. No fee is added |
 | `status` | enum | `pending` \| `confirmed` \| `completed` \| `cancelled` |
 | `booking_date` | date | |
 
-**Seat concurrency.** `seats_available` must never be decremented from the
-client. Booking has to be a single transaction that locks the campaign row,
-re-checks availability, decrements, and inserts — otherwise two people book the
-last seat at once. The prototype's `bookingsApi.create` checks availability but
-runs in one browser tab, so it cannot demonstrate the race it is guarding
-against.
+**Seats.** A pending booking reserves nothing. Seats come off `seats_available`
+only when the campaign owner confirms payment (`set_booking_status`), inside a
+transaction that locks the campaign row and re-checks what is left, so the last
+seat cannot be sold twice. Cancelling a confirmed booking (`cancel_booking`)
+puts its seats back. Nothing else writes `seats_available`: bookings are created
+only through `book_campaign`, and an owner saving a trip cannot set it. Changing
+`seats_total` moves `seats_available` by the same amount.
 
 ## travellers
 
@@ -127,9 +133,11 @@ database and never publicly addressable.
 | `comment_ar`, `comment_en` | text | Usually only one is populated |
 | `created_at` | timestamptz | |
 
-Integrity rule the UI promises and the database must enforce: a review requires
-a `completed` booking by the same user on the same campaign. Unique on
-`(user_id, campaign_id)`.
+Integrity rule the database enforces: a review requires a `confirmed` or
+`completed` booking by the same user on the same campaign, on a trip that has
+already returned. A pending, unpaid request does not qualify. Once written, a
+review stays on its campaign and company; only its rating and comment can
+change. Unique on `(user_id, campaign_id)`.
 
 ## notifications
 
@@ -153,13 +161,10 @@ to the Batinah coast.
 
 ---
 
-## Revenue tables (not modelled in the prototype)
+## Money
 
-The business model — a monthly subscription plus a 2% mediation fee — is shown
-in the provider and admin dashboards but computed on the fly. It needs real
-tables before it can be billed against:
-
-- **subscriptions** — provider, tier, period, amount, status
-- **payouts** — provider, period, gross bookings, fee withheld, net transferred
-- **promotions** — paid placement, with the position in `recommended` ranking it
-  buys, disclosed as promoted in the UI
+There are no revenue tables, and none are planned: NASEK takes no fee, no
+commission and no subscription, and it does not hold or move anyone's money.
+The owner and admin dashboards report booking value, meaning what customers
+have paid owners directly, as counted from confirmed bookings. It is never
+NASEK income.

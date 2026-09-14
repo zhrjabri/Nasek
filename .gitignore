@@ -28,3 +28,7 @@ supabase/.temp/
 # editor, and stale the moment it is applied. `supabase/migrations/` is the
 # record; a second copy of the same SQL is a second thing to keep in step.
 supabase/PENDING_MIGRATIONS.sql
+
+# Local MCP server configuration. Holds API keys for the developer's own tools
+# (never the application's), so it must never be committed.
+.mcp.json

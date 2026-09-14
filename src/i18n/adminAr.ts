@@ -16,7 +16,6 @@ export const adminAr: Record<AdminMessageKey, string> = {
   'admin.gateChecking': 'جارٍ التحقق…',
   'admin.gateWrong': 'عبارة المرور غير صحيحة.',
   'admin.gateEmpty': 'أدخل عبارة المرور للمتابعة.',
-  'admin.gateOther': 'لست مشرفًا؟',
   'admin.gateNote':
     'عبارة المرور هذه بيد مالك ناسِك وحده. ولا يؤثر شيء مما تفعله هنا على حسابك كعميل أو كصاحب حملة.',
   'admin.showingOf': 'عرض {shown} من {total}',
@@ -27,15 +26,12 @@ export const adminAr: Record<AdminMessageKey, string> = {
   'admin.reviewPermit': 'مراجعة التصريح',
   'admin.queueSuspendedCampaigns': '{n} حملات موقوفة ومخفية عن الموقع العام',
   'admin.queueSuspendedUsers': '{n} حسابات موقوفة ولا يمكنها تسجيل الدخول',
-  'admin.ownersVerified': 'موثّقة',
   'admin.ownersPendingHint': 'افتح تبويب «أصحاب الحملات» لمراجعة تصاريحهم.',
   'admin.ownerSearch': 'ابحث عن صاحب حملة بالاسم أو البريد أو الهاتف',
   'admin.ownerFilter': 'تصفية أصحاب الحملات',
   'admin.noOwnerMatch': 'لا يوجد أصحاب حملات مطابقون',
-  'admin.noProvidersBody': 'يظهر أصحاب الحملات هنا بعد التسجيل ورفع التصريح.',
   'admin.noAccounts': 'لا توجد حسابات بعد',
   'admin.noAccountsBody': 'تظهر الحسابات هنا كلما سجّل أحد في ناسِك.',
-  'admin.campTotal': 'كل الحملات',
   // ------------------------------------------- trip moderation, after the queue
   'admin.campDeactivate': 'إيقاف العرض',
   'admin.campDeactivated': 'موقوفة عن العرض',
@@ -146,7 +142,6 @@ export const adminAr: Record<AdminMessageKey, string> = {
   'admin.paymentNotProcessed':
     'ناسِك لا ينفّذ عمليات الدفع. يدفع العملاء لأصحاب الحملات مباشرة، ولا يُؤكد الحجز هنا إلا عندما يسجّل صاحب الحملة استلامه المبلغ.',
   'admin.ownerNoPhone': 'لا يوجد رقم تواصل مسجل',
-  'admin.kpiGmv': 'قيمة الحجوزات',
   'admin.kpiProviders': 'أصحاب الحملات',
   'admin.kpiCampaigns': 'الرحلات المعروضة',
   'admin.kpiBookings': 'الحجوزات',
@@ -170,7 +165,6 @@ export const adminAr: Record<AdminMessageKey, string> = {
   'admin.groupPlatform': 'المنصّة',
   'admin.groupPeople': 'الأشخاص',
   'admin.groupCatalogue': 'المحتوى',
-  'admin.backToSite': 'فتح الموقع العام',
   'admin.checking': 'جارٍ التحقق من صلاحيتك…',
   'admin.mfaTitle': 'مطلوب التحقّق بخطوتين',
   'admin.mfaSubtitle': 'خطوة أخيرة',
@@ -186,7 +180,6 @@ export const adminAr: Record<AdminMessageKey, string> = {
   'admin.localModeTitle': 'وضع محلي — لا توجد قاعدة بيانات مُهيّأة',
   'admin.localModeBody':
     'تعمل هذه اللوحة على بيانات محفوظة في هذا المتصفح فقط. عبارة المرور أدناه بوابة النموذج الأولي، وليست وسيلة حماية. هيّئ Supabase لإدارة حقيقية محميّة من الخادم.',
-  'admin.sectionCount': '{n} في هذا القسم',
 
   // -------------------------------------------------- verification queue
   'admin.approve': 'اعتماد',
@@ -231,11 +224,6 @@ export const adminAr: Record<AdminMessageKey, string> = {
   'admin.mfaConfirm': 'تأكيد وتفعيل',
   'admin.mfaWrongCode': 'لم يُقبل هذا الرمز. الرموز تتغير كل ٣٠ ثانية — جرّب الرمز الحالي.',
   'admin.mfaEnabled': 'فُعّل التحقق بخطوتين',
-  'admin.passwordTitle': 'كلمة المرور',
-  'admin.passwordBody': 'تغيّر كلمة المرور التي تُفتح بها هذه اللوحة. تسري فوراً.',
-  'admin.passwordSave': 'حفظ كلمة المرور',
-  'admin.passwordSaved': 'حُفظت كلمة المرور',
-  'admin.passwordFailed': 'لم تُقبل كلمة المرور. جرّب واحدة أطول.',
 
   // ========================================================== رمز الدخول
   'admin.codeTitle': 'إدارة ناسِك',
@@ -257,7 +245,6 @@ export const adminAr: Record<AdminMessageKey, string> = {
   'admin.codeSessionFailed': 'قُبل الرمز لكن تعذّر إنشاء الجلسة. أعد المحاولة.',
   'admin.codeNote':
     'يُتحقق من الرمز على الخادم. امتلاكه يمنح جلسة لا صلاحية؛ فما تقرأه هذه اللوحة تحدده is_admin() داخل قاعدة البيانات.',
-  'admin.codeSignOut': 'تسجيل الخروج',
 
   // ======================================================== اعتماد الحملات
   'admin.campaignRejectTitle': 'إيقاف عرض هذه الرحلة',
@@ -265,7 +252,6 @@ export const adminAr: Record<AdminMessageKey, string> = {
     'تُرفع الرحلة من الموقع ويقرأ صاحبها هذا النص حرفيًا. اذكر الخطأ وما يصلحه، ويمكنه تصحيح الرحلة لتعود عند إعادة عرضها.',
   'admin.campaignRejectReason': 'السبب',
   'admin.campaignRejectConfirm': 'إيقاف العرض',
-  'admin.campaignReasonRequired': 'الرفض يحتاج سبباً يستطيع صاحب الحملة التصرف بناءً عليه.',
   'admin.campaignStatusFailed': 'رُفض هذا القرار ولم يُحفظ شيء. {detail}',
   /*
    * Why an approval was blocked, in the reader's language.
@@ -289,7 +275,6 @@ export const adminAr: Record<AdminMessageKey, string> = {
   'admin.campaignOwnerUnverified':
     'هذه الحملة تتبع شركة غير معتمدة بعد. اعتمد الشركة أولاً.',
   'admin.filterActive': 'منشورة',
-  'admin.filterRejected': 'مرفوضة',
   'admin.filterSuspended': 'موقوفة',
   'admin.filterAll': 'الكل',
   'admin.reviewDetail': 'مراجعة',

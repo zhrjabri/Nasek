@@ -55,10 +55,9 @@ export interface MatchResult {
  * The seam between NASEK's UI and whatever produces its intelligence.
  *
  * `LocalAIProvider` (the default) implements both methods with deterministic
- * on-device logic, so the prototype works with no API key and no network.
- * `RemoteAIProvider` implements the same interface against a server route that
- * calls a hosted model. Nothing in the UI knows which is active — swap them in
- * `services/ai/index.ts`.
+ * on-device logic, with no API key and no network. It is the only provider;
+ * nothing in the UI names it, so another implementation could be returned from
+ * `getAI()` in `services/ai/index.ts` without touching a component.
  *
  * Both methods end in campaigns a pilgrim opens one at a time. There is no
  * conversational method: the chat assistant that used to sit alongside these

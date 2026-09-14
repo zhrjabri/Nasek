@@ -97,14 +97,110 @@ npx vercel --prod                                   # from dist/
 npx vercel --prod                                   # from dist-admin/
 ```
 
-Two projects, same repository, different build commands and output
-directories:
+Three projects, same repository, different build commands and output
+directories. As configured on Vercel (checked 2026-09-13):
 
-| | Public | Admin |
-| --- | --- | --- |
-| Build command | `npm run build:web` | `npm run build:admin` |
-| Output directory | `dist` | `dist-admin` |
-| Domain | `nasek.om` | `admin.nasek.om` |
+| | Customer | Owner portal | Admin |
+| --- | --- | --- | --- |
+| Vercel project | `nasek` | `nasek-owner` | `nasek-admin` |
+| Build command | `npm run build` | `npm run build:owner` | `npm run build:admin` |
+| Output directory | `dist` | `dist-owner` | `dist-admin` |
+| Live host | `nasek.vercel.app` | `nasek-owner.vercel.app` | `nasek-admin.vercel.app` |
+| Intended domain | `nasek.om` | — | `admin.nasek.om` |
+
+The customer project's `npm run build` typechecks the whole repository and
+builds all three applications, then publishes only `dist`. So a type error in
+owner or admin code fails the *customer* deployment too.
+
+#### One push to `main` deploys all three
+
+All three projects are connected to `zhrjabri/Nasek` with `main` as the
+production branch, and none has an Ignored Build Step. **Every push to `main`
+builds and publishes all three applications, whatever the commit touched.**
+There is no way to deploy one of them by pushing.
+
+Do not try to isolate a deployment by switching a project's Git deployments
+off. That was tried for commit `2371c684` (a customer-only trip-card change):
+`gitProviderOptions.createDeployments` was set to `disabled` on `nasek-owner`
+and `nasek-admin`, the API read it back as disabled, and both projects still
+built and went live from the push within about thirty seconds. The setting
+has been restored and must not be used for this again.
+
+The rules for a change meant for one application only:
+
+1. Keep the code change inside that application's own files where possible.
+   Anything in the shared files below will reach the other two bundles.
+2. Say before pushing that all three projects will rebuild.
+3. After the deployments finish, check the other two live bundles for
+   behavioural or visual change. Read the entry script out of the served HTML
+   (`assets/owner-*.js`, `assets/admin-*.js`) and search it for the strings or
+   code the commit changed. The hash alone is not evidence: it can be identical
+   across rebuilds.
+4. Report an automatic rebuild of the other applications plainly. A rebuild
+   with no behavioural or visual impact is expected, not a failure.
+5. Never roll back or promote a production deployment just to hide a harmless
+   automatic rebuild. `2371c684` is live on owner and admin by decision: the
+   only difference there is three dictionary strings neither application uses.
+
+What the three applications share, taken from the Rollup module graph of each
+production build, so a change here is expected to reach every bundle:
+
+* **All three:** `src/components/ui/`, `src/components/brand/ProviderMark.tsx`,
+  `src/components/auth/CodeInput.tsx`, `src/i18n/index.tsx` with `ar.ts` and
+  `en.ts`, `src/store/AppStore.tsx`, `src/hooks/useCatalogue.ts` and
+  `useRemoteData.ts`, `src/data/` (catalogue, geography, services),
+  `src/services/` (API client, credentials, auth session, phone and redirect,
+  catalogue and mappers, storage, Supabase client), and `src/lib/invoice.ts`.
+* **Not in the module graph, but read by every build:** `package.json`,
+  `package-lock.json`, `vite.shared.ts`, `tsconfig.json`, `src/types.ts`
+  (type-only for the customer site), `src/vite-env.d.ts`, and `src/index.css`
+  (the customer site reaches it through a CSS `@import`).
+* **Tailwind scans the whole repository.** The customer CSS bundle contains
+  utility classes that only owner or administration code uses, and the reverse.
+  Any change to class names anywhere therefore changes the CSS bytes of all
+  three. The extra rules are unused, so this is not a visual change, but it
+  means byte-equality of the CSS cannot be expected between rebuilds.
+
+Skipping builds that do not affect an application (a Vercel Ignored Build
+Step) was investigated and **deliberately not adopted** (decided 2026-09-13).
+Reliable builds matter more than skipping a few: a push to `main` rebuilding
+all three applications is accepted, and no Ignored Build Step or custom
+file-tracking deploy script is to be added. The findings are kept below so the
+question does not have to be re-investigated.
+
+* **Vercel's built-in "skip unaffected projects" does not apply.** It requires
+  npm workspaces with a `package.json` per application. NASEK is one package
+  with three entry points, so every change counts as global.
+* **"Only build if there are changes in a folder" is unsafe.** There is no
+  folder per application: the customer site lives in `src/pages`,
+  `src/components` and `src/hooks`, alongside code the other two also import.
+  A filter on `src/owner/` would skip owner builds when `src/components/ui/`
+  or `src/i18n/` changed, and publish a stale owner portal.
+* **A hand-written file list rots.** The shared set above is today's graph. The
+  first new import from `src/owner/` into a shared file would make a stored
+  list silently wrong, and the failure mode is a skipped build that should have
+  run.
+* **What would be safe:** a zero-dependency Node script, either set per project
+  in the dashboard or as one `ignoreCommand` in `vercel.json` that branches on
+  `VERCEL_PROJECT_ID` (all three projects read the same file). It would
+  walk each application's imports *at the commit being built*, add the
+  non-graph files listed above, diff against `VERCEL_GIT_PREVIOUS_SHA`, and exit
+  `1` (build) on any match, any error, or a missing previous SHA (Vercel clones
+  only ten commits deep). It must fail towards building.
+* **Costs to accept first.** A skipped build still counts as a deployment
+  against Vercel's quotas and build slots. And a **Redeploy after changing an
+  environment variable must untick "Use project's Ignore Build Step"**:
+  otherwise the diff is empty, the build is skipped, and the new variable never
+  reaches the bundle.
+* **What it would have saved.** Replayed over the last 40 commits using today's
+  graph, with one merge commit left out: 7 customer, 5 owner and 7 admin builds.
+  Five of those were commits touching only `scripts/`, `supabase/`,
+  `.github/` or `README.md`, and a much simpler all-or-nothing rule catches
+  them: skip only when *every* changed file is under those paths, and build
+  otherwise. The graph-aware script adds just three more skips, all from
+  owner- or admin-only commits. A customer-only change like `2371c684` would
+  still have rebuilt owner and admin, because it touched the shared
+  dictionaries.
 
 Set the two Supabase variables on **both** projects, for the **Production**
 environment (and Preview, if you use preview deployments). Vercel exposes

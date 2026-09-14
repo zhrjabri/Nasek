@@ -10,8 +10,6 @@ export const ar: Record<PublicMessageKey, string> = {
   'common.appName': 'ناسِك',
   'common.tagline': 'حملات الحج والعمرة في سلطنة عُمان، في مكان واحد',
   'common.perPerson': 'للفرد',
-  'common.seat': 'مقعد',
-  'common.seats': 'مقاعد',
   'common.seatsLeft': 'بقي {n} مقعدًا',
   'common.lastSeats': 'بقي {n} فقط',
   'common.soldOut': 'اكتمل العدد',
@@ -21,7 +19,6 @@ export const ar: Record<PublicMessageKey, string> = {
   'common.to': 'إلى',
   'common.search': 'بحث',
   'common.searching': 'جارٍ البحث…',
-  'common.filter': 'فرز',
   'common.filters': 'خيارات الفرز',
   'common.clear': 'مسح',
   'common.clearAll': 'مسح الكل',
@@ -42,10 +39,8 @@ export const ar: Record<PublicMessageKey, string> = {
   'common.saved': 'محفوظ',
   'common.edit': 'تعديل',
   'common.delete': 'حذف',
-  'common.view': 'عرض',
   'common.viewAll': 'عرض الكل',
   'common.viewDetails': 'عرض التفاصيل',
-  'common.book': 'احجز',
   'common.bookNow': 'احجز الآن',
   'common.required': 'مطلوب',
   'common.all': 'الكل',
@@ -56,7 +51,6 @@ export const ar: Record<PublicMessageKey, string> = {
   'common.air': 'مسار جوي',
   'common.land': 'مسار بري',
   'common.travellers': 'المسافرون',
-  'common.traveller': 'مسافر',
   'common.departure': 'المغادرة',
   'common.return': 'العودة',
   'common.total': 'الإجمالي',
@@ -79,7 +73,6 @@ export const ar: Record<PublicMessageKey, string> = {
   'nav.map': 'الخريطة',
   'nav.giving': 'ناسِك الخير',
   'nav.about': 'عن ناسِك',
-  'nav.dashboard': 'لوحتي',
   'nav.signIn': 'تسجيل الدخول',
   'nav.signInShort': 'دخول',
   'nav.signOut': 'تسجيل الخروج',
@@ -88,7 +81,6 @@ export const ar: Record<PublicMessageKey, string> = {
   'nav.myBookings': 'حجوزاتي',
 
   // ------------------------------------------------------------------ hero
-  'hero.eyebrow': 'أول منصة تجمع حملات الحج والعمرة في سلطنة عُمان',
   'hero.titlePre': 'رحلتك إلى ',
   'hero.titleMark': 'بيت الله',
   'hero.titlePost': '،',
@@ -96,7 +88,6 @@ export const ar: Record<PublicMessageKey, string> = {
   'hero.subtitle':
     'اكتشف حملات الحج والعمرة بسهولة، وابحث عن الحملة المناسبة لك.',
   'hero.trust': 'جميع الحملات المعروضة معتمدة من ناسِك',
-  'hero.ctaPrimary': 'ابحث عن حملتك',
   'hero.ctaSecondary': 'تصفّح الحملات',
   'hero.statCampaigns': 'رحلة معروضة',
   'hero.statProviders': 'صاحب حملة',
@@ -158,7 +149,6 @@ export const ar: Record<PublicMessageKey, string> = {
     'جرّب توسيع الميزانية، أو اختيار ولاية أخرى، أو إزالة بعض خيارات الفرز.',
   'campaign.includes': 'الخدمات المشمولة',
   'campaign.moreServices': '+{n} أخرى',
-  'campaign.haramDistance': 'يبعد {n} م عن الحرم',
   'campaign.duration': '{n} أيام',
   'campaign.coverHajj': 'مكة المكرمة · المشاعر المقدسة',
   'campaign.coverMakkahMadinah': 'مكة المكرمة · المدينة المنورة',
@@ -170,7 +160,7 @@ export const ar: Record<PublicMessageKey, string> = {
   'campaign.madinah': 'المدينة المنورة',
   'campaign.terms': 'الشروط والأحكام',
   'campaign.termsBody':
-    'الأسعار للفرد الواحد وتشمل الخدمات المذكورة أعلاه. يُحجز المقعد بدفعة مقدّمة، ويُسدَّد المتبقي قبل المغادرة بثلاثين يومًا. الإلغاء قبل المغادرة بأكثر من ٤٥ يومًا قابل للاسترداد بعد خصم الرسوم الإدارية. يجب أن يكون جواز السفر ساري المفعول ستة أشهر على الأقل من تاريخ المغادرة.',
+    'الأسعار للفرد الواحد وتشمل الخدمات المذكورة أعلاه. شروط الدفع والإلغاء يحددها صاحب الحملة، فتأكد منها معه مباشرة قبل الدفع. يجب أن يكون جواز السفر ساري المفعول ستة أشهر على الأقل من تاريخ المغادرة.',
   'campaign.contact': 'تواصل مع الحملة',
   'review.write': 'اكتب تقييمًا',
   'review.thanks': 'تم التقييم',
@@ -279,7 +269,6 @@ export const ar: Record<PublicMessageKey, string> = {
   'home.popular': 'الأكثر حجزًا هذا الموسم',
   'home.popularSub': 'ما يختاره الحجاج والمعتمرون في عُمان الآن.',
   'home.reviewsTitle': 'من مسافرين استخدموا ناسِك',
-  'home.reviewsSub': 'تقييمات كُتبت بعد رحلات حُجزت عبر المنصة.',
   'home.mapTitle': 'الحملات في أنحاء السلطنة',
   'home.mapSub': 'اختر ولاية لترى الحملات التي تغادر منها.',
   'home.finalCta.title': 'جاهز لتجد حملتك؟',
@@ -349,7 +338,6 @@ export const ar: Record<PublicMessageKey, string> = {
   'booking.requestBody':
     'أصدر ناسِك الفاتورة أدناه. أرسلها إلى صاحب الحملة للحصول على بيانات الدفع.',
   'booking.invoiceNo': 'رقم فاتورة ناسِك',
-  'booking.reference': 'رقم الحجز',
   'booking.awaitingPayment': 'بانتظار الدفع',
   // ------------------------------ what a request does and does not hold
   'booking.seatNotHeld': 'مقعدك ليس محجوزاً بعد',
@@ -396,7 +384,6 @@ export const ar: Record<PublicMessageKey, string> = {
   'auth.passwordRejected': 'لم تُقبل كلمة المرور.',
   'auth.passwordMismatch': 'كلمتا المرور غير متطابقتين',
   'auth.phoneInvalid': 'أدخل رقم هاتف عُماني صحيح',
-  'auth.nameRequired': 'أدخل اسمك الكامل',
   'auth.creating': 'جارٍ إنشاء حسابك…',
   // -------------------------------------------- تسجيل الدخول برمز لمرة واحدة
   'auth.otpTitle': 'أهلاً بك في ناسِك',
@@ -478,7 +465,7 @@ export const ar: Record<PublicMessageKey, string> = {
   'dash.noNotifications': 'لا توجد إشعارات',
   'dash.markAllRead': 'تعليم الكل كمقروء',
   'dash.cancelBooking': 'إلغاء الحجز',
-  'dash.cancelConfirm': 'هل تريد إلغاء هذا الحجز؟ لا يمكن التراجع في النموذج الأولي.',
+  'dash.cancelConfirm': 'هل تريد إلغاء هذا الحجز؟ لا يمكن التراجع عن ذلك.',
   'dash.bookingCancelled': 'أُلغي الحجز',
   'dash.cancelFailed': 'تعذّر إلغاء هذا الحجز. لم يتغيّر شيء — يُرجى المحاولة مرة أخرى.',
   'dash.daysToGo': 'بعد {n} يومًا',
@@ -502,7 +489,7 @@ export const ar: Record<PublicMessageKey, string> = {
   'giving.h4.body': 'يرى المساهمون عدد الرحلات التي أتاحها دعمهم.',
   'giving.plannedTitle': 'ميزة مخطط لها',
   'giving.plannedBody':
-    '«ناسِك الخير» لا يستقبل مساهمات بعد. لا يوجد نظام تبرعات متصل بهذا النموذج الأولي ولا يمكن جمع أي مبالغ من خلاله. تشرح هذه الصفحة البرنامج المقترح لاطلاع الشركاء والجهات المعنية.',
+    '«ناسِك الخير» لا يستقبل مساهمات بعد. لا يوجد نظام تبرعات متصل ولا يمكن جمع أي مبالغ من خلاله. تشرح هذه الصفحة البرنامج المقترح لاطلاع الشركاء والجهات المعنية ومراجعته.',
   'giving.interest': 'سجّل اهتمامك',
   'giving.interestNote': 'سنتواصل معك عند إطلاق البرنامج.',
   'giving.interestFailed': 'تعذّر الحفظ الآن. يُرجى المحاولة مرة أخرى.',
@@ -540,7 +527,7 @@ export const ar: Record<PublicMessageKey, string> = {
   'trust.4.body':
     'زر الإبلاغ في كل حملة يرسل العرض مباشرة إلى فريق ناسِك.',
   'trust.disclaimer':
-    'هذا نموذج أولي مبني على بيانات تجريبية. الحملات المعروضة افتراضية ولا يُدّعى أن أيًا منها يحمل ترخيصًا رسميًا. تحقق دائمًا من ترخيص الحملة لدى وزارة الأوقاف والشؤون الدينية قبل الدفع.',
+    'تعرض ناسِك الحملات التي ينشرها أصحابها ولا تُصدر التراخيص. تحقق دائمًا من ترخيص الحملة لدى وزارة الأوقاف والشؤون الدينية قبل الدفع.',
   'trust.privacy': 'سياسة الخصوصية',
   'trust.terms': 'شروط الاستخدام',
   'trust.support': 'تواصل مع الدعم',
@@ -560,7 +547,7 @@ export const ar: Record<PublicMessageKey, string> = {
    */
   'footer.rights': '© {year} ناسِك',
   'footer.builtBy': 'تم التطوير بواسطة',
-  'footer.prototype': 'نموذج أولي ببيانات تجريبية — ليس خدمة حجز فعلية.',
+  'footer.prototype': 'ناسِك لا تستقبل المدفوعات؛ يتم الدفع لصاحب الحملة مباشرة.',
 
   // ------------------------------------------------------------ misc/state
   'state.errorBody': 'حدث خطأ من جانبنا. حاول مرة أخرى بعد قليل.',
@@ -585,7 +572,6 @@ export const ar: Record<PublicMessageKey, string> = {
 
   // ============================================================== حسابي
   'account.title': 'حسابي',
-  'account.subtitle': 'بياناتك، والبريد الذي تسجّل الدخول به.',
   'account.detailsTitle': 'بياناتي',
   'account.detailsBody': 'تُستخدم لتعبئة حجوزاتك تلقائياً، فتُسأل مرة واحدة لا في كل مرة.',
   'account.nameHint': 'الاسم الذي تبحث عنه الحملة في المطار.',

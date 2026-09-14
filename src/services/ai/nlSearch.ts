@@ -26,7 +26,8 @@ import type { NLSearchResult, ParsedFacet } from './types'
  *
  * A hosted model would replace this with a structured-output call; the shape
  * it returns (`NLSearchResult`) is designed to be exactly what such a call
- * would produce. See `RemoteAIProvider` in `index.ts`.
+ * would produce, so a hosted provider could implement `AIProvider` without the
+ * UI changing.
  */
 export function parseNaturalQuery(raw: string, lang: Lang): NLSearchResult {
   const text = prepare(raw)

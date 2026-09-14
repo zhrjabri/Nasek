@@ -26,7 +26,6 @@ export const adminEn = {
   'admin.gateChecking': 'Checking…',
   'admin.gateWrong': 'That passphrase is not correct.',
   'admin.gateEmpty': 'Enter the passphrase to continue.',
-  'admin.gateOther': 'Not an administrator?',
   'admin.gateNote':
     'Only the NASEK owner holds this passphrase. Nothing you do on this page affects your customer or campaign owner account.',
   'admin.showingOf': 'Showing {shown} of {total}',
@@ -37,15 +36,12 @@ export const adminEn = {
   'admin.reviewPermit': 'Review permit',
   'admin.queueSuspendedCampaigns': '{n} campaigns are suspended and hidden from the public site',
   'admin.queueSuspendedUsers': '{n} accounts are suspended and cannot sign in',
-  'admin.ownersVerified': 'Verified',
   'admin.ownersPendingHint': 'Open the Campaign owners tab to review their permits.',
   'admin.ownerSearch': 'Search owners by name, email or phone',
   'admin.ownerFilter': 'Filter owners',
   'admin.noOwnerMatch': 'No owners match',
-  'admin.noProvidersBody': 'Campaign owners appear here once they register and upload a permit.',
   'admin.noAccounts': 'No accounts yet',
   'admin.noAccountsBody': 'Accounts appear here as people register on NASEK.',
-  'admin.campTotal': 'All campaigns',
   // ------------------------------------------- trip moderation, after the queue
   /*
    * Individual trips are no longer approved — the company is. What is left here
@@ -163,8 +159,7 @@ export const adminEn = {
    * NASEK issues the invoice and takes none of the money. The ledger therefore
    * reports two figures rather than one: what has been confirmed as paid, and
    * what has been asked for and is still outstanding between a customer and a
-   * campaign owner. `admin.kpiGmv` is kept — the overview tab still uses it for
-   * platform-wide booking value.
+   * campaign owner.
    */
   'admin.kpiConfirmedValue': 'Confirmed booking value',
   'admin.kpiAwaitingPayment': 'Awaiting payment',
@@ -173,7 +168,6 @@ export const adminEn = {
   'admin.paymentNotProcessed':
     'NASEK does not process payments. Customers pay campaign owners directly, and a booking is confirmed here only when its owner records that they have been paid.',
   'admin.ownerNoPhone': 'No contact number on file',
-  'admin.kpiGmv': 'Booking value',
   'admin.kpiProviders': 'Campaign owners',
   'admin.kpiCampaigns': 'Live campaigns',
   'admin.kpiBookings': 'Bookings',
@@ -207,7 +201,6 @@ export const adminEn = {
   'admin.groupPlatform': 'Platform',
   'admin.groupPeople': 'People',
   'admin.groupCatalogue': 'Catalogue',
-  'admin.backToSite': 'Open the public site',
   'admin.checking': 'Checking your access…',
   'admin.mfaTitle': 'Two-factor required',
   'admin.mfaSubtitle': 'One more step',
@@ -223,7 +216,6 @@ export const adminEn = {
   'admin.localModeTitle': 'Local mode — no database configured',
   'admin.localModeBody':
     'This dashboard is running against data held in this browser only. The passphrase below is the prototype gate; it is not a security control. Configure Supabase for real, server-enforced administration.',
-  'admin.sectionCount': '{n} in this section',
 
   // -------------------------------------------------- verification queue
   'admin.approve': 'Approve',
@@ -268,11 +260,6 @@ export const adminEn = {
   'admin.mfaConfirm': 'Confirm and turn on',
   'admin.mfaWrongCode': 'That code was not accepted. Codes change every 30 seconds — try the current one.',
   'admin.mfaEnabled': 'Two-factor is on',
-  'admin.passwordTitle': 'Password',
-  'admin.passwordBody': 'Changes the password this dashboard is opened with. Takes effect immediately.',
-  'admin.passwordSave': 'Save password',
-  'admin.passwordSaved': 'Password saved',
-  'admin.passwordFailed': 'That password was not accepted. Try a longer one.',
 
   // ======================================================== the access code
   // The dashboard's only door. The code itself lives in the `admin-access`
@@ -300,7 +287,6 @@ export const adminEn = {
     'The code was accepted but the session could not be established. Try again.',
   'admin.codeNote':
     'The code is checked on the server. Holding it grants a session, not authority — what this dashboard can read is still decided by is_admin() inside Postgres.',
-  'admin.codeSignOut': 'Sign out',
 
   // ====================================================== trip moderation
   'admin.campaignRejectTitle': 'Take this trip off the site',
@@ -308,7 +294,6 @@ export const adminEn = {
     'The trip comes off the public site and the owner sees this word for word. Say what is wrong and what would put it right — they can correct the trip and it goes back up when you reinstate it.',
   'admin.campaignRejectReason': 'Reason',
   'admin.campaignRejectConfirm': 'Take it off the site',
-  'admin.campaignReasonRequired': 'A refusal needs a reason the owner can act on.',
   'admin.campaignStatusFailed': 'That decision was refused and nothing was saved. {detail}',
   /* See the Arabic file for why these three exist rather than one. */
   'admin.campaignBlockedSuspended':
@@ -320,7 +305,6 @@ export const adminEn = {
   'admin.campaignOwnerUnverified':
     'This campaign belongs to a company that is not approved yet. Approve the company first.',
   'admin.filterActive': 'Live',
-  'admin.filterRejected': 'Refused',
   'admin.filterSuspended': 'Suspended',
   'admin.filterAll': 'All',
   'admin.reviewDetail': 'Review',

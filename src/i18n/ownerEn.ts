@@ -39,11 +39,8 @@ export const ownerEn = {
   'prov.addCampaign': 'Add campaign',
   'prov.editCampaign': 'Edit campaign',
   'prov.newCampaign': 'New campaign',
-  'prov.formTitle': 'Trip title',
   'prov.formTitleAr': 'Trip title (Arabic)',
-  'prov.formTitleEn': 'Trip title (English)',
   'prov.formDescAr': 'Description (Arabic)',
-  'prov.formDescEn': 'Description (English)',
   'prov.formType': 'Trip type',
   'prov.formPrice': 'Price per traveller (OMR)',
   'prov.formWilayah': 'Departure wilayah',
@@ -65,7 +62,6 @@ export const ownerEn = {
   'prov.customerName': 'Customer',
   'prov.customerPeople': 'People',
   'prov.customerTrip': 'Trip',
-  'prov.customerDate': 'Booked on',
   'prov.noCustomers': 'No bookings yet on this campaign',
   'prov.chartBookings': 'Bookings over time',
   'prov.chartRevenue': 'Revenue by month',
@@ -103,8 +99,8 @@ export const ownerEn = {
   'prov.keepEditing': 'Keep editing',
   'prov.fixErrors': 'Check these fields before saving',
   'prov.errReturnBefore': 'The return date must come after the departure date.',
-  'prov.errSeatsExceed': 'Cannot be more than the total number of seats.',
-  'prov.seatsNewNote': 'A new trip is published with every seat available.',
+  'prov.errSeatsBelowBooked': 'Cannot be fewer than the {n} seats already confirmed.',
+  'prov.seatsAvailableHint': 'Worked out from confirmed bookings. Confirming or cancelling a booking updates it.',
   'prov.servicesCount': '{n} of {total} selected',
   'prov.searchCustomers': 'Search by traveller, trip or reference',
   'prov.statusAll': 'All statuses',
@@ -142,10 +138,8 @@ export const ownerEn = {
 
   // ============================================================== the portal
   'owner.portal': 'Campaign Owner Portal',
-  'owner.portalShort': 'Owner Portal',
   'owner.signInTitle': 'Campaign Owner Portal',
   'owner.signInSubtitle': 'Sign in with your email and password',
-  'owner.signInCta': 'Sign in',
   'owner.passwordOnly':
     'Campaign owners sign in with their email address and password. If NASEK invited you and you have no password yet, use the link in the invitation.',
   'owner.wrongDoor':
@@ -165,10 +159,7 @@ export const ownerEn = {
   'owner.setPasswordBody':
     'NASEK has verified your company. Set a password and the portal is yours.',
   'owner.setPasswordCta': 'Save and open the portal',
-  'owner.setPasswordDone': 'Password saved',
   'owner.setPasswordFailed': 'That password was not accepted. Try a longer one.',
-  'owner.inviteExpired':
-    'That invitation link has expired or has already been used. Ask NASEK to send another.',
 
   // ------------------------------------------------------------- portal tabs
   // ------------------------------------------------------- the company logo
@@ -209,7 +200,6 @@ export const ownerEn = {
   'owner.tabNotifications': 'Notifications',
 
   // ---------------------------------------------------------- company profile
-  'owner.profileTitle': 'Company profile',
   'owner.profileBody': 'What pilgrims see about your company, and what NASEK verified you with.',
   'owner.profilePublic': 'Shown on your campaigns',
   'owner.profilePrivate': 'Held by NASEK only',
@@ -256,9 +246,6 @@ export const ownerEn = {
   'campaignStatus.active': 'Live',
   'campaignStatus.rejected': 'Off the site',
   'campaignStatus.suspended': 'Suspended',
-  'campaignStatus.activeNote': 'Live on NASEK and open for bookings.',
-  'campaignStatus.suspendedNote':
-    'Suspended by a NASEK administrator. It is not on the public site.',
   'campaignStatus.reason': 'Why it was taken off the site',
   'campaignStatus.editsGoLiveNote':
     'This trip is live. Anything you change here — the price, the dates, the services — is on the NASEK site as soon as you save it.',
@@ -294,9 +281,6 @@ export const ownerEn = {
   'prov.formContact': 'Contact for this campaign',
   'prov.formContactHint': 'Left empty, pilgrims are given the company details instead.',
   'prov.formContactName': 'Contact name',
-  'prov.formTerms': 'Terms and conditions',
-  'prov.formTermsHint':
-    'Cancellation, payment, what a pilgrim is agreeing to. Shown on the campaign page.',
   'prov.sectionMedia': 'Photographs and terms',
   'prov.viewPublicPending': 'Not public yet',
 
@@ -305,29 +289,12 @@ export const ownerEn = {
   // owner strings were split out of the public dictionary. Kept together so
   // the next reader can see they belong with the sections above rather than
   // being a separate concern.
-  'owner.haveAccount': 'Already approved?',
-  'owner.notOwner': 'Booking a trip instead?',
-  'owner.notOwnerLink': 'Go to the NASEK site',
-  'owner.portalBlurb': 'Publish Hajj and Umrah campaigns on NASEK, manage seats, and see every registration in one place.',
-  'owner.registerCta': 'Submit the application',
-  'owner.sectionAccess': 'Your sign-in',
   'owner.sectionCompany': 'The company',
   'owner.sectionContact': 'Who we speak to',
   'owner.sectionLicensing': 'Licensing',
   'owner.sectionLocation': 'Where you operate',
-  'owner.signInLink': 'Sign in to the portal',
-  'owner.tabAnalytics': 'Analytics',
-  'owner.tabBookings': 'Bookings',
-  'owner.tabCampaigns': 'My campaigns',
-  'owner.tabOverview': 'Overview',
-  'owner.tabReviews': 'Reviews',
   'prov.campaignSaveFailed': 'That could not be saved. Nothing has changed — please check the details and try again.',
   'prov.replyFailed': 'That reply could not be saved. Nothing has changed — please try again.',
-  'prov.sectionBasics': 'The trip',
-  'prov.sectionContact': 'Contact and terms',
-  'prov.sectionDates': 'Dates and seats',
-  'prov.sectionStay': 'Accommodation',
-  'prov.sentForReview': 'Sent to NASEK for review',
 
   // ------------------------------------------------- editing the company
   'owner.profileEdit': 'Edit company profile',
