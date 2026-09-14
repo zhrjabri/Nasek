@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { UserPlus } from 'lucide-react'
+import { Eye, EyeOff, UserPlus } from 'lucide-react'
 import { useI18n } from '@/i18n'
 import { WILAYAT, wilayatByGovernorate } from '@/data/geo'
 import { useStore } from '@/store/AppStore'
@@ -8,23 +8,28 @@ import { isValidPhone } from '@/services/auth/phone'
 import { uploadLicence } from '@/services/storage/licence'
 import { LicencePicker, type LicenceSelection } from '@/components/auth/LicencePicker'
 import { Button, Field, Input, Modal, Notice, Segmented, Select, Textarea } from '@/components/ui'
-import { createOwnerAccount, type CreateOwnerError } from '@/admin/createOwner'
+import {
+  createOwnerAccount,
+  temporaryPasswordProblem,
+  TEMPORARY_PASSWORD_MIN_LENGTH,
+  type CreateOwnerError,
+  type TemporaryPasswordProblem,
+} from '@/admin/createOwner'
 
 /**
  * Taking a campaign owner onto the platform.
  *
- * This form replaced a public one. Owners used to register themselves on the
- * customer website and wait in a queue; NASEK now enters the company details,
- * reads the permit, and sends an invitation — so the person on the other end
- * never fills in a registration at all. Their first contact with the platform
- * is a link that opens the portal.
+ * A member of staff with the company's paperwork on the desk enters the company
+ * details, uploads the permit, and sets the owner's sign-in email and a
+ * temporary password. The account exists the moment this succeeds; the owner
+ * signs in at the Campaign Owner Portal with that email and password. Nothing is
+ * emailed — the administrator passes the password on themselves.
  *
- * Which means this form has an audience it did not have before: not the owner
- * guessing what NASEK wants, but a member of staff with the company's paperwork
- * on the desk in front of them. The fields are the same ones the old
- * registration asked for, in the order somebody reading a licence would fill
- * them in — the company, where it operates, what it is licensed by, and who to
- * write to.
+ * Self-registration on the owner portal is a separate door and is unaffected.
+ *
+ * The fields run in the order somebody reading a licence would fill them in —
+ * the company, where it operates, what it is licensed by, who to contact — and
+ * then the account the owner will sign in with.
  */
 
 const GOVERNORATES = wilayatByGovernorate('en')
@@ -55,6 +60,16 @@ export function NewOwnerDialog({ open, onClose }: { open: boolean; onClose: () =
     phone: '',
     verification: 'verified' as 'verified' | 'pending',
   })
+  /*
+   * The temporary password, kept out of `form` so nothing that copies the form
+   * around can carry it. React state only — never storage — and cleared when
+   * the account is created or the dialog is closed.
+   */
+  const [temporaryPassword, setTemporaryPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [reveal, setReveal] = useState(false)
+  /** The company just created, for the confirmation that replaces the form. */
+  const [created, setCreated] = useState<{ name: string; email: string } | null>(null)
   const [licence, setLicence] = useState<LicenceSelection | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [failure, setFailure] = useState('')
@@ -63,23 +78,48 @@ export function NewOwnerDialog({ open, onClose }: { open: boolean; onClose: () =
   const set = (key: keyof typeof form, value: string) =>
     setForm((f) => ({ ...f, [key]: value }))
 
+  const forgetPassword = () => {
+    setTemporaryPassword('')
+    setConfirmPassword('')
+    setReveal(false)
+  }
+
   const reset = () => {
     setForm((f) => ({ ...f, companyName: '', tagline: '', description: '',
       commercialRegistration: '', permitNumber: '', permitExpiry: '', contactName: '',
       email: '', phone: '', experienceYears: '' }))
+    forgetPassword()
     setLicence(null)
     setErrors({})
     setFailure('')
+  }
+
+  const close = () => {
+    forgetPassword()
+    setCreated(null)
+    onClose()
   }
 
   const MESSAGE: Record<CreateOwnerError, string> = {
     offline: t('admin.newOwnerOffline'),
     forbidden: t('admin.newOwnerForbidden'),
     permit_required: t('auth.licenceRequired'),
-    is_admin_account: t('admin.newOwnerIsAdmin'),
-    invite_failed: t('admin.newOwnerInviteFailed'),
-    exists: t('admin.newOwnerExists'),
+    bad_request: t('admin.newOwnerFailed'),
+    weak_password: t('admin.newOwnerWeakPassword'),
+    email_exists: t('admin.newOwnerEmailExists'),
+    create_failed: t('admin.newOwnerCreateFailed'),
+    cleanup_failed: t('admin.newOwnerCleanupFailed'),
+    unreachable: t('admin.newOwnerUnreachable'),
     failed: t('admin.newOwnerFailed'),
+  }
+
+  const PASSWORD_MESSAGE: Record<TemporaryPasswordProblem, string> = {
+    short: t('admin.newOwnerPasswordShort', { n: TEMPORARY_PASSWORD_MIN_LENGTH }),
+    long: t('admin.newOwnerPasswordLong'),
+    spaces: t('admin.newOwnerPasswordSpaces'),
+    simple: t('admin.newOwnerPasswordSimple'),
+    is_email: t('admin.newOwnerPasswordIsEmail'),
+    mismatch: t('admin.newOwnerPasswordMismatch'),
   }
 
   const submit = async (e: React.FormEvent) => {
@@ -94,6 +134,9 @@ export function NewOwnerDialog({ open, onClose }: { open: boolean; onClose: () =
     if (!form.wilayahId.trim()) next.wilayahId = t('common.required')
     if (!form.permitNumber.trim()) next.permitNumber = t('common.required')
     if (!licence) next.licence = t('auth.licenceRequired')
+    const problem = temporaryPasswordProblem(temporaryPassword, confirmPassword, form.email)
+    if (problem === 'mismatch') next.confirmPassword = PASSWORD_MESSAGE.mismatch
+    else if (problem) next.temporaryPassword = PASSWORD_MESSAGE[problem]
     setErrors(next)
     if (Object.keys(next).length) return
 
@@ -101,7 +144,9 @@ export function NewOwnerDialog({ open, onClose }: { open: boolean; onClose: () =
     setBusy(true)
 
     /*
-     * The permit goes to Storage first, and a failure stops everything.
+     * The permit goes to Storage first, and a failure stops everything. Every
+     * check above runs before this line, so a form that was going to be refused
+     * never uploads anything.
      *
      * Creating the company and then failing to attach the document would leave
      * a verified company on NASEK with nothing behind the badge — which is the
@@ -112,7 +157,8 @@ export function NewOwnerDialog({ open, onClose }: { open: boolean; onClose: () =
      * because the owner's account id does not exist yet: the Edge Function
      * creates it. `20260905000100` adds the storage policy that allows this,
      * and the read policy already lets an administrator open anything in the
-     * bucket.
+     * bucket. If the account or the company is then refused, the function
+     * removes this file again.
      */
     let licencePath = ''
     if (licence?.file) {
@@ -127,6 +173,7 @@ export function NewOwnerDialog({ open, onClose }: { open: boolean; onClose: () =
 
     const outcome = await createOwnerAccount({
       email: form.email,
+      temporaryPassword,
       contactName: form.contactName,
       companyName: form.companyName,
       tagline: form.tagline,
@@ -147,31 +194,50 @@ export function NewOwnerDialog({ open, onClose }: { open: boolean; onClose: () =
     setBusy(false)
 
     if (!outcome.ok) {
-      setFailure(MESSAGE[outcome.error])
+      // The service's own words where they name the fix: which database rule
+      // refused the company, or which password policy refused the password.
+      const detail =
+        outcome.detail && ['create_failed', 'cleanup_failed', 'weak_password'].includes(outcome.error)
+          ? ` (${outcome.detail})`
+          : ''
+      setFailure(`${MESSAGE[outcome.error]}${detail}`)
       return
     }
 
     /*
-     * Created, but say which kind of created.
-     *
-     * The company and the account exist either way — that is the point of the
-     * fallback in `admin-create-owner`. What differs is whether the owner has
-     * been told, and an administrator who is not told the message failed will
-     * sit waiting for somebody who never heard from us.
+     * Say so plainly, and keep saying it until the administrator moves on. A
+     * toast alone disappears while they are still reaching for the phone to
+     * tell the owner. The password is not repeated — they typed it.
      */
-    toast(
-      outcome.invited
-        ? t('admin.newOwnerCreated', { name: form.companyName })
-        : t('admin.newOwnerCreatedNoEmail', { name: form.companyName }),
-      outcome.invited ? 'success' : 'warning',
-    )
+    setCreated({ name: form.companyName.trim(), email: form.email.trim().toLowerCase() })
+    toast(t('admin.newOwnerCreated', { name: form.companyName.trim() }), 'success')
     reset()
-    onClose()
     await reload()
   }
 
+  if (created) {
+    return (
+      <Modal open={open} onClose={close} title={t('admin.newOwnerTitle')} wide>
+        <div className="space-y-4">
+          <Notice tone="success" title={t('admin.newOwnerCreated', { name: created.name })} live>
+            {t('admin.newOwnerCreatedBody', { email: created.email })}
+          </Notice>
+          <div className="flex gap-2.5 border-t border-ivory-300 pt-5">
+            <Button type="button" size="lg" block onClick={close}>
+              {t('admin.newOwnerDone')}
+            </Button>
+            <Button type="button" variant="secondary" size="lg" onClick={() => setCreated(null)}>
+              <UserPlus className="size-4" />
+              {t('admin.newOwnerAnother')}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    )
+  }
+
   return (
-    <Modal open={open} onClose={onClose} title={t('admin.newOwnerTitle')} wide>
+    <Modal open={open} onClose={close} title={t('admin.newOwnerTitle')} wide>
       <form onSubmit={submit} className="space-y-4" noValidate>
         <p className="text-sm leading-relaxed text-ink-500">{t('admin.newOwnerBody')}</p>
 
@@ -367,6 +433,62 @@ export function NewOwnerDialog({ open, onClose }: { open: boolean; onClose: () =
           </Field>
         </div>
 
+        {/* ------------------------------------------------------ sign-in */}
+        <p className="pt-1 text-2xs font-bold uppercase tracking-[0.14em] text-ink-400">
+          {t('admin.newOwnerSectionAccount')}
+        </p>
+
+        <Notice tone="info">{t('admin.newOwnerAccountNote')}</Notice>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field
+            label={t('admin.newOwnerPassword')}
+            hint={t('admin.newOwnerPasswordHint', { n: TEMPORARY_PASSWORD_MIN_LENGTH })}
+            required
+            error={errors.temporaryPassword}
+          >
+            {(p) => (
+              // LTR as a whole, so the eye and the padding it needs sit on the
+              // same side as the typed text in the Arabic interface too.
+              <div className="relative" dir="ltr">
+                <Input
+                  {...p}
+                  type={reveal ? 'text' : 'password'}
+                  dir="ltr"
+                  // The owner's password, not the administrator's: nothing a
+                  // browser should fill in or remember for this site.
+                  autoComplete="new-password"
+                  spellCheck={false}
+                  value={temporaryPassword}
+                  onChange={(e) => setTemporaryPassword(e.target.value)}
+                  className="pe-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setReveal((v) => !v)}
+                  aria-label={t(reveal ? 'auth.hidePassword' : 'auth.showPassword')}
+                  className="absolute end-2 top-1/2 -translate-y-1/2 p-1.5 text-ink-400 hover:text-ink-700"
+                >
+                  {reveal ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
+            )}
+          </Field>
+          <Field label={t('admin.newOwnerPasswordConfirm')} required error={errors.confirmPassword}>
+            {(p) => (
+              <Input
+                {...p}
+                type={reveal ? 'text' : 'password'}
+                dir="ltr"
+                autoComplete="new-password"
+                spellCheck={false}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
+            )}
+          </Field>
+        </div>
+
         {/* --------------------------------------------------- the status */}
         <Field label={t('admin.newOwnerStatus')} hint={t('admin.newOwnerStatusHint')}>
           {() => (
@@ -389,7 +511,7 @@ export function NewOwnerDialog({ open, onClose }: { open: boolean; onClose: () =
             <UserPlus className="size-4" />
             {t('admin.newOwnerCreate')}
           </Button>
-          <Button type="button" variant="secondary" size="lg" onClick={onClose}>
+          <Button type="button" variant="secondary" size="lg" onClick={close}>
             {t('common.cancel')}
           </Button>
         </div>

@@ -1,23 +1,36 @@
 import { supabase, supabaseAnonKey, supabaseUrl } from '@/services/supabase/client'
 
 /**
- * Taking on a campaign owner, from the dashboard's side.
+ * Creating a campaign owner, from the dashboard's side.
  *
  * Everything that matters happens in the `admin-create-owner` Edge Function:
- * it re-checks with Postgres that the caller really is an administrator, creates
- * the auth account with the service role, sends the invitation, and calls
- * `admin_create_provider` to write the company row. This file posts a form and
- * reports what came back.
+ * it re-checks with Postgres that the caller really is an administrator,
+ * creates the auth account with the temporary password, calls
+ * `admin_create_provider` to write the company row, and removes the account
+ * again if the company cannot be written. This file posts a form and reports
+ * what came back. No email is sent by any of it.
  *
  * The caller's own access token goes with the request, and that is the point
  * rather than a formality — it is what the function checks `is_admin()` against.
  * A request without it, or with a pilgrim's, is refused before it reaches
  * anything privileged.
+ *
+ * The temporary password travels in the body of that one HTTPS request and
+ * nowhere else: it is not stored, logged, or returned, and the dialog forgets
+ * it as soon as the request finishes.
  */
 
+export {
+  TEMPORARY_PASSWORD_MIN_LENGTH,
+  temporaryPasswordProblem,
+  type TemporaryPasswordProblem,
+} from '../../supabase/functions/admin-create-owner/password.ts'
+
 export interface NewOwnerInput {
-  /** The person who will sign in. Also where the invitation is sent. */
+  /** The address the owner signs in with. Nothing is sent to it. */
   email: string
+  /** Set by the administrator and passed on by them. Never stored by NASEK. */
+  temporaryPassword: string
   contactName: string
   companyName: string
   tagline: string
@@ -25,6 +38,7 @@ export interface NewOwnerInput {
   wilayahId: string
   governorate: string
   experienceYears: number
+  /** Contact and WhatsApp only. Not a sign-in identity. */
   phone: string
   commercialRegistration: string
   permitNumber: string
@@ -49,43 +63,27 @@ export type CreateOwnerError =
   | 'offline'
   | 'forbidden'
   | 'permit_required'
-  | 'is_admin_account'
-  | 'invite_failed'
-  | 'exists'
+  | 'bad_request'
+  | 'weak_password'
+  | 'email_exists'
+  /** The company was refused; the new account was removed again. */
+  | 'create_failed'
+  /** The company was refused and the new account could not be removed. */
+  | 'cleanup_failed'
+  /** No answer. Whether anything was created is not known. */
+  | 'unreachable'
   | 'failed'
 
 export async function createOwnerAccount(
   input: NewOwnerInput,
-): Promise<
-  | {
-      ok: true
-      /**
-       * Whether the invitation actually went.
-       *
-       * False means the company exists and the account exists, but the message
-       * did not — a sender domain in test mode, a rate limit, SMTP unset. The
-       * owner is real and can be let in once delivery works; the dashboard says
-       * so rather than reporting a plain success.
-       */
-      invited: boolean
-      /** The mail provider's own words, when there are any. */
-      deliveryError?: string
-    }
-  | { ok: false; error: CreateOwnerError; detail?: string }
-> {
+): Promise<{ ok: true } | { ok: false; error: CreateOwnerError; detail?: string }> {
   if (!supabase || !supabaseUrl) return { ok: false, error: 'offline' }
 
   const { data: auth } = await supabase.auth.getSession()
   const token = auth.session?.access_token
   if (!token) return { ok: false, error: 'forbidden' }
 
-  let payload: {
-    ok?: boolean
-    error?: string
-    detail?: string
-    invited?: boolean
-    deliveryError?: string
-  }
+  let payload: { ok?: boolean; error?: string; detail?: string }
   try {
     const response = await fetch(
       `${supabaseUrl.replace(/\/$/, '')}/functions/v1/admin-create-owner`,
@@ -103,34 +101,27 @@ export async function createOwnerAccount(
     )
     payload = (await response.json()) as typeof payload
   } catch {
-    // A network failure, a function that is not deployed, a CORS refusal — all
-    // "the endpoint did not answer", which is a different problem from "the
-    // endpoint said no" and has to read differently.
-    return { ok: false, error: 'failed' }
+    // A network failure, a function that is not deployed, a CORS refusal, a
+    // gateway timeout with an HTML body. Any of those could also be a request
+    // that finished after the connection dropped, so this does not claim that
+    // nothing was created.
+    return { ok: false, error: 'unreachable' }
   }
 
-  if (payload?.ok) {
-    return {
-      ok: true,
-      invited: payload.invited === true,
-      deliveryError: payload.deliveryError,
-    }
-  }
+  if (payload?.ok) return { ok: true }
 
-  const detail = payload?.detail ?? ''
   const known: Record<string, CreateOwnerError> = {
     forbidden: 'forbidden',
     permit_required: 'permit_required',
-    is_admin_account: 'is_admin_account',
-    invite_failed: 'invite_failed',
+    // A path outside the caller's folder cannot come from this dialog.
+    permit_not_yours: 'failed',
+    bad_request: 'bad_request',
+    weak_password: 'weak_password',
+    email_exists: 'email_exists',
+    account_failed: 'failed',
+    create_failed: 'create_failed',
+    cleanup_failed: 'cleanup_failed',
   }
 
-  // `create_failed` carries the database's own message, and one of those is
-  // worth recognising: an address that already runs a company is a mistake an
-  // administrator can correct, not a system failure.
-  if (payload?.error === 'create_failed' && /already has a registered campaign/i.test(detail)) {
-    return { ok: false, error: 'exists', detail }
-  }
-
-  return { ok: false, error: known[payload?.error ?? ''] ?? 'failed', detail }
+  return { ok: false, error: known[payload?.error ?? ''] ?? 'failed', detail: payload?.detail }
 }

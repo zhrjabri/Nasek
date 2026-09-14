@@ -38,11 +38,11 @@ interface ImportMetaEnv {
   /**
    * And for the Campaign Owner Portal. Read only by the owner build.
    *
-   * This is where an invitation link points. An owner is created by an
-   * administrator and emailed a link; if this is unset the link is built from
-   * whatever origin the *administrator's* browser happened to be on, which is
-   * the administration host — and the owner lands on an application that will
-   * not let them in.
+   * This is where an owner's password-reset and confirmation links point. If
+   * it is unset the link is built from whatever origin the browser happened to
+   * be on, which in a deployment is not on the redirect allow-list — and the
+   * owner lands on an application that will not let them in. (An owner an
+   * administrator creates is given a temporary password and is not emailed.)
    */
   readonly VITE_OWNER_URL?: string
   /*

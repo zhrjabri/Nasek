@@ -141,7 +141,7 @@ export const ownerEn = {
   'owner.signInTitle': 'Campaign Owner Portal',
   'owner.signInSubtitle': 'Sign in with your email and password',
   'owner.passwordOnly':
-    'Campaign owners sign in with their email address and password. If NASEK invited you and you have no password yet, use the link in the invitation.',
+    'Campaign owners sign in with their email address and password. If NASEK created your account, use the email address and temporary password NASEK gave you.',
   'owner.wrongDoor':
     'This account is not a campaign owner. If you believe it should be, contact NASEK.',
   'owner.noAccount': 'Not a campaign owner yet?',
@@ -157,7 +157,7 @@ export const ownerEn = {
   // ------------------------------------------------- setting the first password
   'owner.setPasswordTitle': 'Choose your password',
   'owner.setPasswordBody':
-    'NASEK has verified your company. Set a password and the portal is yours.',
+    'Choose a new password for your Campaign Owner Portal account.',
   'owner.setPasswordCta': 'Save and open the portal',
   'owner.setPasswordFailed': 'That password was not accepted. Try a longer one.',
 

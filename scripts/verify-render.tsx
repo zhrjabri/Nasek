@@ -165,10 +165,10 @@ const ownerScreen = (node: React.ReactElement) => (
 render('the owner sign-in screen', '/', () =>
   ownerScreen(<OwnerLoginPage onSignedIn={() => {}} />),
 )
-render('the owner sign-in screen, after a dead invitation link', '/', () =>
+render('the owner sign-in screen, after a dead reset link', '/', () =>
   ownerScreen(<OwnerLoginPage onSignedIn={() => {}} linkError="expired" />),
 )
-render('the set-password screen an invitation lands on', '/', () =>
+render('the set-password screen a reset link lands on', '/', () =>
   ownerScreen(<SetPasswordPage onDone={() => {}} />),
 )
 render('the owner dashboard, which only a verified owner ever sees', '/', () =>

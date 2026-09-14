@@ -21,7 +21,7 @@ import '@/index.css'
  * No router, deliberately — see `OwnerApp`. The portal has one screen behind
  * its gate and four gate states, none of which is worth an address. That also
  * means no `HashRouter`, so nothing here competes with Supabase for the URL
- * fragment, which is where an invitation link's token arrives.
+ * fragment, which is where a password-reset link's token arrives.
  */
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -24,7 +24,7 @@ import { PendingPage, RejectedPage, SuspendedPage } from './StatusPages'
  *
  * That is the wrong order. An owner arriving at the portal is, at that moment,
  * a person who needs a login form; the four screens behind the gate are worth
- * nothing to them until they are through it, and an invited owner following a
+ * nothing to them until they are through it, and an owner following a reset
  * link on a phone is exactly the case that can least afford a megabyte first.
  *
  * `src/admin/AdminApp.tsx` makes the same split for the same reason, and the
@@ -67,13 +67,13 @@ type Gate =
    *
    * `linkError` is set when this page load *was* an arrival from an emailed
    * link and that link could not be completed. Without it the portal answered
-   * a dead invitation with a bare "Email / Password / Sign in" — which is the
-   * one screen an invited owner cannot use, because the whole point of the
-   * invitation is that they have no password yet. They were left to conclude
-   * the portal was broken, and in a sense it was.
+   * a dead reset link with a bare "Email / Password / Sign in" — which is the
+   * one screen that owner cannot use, because the whole point of the link is
+   * that they do not have a working password. They were left to conclude the
+   * portal was broken, and in a sense it was.
    */
   | { phase: 'out'; linkError?: 'expired' | 'wrong_browser' | 'failed' }
-  /** Arrived from an invitation or a reset link; owes a password. */
+  /** Arrived from an emailed link, such as a password reset; owes a password. */
   | { phase: 'password' }
   /**
    * Signed in, and owns no company yet.
@@ -94,7 +94,7 @@ type Gate =
   | { phase: 'in' }
 
 /**
- * "This account came in on an invitation and still owes a password."
+ * "This account came in on an emailed link and still owes a password."
  *
  * Kept in `sessionStorage` rather than deduced from the current URL, and that
  * is a correction of a real defect rather than belt-and-braces.
@@ -166,10 +166,9 @@ export function OwnerApp() {
      * that person is a campaign owner. Reversing it would check an anonymous
      * session and refuse a legitimate owner on their very first visit.
      *
-     * An invitation and a password reset both land here, and both mean the same
-     * thing for what happens next — there is a session, and the account either
-     * has no password or has one its holder cannot remember. Either way the
-     * next screen is the same one.
+     * A password reset lands here: there is a session, and the account has a
+     * password its holder cannot remember, so the next screen sets a new one.
+     * (Owners an administrator creates arrive with a password and no link.)
      */
     /*
      * Only the most recent check may write the gate.
@@ -177,9 +176,9 @@ export function OwnerApp() {
      * `setSession()` inside `completeAuthRedirect()` fires an auth-state change,
      * which runs `check` again while the first run is still in flight. Two runs
      * then raced to answer a question they had different information about —
-     * the first knew an invitation had just been redeemed, the second saw a
-     * cleaned URL — and whichever finished last won. That is how an invited
-     * owner could land on the dashboard, or on the login screen, at random.
+     * the first knew a link had just been redeemed, the second saw a cleaned
+     * URL — and whichever finished last won. That is how an owner arriving from
+     * a link could land on the dashboard, or on the login screen, at random.
      */
     const run = ++runRef.current
     const settle = (next: Gate) => {
@@ -202,9 +201,9 @@ export function OwnerApp() {
         return
       }
       /*
-       * An invitation or a password reset. Both mean the same thing for what
-       * happens next — there is a session, and the account either has no
-       * password or has one its holder cannot remember.
+       * A link that signed somebody in — a password reset, in the ordinary
+       * case. There is a session, and the account has no password its holder
+       * can use.
        *
        * Recorded now, while the answer is known, rather than re-derived later
        * from a URL that is about to be wiped.

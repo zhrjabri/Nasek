@@ -20,8 +20,8 @@ import { OwnerSignUpPage } from './RegisterPage'
  *   administrators  a third build, one access code
  *
  * Nothing here links to either of the others, and nothing on the public site
- * links here. A pilgrim never learns this portal exists; an owner is given its
- * address by NASEK along with their invitation.
+ * links here. A pilgrim never learns this portal exists; an owner NASEK set up
+ * is given its address along with their email and temporary password.
  *
  * REGISTERING, AND WHY IT IS BACK
  *
@@ -68,12 +68,12 @@ export function OwnerLoginPage({
 }: {
   onSignedIn: () => Promise<void> | void
   /**
-   * Set when this page load followed a dead invitation or reset link.
+   * Set when this page load followed a dead password-reset or confirmation link.
    *
-   * Without it an invited owner who clicks a spent link is shown a password
-   * form and nothing else — the one screen they cannot use, since not having a
-   * password is why they were invited. The notice below names what happened and
-   * puts them one button from a fresh link.
+   * Without it an owner who clicks a spent reset link is shown a password form
+   * and nothing else — the one screen they cannot use, since not knowing their
+   * password is why they asked for the link. The notice below names what
+   * happened and puts them one button from a fresh link.
    */
   linkError?: 'expired' | 'wrong_browser' | 'failed'
 }) {
@@ -159,8 +159,8 @@ export function OwnerLoginPage({
         <Notice tone="warn" live className="mb-5">
           <span className="block">{t(LINK_MESSAGE[linkError])}</span>
           {/* The way out, rather than an instruction to contact somebody. A
-              reset link lands on the same set-password screen the invitation
-              was going to, so an owner recovers this without NASEK. */}
+              fresh reset link lands on the set-password screen, so an owner
+              recovers this without NASEK. */}
           <button
             type="button"
             onClick={() => setResetting(true)}

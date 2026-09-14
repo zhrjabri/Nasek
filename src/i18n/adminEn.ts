@@ -339,26 +339,60 @@ export const adminEn = {
   // ==================================================== taking on an owner
   'admin.newOwnerTitle': 'Add a campaign owner',
   'admin.newOwnerBody':
-    'Enter the company as it appears on the permit, upload the permit itself, and NASEK emails an invitation. The owner sets their own password and signs in at the Campaign Owner Portal. There is no public registration.',
-  'admin.newOwnerCreate': 'Create and send the invitation',
-  'admin.newOwnerCreated': '{name} has been added and invited',
-  'admin.newOwnerCreatedNoEmail':
-    '{name} has been added, but the invitation could not be sent. The account exists — check email delivery, then ask them to use “forgot password” on the owner portal.',
-  'admin.newOwnerEmailHint': 'Where the invitation goes, and the address they will sign in with.',
+    'Enter the company as it appears on the permit, upload the permit itself, and set the email address and temporary password the owner will sign in with. The account is ready immediately — nothing is emailed, so give the owner their temporary password yourself.',
+  'admin.newOwnerCreate':
+    'Create the account',
+  'admin.newOwnerCreated':
+    '{name} is ready',
+  'admin.newOwnerEmailHint':
+    'The address the owner signs in with. NASEK sends nothing to it.',
   'admin.newOwnerStatus': 'Verification',
   'admin.newOwnerStatusHint':
     'Approved is the usual answer — you have the permit in front of you. Choose the queue only when you are taking a company on before the paperwork is complete.',
   'admin.newOwnerButton': 'Add campaign owner',
   'admin.newOwnerOffline': 'This needs a configured backend. Nothing has been created.',
   'admin.newOwnerForbidden': 'That was refused. Sign in again and retry.',
-  'admin.newOwnerIsAdmin':
-    'That address belongs to an administrator account, which cannot also run a campaign. Use a different address.',
-  'admin.newOwnerInviteFailed':
-    'The company could not be created because the invitation could not be sent. Check the email settings and try again.',
-  'admin.newOwnerExists': 'That account already runs a campaign on NASEK.',
   'admin.newOwnerFailed': 'That could not be completed. Nothing has been created.',
+  'admin.newOwnerCreatedBody':
+    'The account for {email} has been created. The owner can sign in at the Campaign Owner Portal now, with this email address and the temporary password you set. No email was sent — pass the password on to them privately.',
+  'admin.newOwnerDone':
+    'Done',
+  'admin.newOwnerAnother':
+    'Add another',
+  'admin.newOwnerSectionAccount':
+    'Sign-in',
+  'admin.newOwnerAccountNote':
+    'The owner signs in with the email address above and this temporary password. The phone number is for contact and WhatsApp only — it cannot be used to sign in.',
+  'admin.newOwnerPassword':
+    'Temporary password',
+  'admin.newOwnerPasswordHint':
+    'At least {n} characters. It is not shown again after the account is created.',
+  'admin.newOwnerPasswordConfirm':
+    'Confirm temporary password',
+  'admin.newOwnerPasswordShort':
+    'Use at least {n} characters.',
+  'admin.newOwnerPasswordLong':
+    'That is too long for the sign-in service. Use something shorter.',
+  'admin.newOwnerPasswordSpaces':
+    'Remove the space at the start or end.',
+  'admin.newOwnerPasswordSimple':
+    'Too repetitive. Use a mix of different characters.',
+  'admin.newOwnerPasswordIsEmail':
+    'The password cannot be the email address.',
+  'admin.newOwnerPasswordMismatch':
+    'The two passwords do not match.',
+  'admin.newOwnerWeakPassword':
+    'The sign-in service did not accept that password. Nothing has been created.',
+  'admin.newOwnerEmailExists':
+    'That email address already has a NASEK account. Nothing has been created — use a different address.',
+  'admin.newOwnerCreateFailed':
+    'The company could not be saved, so the new account was removed again. Nothing has been kept.',
+  'admin.newOwnerCleanupFailed':
+    'The company could not be saved, and the new account for this address could not be removed automatically. Remove it in Supabase → Authentication → Users before trying again.',
+  'admin.newOwnerUnreachable':
+    'The server did not answer. Check the owners list before trying again — the account may already have been created.',
   'admin.newOwnerNoneBody':
-    'No campaign owners yet. Add the first one — NASEK emails them an invitation to the Campaign Owner Portal.',
+    'No campaign owners yet. Add the first one — you set their email and a temporary password, and they sign in at the Campaign Owner Portal.',
 
   // =========================================== owner profile change review
   'admin.ownerChangesTitle': 'A campaign owner profile update is awaiting review',

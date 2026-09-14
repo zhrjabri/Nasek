@@ -116,7 +116,7 @@ const TABS: { id: Tab; key: MessageKey; icon: typeof LayoutGrid }[] = [
  *
  * This was `useSearchParams`, and that could not work here: the Campaign Owner
  * Portal mounts no `Router` at all — deliberately, so that nothing competes
- * with Supabase for the URL fragment an invitation link arrives in — and every
+ * with Supabase for the URL fragment a password-reset link arrives in — and every
  * router hook throws outside one. React draws this page, `useSearchParams`
  * calls `useLocation`, and the render dies with
  *

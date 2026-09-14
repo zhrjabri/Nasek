@@ -64,7 +64,7 @@ to know whose. The dashboard now opens on a single access code checked by the
 nothing left for it to name — and no runtime code has read it since.
 
 `VITE_SITE_URL`, `VITE_OWNER_URL` and `VITE_ADMIN_URL` are what a sign-in or
-invitation email points at. Without them the app falls
+password-reset email points at. Without them the app falls
 back to the origin the page happens to be served on, which is right in
 development and wrong in a deployment: a preview build's origin changes on
 every push, so it is never on the Supabase redirect allow-list, and Supabase

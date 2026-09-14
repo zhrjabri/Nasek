@@ -46,8 +46,9 @@ registration.
 
 ### Campaign Owner Portal
 
-A separate portal for campaign operators, reached only by invitation — there is no public
-registration. Sign-in is **email plus password**.
+A separate portal for campaign operators. An owner either registers there (pending until an
+administrator approves the permit) or is created by an administrator with a temporary
+password. Sign-in is **email plus password**; the company phone is contact information only.
 
 Company profile · campaign management (create, edit, publish, withdraw) · bookings ·
 customers · reviews and replies · notifications · analytics. Changes to verified company

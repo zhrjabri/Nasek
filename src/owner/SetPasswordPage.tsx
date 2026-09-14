@@ -6,24 +6,26 @@ import { Button, Field, Input, Notice } from '@/components/ui'
 import { OwnerAuthShell } from './layout/OwnerShell'
 
 /**
- * The last step of an invitation.
+ * The last step of a password reset.
  *
- * An administrator creates the company, checks the permit and sends an
- * invitation; Supabase emails a link; the link lands here with a session
- * already established but no password on the account. This screen sets one, and
- * from then on the owner signs in the ordinary way.
+ * An owner who has forgotten their password asks for a reset on the sign-in
+ * screen; Supabase emails a link; the link lands here with a session already
+ * established. This screen sets a new password, and from then on the owner
+ * signs in the ordinary way.
  *
- * WHY A SESSION EXISTS BEFORE A PASSWORD DOES
+ * Owners an administrator creates do not come through here: the administrator
+ * sets a temporary password when creating the account, and nothing is emailed.
  *
- * That is what an invite link *is* — proof of control of the address, redeemed
- * for a session, exactly as a magic link is. It is the same authority a password
- * reset rests on, which is why `updateUser({ password })` is allowed to set one
- * without asking for the old one: there is no old one, and the link was the
- * proof.
+ * WHY A SESSION EXISTS BEFORE A NEW PASSWORD DOES
+ *
+ * That is what a recovery link *is* — proof of control of the address, redeemed
+ * for a session, exactly as a magic link is. It is the same authority any
+ * password reset rests on, which is why `updateUser({ password })` is allowed
+ * to set one without asking for the old one: the link was the proof.
  *
  * The screen is reached only from a link. Nothing navigates here, and an owner
- * who already has a password never sees it — `OwnerApp` shows it only when this
- * page load carried an invitation or a recovery token.
+ * who signs in with their password never sees it — `OwnerApp` shows it only
+ * when this page load carried a token.
  */
 export function SetPasswordPage({ onDone }: { onDone: () => Promise<void> | void }) {
   const { t } = useI18n()

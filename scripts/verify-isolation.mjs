@@ -364,8 +364,8 @@ const FALLBACK_MACHINERY = [
    * keeping so nobody restores it.
    *
    * It failed in both directions. Too loose: the owner portal acquired an
-   * unrelated reason to write to session storage — remembering that an invited
-   * owner still owes a password — and the build failed for a change that had
+   * unrelated reason to write to session storage — remembering that an owner
+   * arriving from a reset link still owes a password — and the build failed for a change that had
    * nothing to do with sign-in codes. Too strict, once replaced with the
    * literal `DEMO_KEY`: minification keeps the key string and the *clear-down*
    * half of `writeDemo`, so the public bundle legitimately contains

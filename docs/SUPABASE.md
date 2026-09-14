@@ -267,7 +267,7 @@ to come back to *itself*:
 | Application | Emails | Build variable |
 | --- | --- | --- |
 | Customer site | the pilgrim's one-time code / sign-in link | `VITE_SITE_URL` |
-| Campaign Owner Portal | the invitation an administrator sends, and password resets | `VITE_OWNER_URL` |
+| Campaign Owner Portal | password resets and self-registration confirmations | `VITE_OWNER_URL` |
 | Administration | nothing routine — the access code needs no email | `VITE_ADMIN_URL` |
 
 Every one of those addresses must be on **Authentication → URL Configuration →
@@ -289,11 +289,10 @@ silently substitutes the Site URL, which for a three-application project is
 wrong two times in three. `npm run auth:urls` checks this from the outside, and
 `npm run auth:urls -- --apply` fixes it.
 
-The one that bites hardest is the owner portal. An administrator adds a company
-from the dashboard on `admin.nasek.om`; the invitation is built from
-`NASEK_OWNER_PORTAL_URL`, a secret of the `admin-create-owner` function; and if
-that address is missing from the allow-list the new owner lands on the
-administration host, which will not let them in and cannot tell them why.
+The one that bites hardest is the owner portal: if its address is missing from
+the allow-list, an owner's password-reset link lands on the Site URL instead,
+which will not let them in and cannot tell them why. (An owner an administrator
+creates is not emailed at all — see §8a.)
 
 > **Continue with Google is gone.** The customer site had it, conditional on the
 > project having Google enabled. The brief for the three-door split was one
@@ -431,21 +430,22 @@ supabase functions deploy send-emails
 ### a. Adding campaign owners
 
 `admin-create-owner` is what the **Add campaign owner** button on the
-administration dashboard calls. There is no public registration any more: an
-administrator enters the company, uploads the permit, and NASEK emails an
-invitation to the Campaign Owner Portal where the owner sets their own password.
+administration dashboard calls. An administrator enters the company, uploads the
+permit, and sets the owner's sign-in email and a temporary password. The
+function creates the auth account (confirmed, with that password) and the
+company in one request; the owner then signs in at the Campaign Owner Portal
+with email and password. **Nothing is emailed**, so it does not depend on SMTP
+or Resend — the administrator passes the temporary password on themselves.
+Owners can still register themselves on the portal; that path is separate.
 
-It needs one secret beyond the platform's own, and getting it wrong is the
-mistake that shows up latest:
+It needs no secrets beyond the platform's own. (`NASEK_OWNER_PORTAL_URL` is no
+longer read by this function, but keep it: `send-emails` still uses it to link
+decision emails to the portal.)
 
-```bash
-supabase secrets set NASEK_OWNER_PORTAL_URL="https://<your owner portal>/"
-```
-
-That is the **portal's** address, not the dashboard's. The invitation is built
-from it, and it must also be on the project's Redirect URLs (§5) — otherwise
-Supabase substitutes the Site URL and the new owner lands on the customer site,
-which has no portal on it.
+If the company cannot be written after the account was created, the function
+deletes that new account again (only when no company points at it) and removes
+the uploaded permit, so a failed attempt leaves nothing behind. An address that
+already has any NASEK account is refused rather than reused.
 
 ### b. The administration access code
 

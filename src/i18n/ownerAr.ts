@@ -132,7 +132,7 @@ export const ownerAr: Record<OwnerMessageKey, string> = {
   'owner.signInTitle': 'بوابة أصحاب الحملات',
   'owner.signInSubtitle': 'سجّل الدخول بالبريد الإلكتروني وكلمة المرور',
   'owner.passwordOnly':
-    'يسجّل أصحاب الحملات الدخول ببريدهم الإلكتروني وكلمة المرور. وإن دعتك ناسِك ولم تضع كلمة مرور بعد، فاستخدم الرابط في الدعوة.',
+    'يسجّل أصحاب الحملات الدخول ببريدهم الإلكتروني وكلمة المرور. وإن أنشأت ناسِك حسابك، فاستخدم البريد الإلكتروني وكلمة المرور المؤقتة اللذين زوّدتك بهما ناسِك.',
   'owner.wrongDoor': 'هذا الحساب ليس حساب صاحب حملة. إن كنت ترى غير ذلك فتواصل مع ناسِك.',
   'owner.noAccount': 'لست صاحب حملة بعد؟',
   'owner.forgot': 'نسيت كلمة المرور؟',
@@ -145,7 +145,8 @@ export const ownerAr: Record<OwnerMessageKey, string> = {
   'owner.signOut': 'تسجيل الخروج',
 
   'owner.setPasswordTitle': 'اختر كلمة المرور',
-  'owner.setPasswordBody': 'اعتمدت ناسِك شركتك. عيّن كلمة مرور لتصبح البوابة لك.',
+  'owner.setPasswordBody':
+    'اختر كلمة مرور جديدة لحسابك في بوابة أصحاب الحملات.',
   'owner.setPasswordCta': 'احفظ وافتح البوابة',
   'owner.setPasswordFailed': 'لم تُقبل كلمة المرور. جرّب واحدة أطول.',
 
